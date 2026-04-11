@@ -1,4 +1,16 @@
 {
     "home": "Home",
-    "favorite": "Favorite"
+    "favorite": "Favorite",
+    "app_title": "Rick and Morty",
+    "favorites_title": "Favorites",
+    "no_favorites": "No favorites yet",
+    "last_location": "Last location:",
+    "status": "Status",
+    "species": "Species",
+    "gender": "Gender",
+    "origin": "Origin",
+    "created_at": "Created at",
+    "close": "Close",
+    "retry": "Retry",
+    "error_oops": "Oops!"
 }

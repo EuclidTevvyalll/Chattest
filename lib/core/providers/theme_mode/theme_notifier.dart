@@ -11,7 +11,7 @@ class ThemeNotifier extends Notifier<ThemeMode> {
     return savedMode;
   }
 
-  void toggleTheme() {
+  void switchTheme() {
     if (state == ThemeMode.dark) {
       state = ThemeMode.light;
       shared.setString('app_theme_mode', 'light');

@@ -106,6 +106,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Favorite'**
   String get favorite;
+
+  /// No description provided for @app_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Rick and Morty'**
+  String get app_title;
+
+  /// No description provided for @favorites_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get favorites_title;
+
+  /// No description provided for @no_favorites.
+  ///
+  /// In en, this message translates to:
+  /// **'No favorites yet'**
+  String get no_favorites;
+
+  /// No description provided for @last_location.
+  ///
+  /// In en, this message translates to:
+  /// **'Last location:'**
+  String get last_location;
+
+  /// No description provided for @status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get status;
+
+  /// No description provided for @species.
+  ///
+  /// In en, this message translates to:
+  /// **'Species'**
+  String get species;
+
+  /// No description provided for @gender.
+  ///
+  /// In en, this message translates to:
+  /// **'Gender'**
+  String get gender;
+
+  /// No description provided for @origin.
+  ///
+  /// In en, this message translates to:
+  /// **'Origin'**
+  String get origin;
+
+  /// No description provided for @created_at.
+  ///
+  /// In en, this message translates to:
+  /// **'Created at'**
+  String get created_at;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @error_oops.
+  ///
+  /// In en, this message translates to:
+  /// **'Oops!'**
+  String get error_oops;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

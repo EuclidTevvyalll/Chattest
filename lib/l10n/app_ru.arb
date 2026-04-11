@@ -1,4 +1,16 @@
 {
     "home": "Главная",
-    "favorite": "Избранное"
+    "favorite": "Избранное",
+    "app_title": "Рик и Морти",
+    "favorites_title": "Избранное",
+    "no_favorites": "Пока нет избранных",
+    "last_location": "Последняя локация:",
+    "status": "Статус",
+    "species": "Вид",
+    "gender": "Пол",
+    "origin": "Происхождение",
+    "created_at": "Дата создания",
+    "close": "Закрыть",
+    "retry": "Повторить",
+    "error_oops": "Ой!"
 }

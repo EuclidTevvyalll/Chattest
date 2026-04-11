@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:rickandmorty/core/router/routes.dart';
 import 'package:rickandmorty/features/main_layout/presentation/screens/main_screen.dart';
+import 'package:rickandmorty/features/home_screen/presentation/screens/home_screen.dart';
+import 'package:rickandmorty/features/favorite_screen/presentation/screens/favorite_screen.dart';
 import 'package:rickandmorty/widgets/navigation_bar.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -34,14 +36,13 @@ final routerProvider = Provider.autoDispose<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: Routes.home,
-            builder: (context, state) =>
-                const Center(child: Text('Home Screen')),
+            builder: (context, state) => const HomeScreen(),
           ),
           GoRoute(
             path: Routes.favorite,
-            builder: (context, state) =>
-                const Center(child: Text('Favorite Screen')),
+            builder: (context, state) => const FavoriteScreen(),
           ),
+
         ],
       ),
     ],
@@ -49,7 +50,6 @@ final routerProvider = Provider.autoDispose<GoRouter>((ref) {
 });
 
 int _calculateSelectedIndex(String location) {
-  if (location.startsWith(Routes.home)) return 1;
-  if (location.startsWith(Routes.favorite)) return 2;
+  if (location == Routes.favorite) return 1;
   return 0;
 }

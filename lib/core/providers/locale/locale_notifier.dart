@@ -11,8 +11,13 @@ class LocaleNotifier extends Notifier<Locale> {
     return locale;
   }
 
-  void changeLocale(String locale) {
-    state = Locale(locale);
-    shared.setString('app_locale', locale);
+  void switchLocale() {
+    if (state == Locale('ru')) {
+      state = Locale('en');
+      shared.setString('app_language', 'en');
+    } else {
+      state = Locale('ru');
+      shared.setString('app_language', 'ru');
+    }
   }
 }

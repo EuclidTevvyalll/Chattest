@@ -34,7 +34,7 @@ class BottomNavBar extends StatelessWidget {
           ],
         ),
         child: GlassBox(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
           opacity: isDark ? 0.35 : 0.75,
           blur: 20,
           borderRadius: BorderRadius.circular(28),
