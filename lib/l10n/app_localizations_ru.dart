@@ -8,5 +8,9 @@ import 'app_localizations.dart';
 class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
+  @override
+  String get home => 'Главная';
 
+  @override
+  String get favorite => 'Избранное';
 }
