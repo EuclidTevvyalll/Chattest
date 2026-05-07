@@ -30,19 +30,14 @@ class SupabaseChatRepository implements ChatRepository {
 
           final List roomsData = await _client
               .from('rooms')
-              .select('*, room_participants(profiles(*)), messages(content, created_at)')
+              .select('*, messages(content, created_at)')
               .inFilter('id', roomIds)
               .order('created_at', referencedTable: 'messages', ascending: false)
               .limit(1, referencedTable: 'messages');
 
           return roomsData.map((roomMap) {
             final room = Map<String, dynamic>.from(roomMap);
-            final participantsRaw = room['room_participants'] as List?;
-            
-            final participantsList = (participantsRaw ?? [])
-                .map((p) => p['profiles'] != null ? ProfileModel.fromJson(p['profiles']) : null)
-                .whereType<ProfileModel>()
-                .toList();
+            final participantsList = <ProfileModel>[];
 
             // Get the last message from the nested messages list
             final messages = room['messages'] as List?;
@@ -202,7 +197,10 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<List<ProfileModel>> getProfiles() async {
-    final data = await _client.from('profiles').select().order('username');
+    final data = await _client
+        .from('profiles')
+        .select('id, username, nickname, avatar_url, is_online')
+        .order('username');
     return (data as List).map((json) => ProfileModel.fromJson(json)).toList();
   }
 
@@ -210,11 +208,24 @@ class SupabaseChatRepository implements ChatRepository {
   Future<ProfileModel?> getProfileByUsername(String username) async {
     final data = await _client
         .from('profiles')
-        .select()
+        .select('id, username, nickname, avatar_url, is_online')
         .ilike('username', username)
         .maybeSingle();
     
     if (data == null) return null;
     return ProfileModel.fromJson(data);
+  }
+
+  @override
+  Future<List<ProfileModel>> getRoomParticipants(String roomId) async {
+    final data = await _client
+        .from('room_participants')
+        .select('profiles(id, username, nickname, avatar_url, is_online)')
+        .eq('room_id', roomId);
+    
+    return (data as List)
+        .map((p) => p['profiles'] != null ? ProfileModel.fromJson(p['profiles']) : null)
+        .whereType<ProfileModel>()
+        .toList();
   }
 }

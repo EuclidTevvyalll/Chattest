@@ -12,6 +12,7 @@ _ProfileModel _$ProfileModelFromJson(Map<String, dynamic> json) =>
       username: json['username'] as String,
       nickname: json['nickname'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      avatarBase64: json['avatar_base64'] as String?,
       isOnline: json['is_online'] as bool?,
       createdAt: json['created_at'] == null
           ? null
@@ -31,6 +32,7 @@ Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
       'username': instance.username,
       'nickname': instance.nickname,
       'avatar_url': instance.avatarUrl,
+      'avatar_base64': instance.avatarBase64,
       'is_online': instance.isOnline,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),

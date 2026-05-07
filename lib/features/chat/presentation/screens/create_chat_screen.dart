@@ -253,9 +253,22 @@ class CreateChatScreen extends HookConsumerWidget {
                         },
                       );
                     },
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (err, st) => Center(child: Text('Ошибка: $err')),
+                    loading: () => const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: ThemeColors.blue,
+                      ),
+                    ),
+                    error: (err, st) => Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 32),
+                          const SizedBox(height: 8),
+                          Text('Ошибка загрузки пользователей', style: ThemeTextStyles.caption(isDark: isDark)),
+                        ],
+                      ),
+                    ),
                   ),
                 )
               else

@@ -12,6 +12,8 @@ import 'package:rickandmorty/widgets/liquidglass_container.dart';
 import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
+import 'package:rickandmorty/features/profile/presentation/providers/profile_provider.dart';
+import 'dart:typed_data';
 
 class ChatDetailScreen extends HookConsumerWidget {
   final String roomId;
@@ -35,20 +37,32 @@ class ChatDetailScreen extends HookConsumerWidget {
     final authUser = ref.watch(authUserProvider);
     final currentUserId = authUser?.id ?? Supabase.instance.client.auth.currentUser?.id;
 
+    final participantsAsync = ref.watch(roomParticipantsProvider(roomId));
+    
     final room = roomsAsync.value?.where((r) => r.id == roomId).firstOrNull;
-    String title = 'Чат';
+    String title = 'Загрузка...';
     String? avatarUrl;
+    Uint8List? avatarBase64;
     bool isOnline = false;
-
+ 
     if (room != null) {
       if (room.type == RoomType.room) {
-        final other = room.participants.firstWhere(
-          (p) => p.id != currentUserId,
-          orElse: () => room.participants.first,
-        );
-        title = other.nickname ?? other.username;
-        avatarUrl = other.avatarUrl;
-        isOnline = other.isOnline ?? false;
+        participantsAsync.whenData((participants) {
+          if (participants.isNotEmpty) {
+            final other = participants.firstWhere(
+              (p) => p.id != currentUserId,
+              orElse: () => participants.first,
+            );
+            title = other.nickname ?? other.username;
+            avatarUrl = other.avatarUrl;
+            isOnline = other.isOnline ?? false;
+            
+            avatarBase64 = ref.watch(userAvatarBase64Provider(other.id)).asData?.value;
+          }
+        });
+        
+        // If still loading or empty, use placeholders but keep "room" logic
+        if (title == 'Загрузка...' && room.name != null) title = room.name!;
       } else {
         title = room.name ?? 'Группа';
         avatarUrl = room.avatarUrl;
@@ -127,10 +141,18 @@ class ChatDetailScreen extends HookConsumerWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: ThemeColors.blue.withValues(alpha: 0.1),
-                    backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                    child: avatarUrl == null 
-                      ? Text(title[0].toUpperCase(), style: TextStyle(color: ThemeColors.blue, fontSize: 14)) 
-                      : null,
+                    backgroundImage: avatarBase64 != null 
+                      ? MemoryImage(avatarBase64!)
+                      : (avatarUrl != null ? NetworkImage(avatarUrl!) : null),
+                    child: participantsAsync.isLoading
+                      ? const SizedBox(
+                          width: 15,
+                          height: 15,
+                          child: CircularProgressIndicator(strokeWidth: 1.5, color: ThemeColors.blue),
+                        )
+                      : (avatarUrl == null && avatarBase64 == null
+                          ? Text(title.isNotEmpty ? title[0].toUpperCase() : '?', style: TextStyle(color: ThemeColors.blue, fontSize: 14)) 
+                          : null),
                   ),
                   if (isOnline)
                     Positioned(
@@ -195,8 +217,31 @@ class ChatDetailScreen extends HookConsumerWidget {
                       );
                     },
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Ошибка: $err')),
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      color: ThemeColors.blue,
+                    ),
+                  ),
+                  error: (err, stack) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline_rounded, size: 48, color: Colors.redAccent),
+                        const SizedBox(height: 16),
+                        Text('Ошибка загрузки сообщений', style: ThemeTextStyles.h3(isDark: isDark)),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => ref.invalidate(messagesProvider(roomId)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ThemeColors.blue,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Повторить', style: TextStyle(color: Colors.white)),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               

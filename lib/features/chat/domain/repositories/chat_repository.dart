@@ -12,4 +12,5 @@ abstract class ChatRepository {
   Future<String?> createRoom(List<String> participantIds);
   Future<String?> createGroup(String name, List<String> participantIds);
   Future<String?> createChannel(String name, String? description);
+  Future<List<ProfileModel>> getRoomParticipants(String roomId);
 }

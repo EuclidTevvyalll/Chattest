@@ -47,3 +47,7 @@ final messagesProvider = StreamProvider.family<List<MessageModel>, String>((ref,
   return ref.watch(chatRepositoryProvider).watchMessages(roomId);
 });
 
+final roomParticipantsProvider = FutureProvider.family<List<ProfileModel>, String>((ref, roomId) {
+  return ref.watch(chatRepositoryProvider).getRoomParticipants(roomId);
+});
+

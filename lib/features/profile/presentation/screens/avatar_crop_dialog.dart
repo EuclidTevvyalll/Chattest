@@ -1,6 +1,7 @@
-import 'dart:typed_data';
 import 'package:crop_your_image/crop_your_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';
 
@@ -15,6 +16,7 @@ class AvatarCropDialog extends StatefulWidget {
 
 class _AvatarCropDialogState extends State<AvatarCropDialog> {
   final _cropController = CropController();
+  bool _isProcessing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -44,19 +46,43 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
               child: SizedBox(
                 height: 350,
                 width: double.infinity,
-                child: Crop(
-                  image: widget.image,
-                  controller: _cropController,
-                  onCropped: (result) {
-                    if (result is CropSuccess) {
-                      Navigator.pop(context, result.croppedImage);
-                    }
-                  },
-                  aspectRatio: 1,
-                  withCircleUi: true,
-                  baseColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
-                  maskColor: Colors.black.withValues(alpha: 0.6),
-                  interactive: true,
+                child: Stack(
+                  children: [
+                    Crop(
+                      image: widget.image,
+                      controller: _cropController,
+                      onCropped: (result) async {
+                        if (result is CropSuccess) {
+                          setState(() => _isProcessing = true);
+                          
+                          final navigator = Navigator.of(context);
+                          try {
+                            final processedImage = await compute(_processImage, result.croppedImage);
+                            if (mounted) {
+                              Future.microtask(() => navigator.pop(processedImage));
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              Future.microtask(() => navigator.pop(result.croppedImage));
+                            }
+                          }
+                        }
+                        if (mounted) setState(() => _isProcessing = false);
+                      },
+                      aspectRatio: 1,
+                      withCircleUi: true,
+                      baseColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+                      maskColor: Colors.black.withValues(alpha: 0.6),
+                      interactive: !_isProcessing,
+                    ),
+                    if (_isProcessing)
+                      Container(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        child: const Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
@@ -65,7 +91,7 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
               children: [
                 Expanded(
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _isProcessing ? null : () => Navigator.pop(context),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -84,7 +110,7 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _cropController.crop(),
+                    onPressed: _isProcessing ? null : () => _cropController.crop(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ThemeColors.blue,
                       foregroundColor: Colors.white,
@@ -94,10 +120,20 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Подтвердить',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    child: _isProcessing
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Подтвердить',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
                   ),
                 ),
               ],
@@ -107,4 +143,18 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
       ),
     );
   }
+}
+
+/// Independent function to be run in a separate isolate
+Uint8List _processImage(Uint8List input) {
+  final image = img.decodeImage(input);
+  if (image == null) return input;
+
+  // Extreme compression to 128x128 and 40% quality (approx 2-4 KB)
+  // This is the absolute safest size for problematic Windows networks
+  final resized = img.copyResize(image, width: 128, height: 128);
+  final compressed = Uint8List.fromList(img.encodeJpg(resized, quality: 40));
+  
+  debugPrint('Avatar size: ${compressed.length} bytes (Extremely optimized)');
+  return compressed;
 }
