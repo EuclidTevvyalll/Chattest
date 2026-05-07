@@ -1,19 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:rickandmorty/core/router/routes.dart';
 import 'package:rickandmorty/features/main_layout/presentation/screens/main_screen.dart';
-import 'package:rickandmorty/features/home_screen/presentation/screens/home_screen.dart';
-import 'package:rickandmorty/features/favorite_screen/presentation/screens/favorite_screen.dart';
 import 'package:rickandmorty/widgets/navigation_bar.dart';
+import 'package:rickandmorty/features/chat/presentation/screens/chat_list_screen.dart';
+import 'package:rickandmorty/features/chat/presentation/screens/chat_detail_screen.dart';
+
+import 'dart:async';
+import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
+import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
+
+import 'package:rickandmorty/features/chat/presentation/screens/create_chat_screen.dart';
+import 'package:rickandmorty/features/auth/presentation/screens/auth_screen.dart';
+import 'package:rickandmorty/features/profile/presentation/screens/profile_screen.dart';
+import 'package:rickandmorty/features/chat/presentation/screens/chat_info_screen.dart';
+
+
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
-final routerProvider = Provider.autoDispose<GoRouter>((ref) {
+class AuthListenable extends ChangeNotifier {
+  AuthListenable(Stream<AuthState> authStateStream) {
+    _subscription = authStateStream.listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<AuthState> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
+final authListenableProvider = Provider<AuthListenable>((ref) {
+  final stream = ref.watch(authRepositoryProvider).onAuthStateChange;
+  return AuthListenable(stream);
+});
+
+final routerProvider = Provider<GoRouter>((ref) {
+  // Use listen to ensure we don't recreate the router if authListenable changes
+  // (though it shouldn't as it's not autoDispose now)
+  final authListenable = ref.read(authListenableProvider);
+
+
   return GoRouter(
-    initialLocation: Routes.home,
+    initialLocation: Routes.auth,
     navigatorKey: _rootNavigatorKey,
+    refreshListenable: authListenable,
+
+    redirect: (context, state) {
+      final session = Supabase.instance.client.auth.currentSession;
+      final isAuth = session != null;
+      final isAuthRoute = state.uri.path == Routes.auth;
+
+      if (!isAuth && !isAuthRoute) {
+        return Routes.auth;
+      }
+      if (isAuth && isAuthRoute) {
+        return Routes.chat;
+      }
+      return null;
+    },
+
     routes: [
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -23,10 +77,13 @@ final routerProvider = Provider.autoDispose<GoRouter>((ref) {
             onTap: (index) {
               switch (index) {
                 case 0:
-                  context.go(Routes.home);
+                  context.go(Routes.chat);
                   break;
                 case 1:
-                  context.go(Routes.favorite);
+                  // Placeholder for Contacts
+                  break;
+                case 2:
+                  context.go(Routes.profile);
                   break;
               }
             },
@@ -35,21 +92,56 @@ final routerProvider = Provider.autoDispose<GoRouter>((ref) {
         ),
         routes: [
           GoRoute(
-            path: Routes.home,
-            builder: (context, state) => const HomeScreen(),
+            path: Routes.chat,
+            builder: (context, state) => const ChatListScreen(),
           ),
           GoRoute(
-            path: Routes.favorite,
-            builder: (context, state) => const FavoriteScreen(),
+            path: Routes.profile,
+            builder: (context, state) => const ProfileScreen(),
           ),
-
         ],
+      ),
+      GoRoute(
+        name: 'chat_detail',
+        path: '/chat/:roomId',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final id = state.pathParameters['roomId']!;
+          final typeStr = state.uri.queryParameters['type'];
+          final type = RoomType.values.firstWhere(
+            (e) => e.name == typeStr,
+            orElse: () => RoomType.room,
+          );
+          return ChatDetailScreen(roomId: id, type: type);
+        },
+      ),
+      GoRoute(
+        name: 'chat_info',
+        path: '/chat/:roomId/info',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final id = state.pathParameters['roomId']!;
+          return ChatInfoScreen(roomId: id);
+        },
+      ),
+
+
+      GoRoute(
+        path: Routes.auth,
+        builder: (context, state) => const AuthScreen(),
+      ),
+      GoRoute(
+        path: '/create-chat',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const CreateChatScreen(),
       ),
     ],
   );
 });
 
 int _calculateSelectedIndex(String location) {
-  if (location == Routes.favorite) return 1;
+  if (location == Routes.chat) return 0;
+  if (location == Routes.profile) return 2;
   return 0;
 }
+

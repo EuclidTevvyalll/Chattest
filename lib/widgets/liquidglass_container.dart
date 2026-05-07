@@ -35,8 +35,11 @@ class GlassBox extends StatelessWidget {
             borderRadius: borderRadius,
             border:
                 border ??
-                Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
+                Border.all(color: color.withValues(alpha: 0.1), width: 1.0),
+
           ),
+
+
           child: child,
         ),
       ),

@@ -24,6 +24,13 @@ dependencies:
   shared_preferences: ^2.5.5
   dio: ^5.8.0
   fpdart: ^1.1.0
+  supabase_flutter: ^2.12.4
+  rxdart: ^0.28.0
+  image_picker: ^1.1.2
+  file_selector_windows: ^0.9.3+5
+  crop_your_image: ^2.0.0
+  path_provider: ^2.1.5
+
 
 
 dev_dependencies:

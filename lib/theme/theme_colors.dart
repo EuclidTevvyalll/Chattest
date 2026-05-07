@@ -8,4 +8,11 @@ abstract class ThemeColors {
   static const Color grey = Color(0xff656872);
   static const Color inputLight = Color.fromARGB(25, 240, 240, 240);
   static const Color inputDark = Color.fromARGB(50, 30, 30, 30);
+
+  static const LinearGradient primaryGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [blue, purple],
+  );
 }
+

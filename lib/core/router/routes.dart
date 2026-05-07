@@ -1,4 +1,8 @@
 abstract class Routes {
-  static const home = '/';
-  static const favorite = '/favorite';
+  static const chat = '/';
+  static const chatDetail = '/chat/:id';
+  static const auth = '/auth';
+  static const profile = '/profile';
+  static const chatInfo = '/chat/:roomId/info';
 }
+

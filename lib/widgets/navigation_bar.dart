@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:rickandmorty/l10n/app_localizations.dart';
+
 import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';
@@ -105,13 +105,21 @@ class NavBarItem {
 
 List<NavBarItem> navBarItems(BuildContext context) => [
   NavBarItem(
-    icon: Icons.home_outlined,
-    activeIcon: Icons.home_rounded,
-    label: AppLocalizations.of(context)!.home,
+    icon: Icons.chat_bubble_outline_rounded,
+    activeIcon: Icons.chat_bubble_rounded,
+    label: 'Chats',
+  ),
+
+  NavBarItem(
+    icon: Icons.people_outline_rounded,
+    activeIcon: Icons.people_rounded,
+    label: 'Contacts',
   ),
   NavBarItem(
-    icon: Icons.favorite_outline,
-    activeIcon: Icons.favorite,
-    label: AppLocalizations.of(context)!.favorite,
+    icon: Icons.settings_outlined,
+    activeIcon: Icons.settings_rounded,
+    label: 'Settings',
   ),
 ];
+
+
