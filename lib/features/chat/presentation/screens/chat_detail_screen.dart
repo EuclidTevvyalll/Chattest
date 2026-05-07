@@ -36,7 +36,7 @@ class ChatDetailScreen extends HookConsumerWidget {
     final currentUserId = authUser?.id ?? Supabase.instance.client.auth.currentUser?.id;
 
     final room = roomsAsync.value?.where((r) => r.id == roomId).firstOrNull;
-    String title = 'Chat';
+    String title = 'Чат';
     String? avatarUrl;
     bool isOnline = false;
 
@@ -50,7 +50,7 @@ class ChatDetailScreen extends HookConsumerWidget {
         avatarUrl = other.avatarUrl;
         isOnline = other.isOnline ?? false;
       } else {
-        title = room.name ?? 'Group';
+        title = room.name ?? 'Группа';
         avatarUrl = room.avatarUrl;
       }
     }
@@ -97,7 +97,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                 .where((m) => m.id != temporaryMessage.id)
                 .toList();
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to send message: $e')),
+              SnackBar(content: Text('Не удалось отправить сообщение: $e')),
             );
           }
         }
@@ -154,7 +154,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                 children: [
                   Text(title, style: ThemeTextStyles.h3(isDark: isDark)),
                   if (isOnline)
-                    Text('online', style: ThemeTextStyles.caption(color: Colors.green, isDark: isDark)),
+                    Text('в сети', style: ThemeTextStyles.caption(color: Colors.green, isDark: isDark)),
                 ],
               ),
             ],
@@ -196,7 +196,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                     },
                   ),
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Error: $err')),
+                  error: (err, stack) => Center(child: Text('Ошибка: $err')),
                 ),
               ),
               
@@ -219,7 +219,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                           focusNode: focusNode,
                           onSubmitted: (_) => handleSend(),
                           decoration: InputDecoration(
-                            hintText: 'Type message...',
+                            hintText: 'Напишите сообщение...',
                             hintStyle: ThemeTextStyles.bodyMedium(
                               color: isDark ? Colors.white38 : Colors.black38,
                             ),

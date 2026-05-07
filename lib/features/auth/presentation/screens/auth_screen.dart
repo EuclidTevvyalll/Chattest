@@ -40,14 +40,14 @@ class AuthScreen extends HookConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    isLogin.value ? 'Welcome Back' : 'Create Account',
+                    isLogin.value ? 'С возвращением' : 'Создать аккаунт',
                     style: ThemeTextStyles.h1(isDark: isDark),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     isLogin.value
-                        ? 'Sign in to continue'
-                        : 'Join our messenger community',
+                        ? 'Войдите, чтобы продолжить'
+                        : 'Присоединяйтесь к нашему сообществу',
                     style: ThemeTextStyles.bodyMedium(
                       isDark: isDark,
                       color: isDark ? Colors.white70 : Colors.black54,
@@ -57,7 +57,7 @@ class AuthScreen extends HookConsumerWidget {
                   if (!isLogin.value) ...[
                     _buildTextField(
                       controller: usernameController,
-                      hintText: 'Username',
+                      hintText: 'Имя пользователя',
                       icon: Icons.person_outline,
                       isDark: isDark,
                     ),
@@ -65,14 +65,14 @@ class AuthScreen extends HookConsumerWidget {
                   ],
                   _buildTextField(
                     controller: emailController,
-                    hintText: 'Email',
+                    hintText: 'Электронная почта',
                     icon: Icons.email_outlined,
                     isDark: isDark,
                   ),
                   const SizedBox(height: 16),
                   _buildTextField(
                     controller: passwordController,
-                    hintText: 'Password',
+                    hintText: 'Пароль',
                     icon: Icons.lock_outline,
                     isDark: isDark,
                     isPassword: true,
@@ -127,7 +127,7 @@ class AuthScreen extends HookConsumerWidget {
                       child: isLoading.value
                           ? const CircularProgressIndicator(color: Colors.white)
                           : Text(
-                              isLogin.value ? 'Sign In' : 'Sign Up',
+                              isLogin.value ? 'Войти' : 'Зарегистрироваться',
                               style: ThemeTextStyles.bodyLarge(
                                 color: Colors.white,
                               ),
@@ -139,8 +139,8 @@ class AuthScreen extends HookConsumerWidget {
                     onPressed: () => isLogin.value = !isLogin.value,
                     child: Text(
                       isLogin.value
-                          ? "Don't have an account? Sign Up"
-                          : "Already have an account? Sign In",
+                          ? "Нет аккаунта? Зарегистрироваться"
+                          : "Уже есть аккаунт? Войти",
                       style: ThemeTextStyles.bodySmall(color: ThemeColors.blue),
                     ),
                   ),

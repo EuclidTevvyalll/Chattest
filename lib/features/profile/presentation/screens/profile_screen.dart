@@ -35,12 +35,12 @@ class ProfileScreen extends HookConsumerWidget {
           child: profileAsync.when(
             data: (profile) {
               if (profile == null) {
-                return const Center(child: Text('No profile found'));
+                return const Center(child: Text('Профиль не найден'));
               }
               return _ProfileContent(profile: profile);
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Error: $err')),
+            error: (err, stack) => Center(child: Text('Ошибка: $err')),
           ),
         ),
       ),
@@ -89,7 +89,7 @@ class _ProfileContent extends HookConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Profile', style: ThemeTextStyles.h1(isDark: isDark)),
+              Text('Профиль', style: ThemeTextStyles.h1(isDark: isDark)),
               if (isEditing.value)
                 TextButton(
                   onPressed: () {
@@ -102,7 +102,7 @@ class _ProfileContent extends HookConsumerWidget {
                     isEditing.value = false;
                   },
                   child: Text(
-                    'Save',
+                    'Сохранить',
                     style: ThemeTextStyles.h3(color: ThemeColors.blue),
                   ),
                 )
@@ -178,7 +178,7 @@ class _ProfileContent extends HookConsumerWidget {
           ),
           const SizedBox(height: 40),
           _ProfileField(
-            label: 'Nickname',
+            label: 'Никнейм',
             controller: nicknameController,
             enabled: isEditing.value,
             icon: Icons.badge_outlined,
@@ -186,7 +186,7 @@ class _ProfileContent extends HookConsumerWidget {
           ),
           const SizedBox(height: 16),
           _ProfileField(
-            label: 'Username',
+            label: 'Имя пользователя',
             controller: usernameController,
             enabled: isEditing.value,
             icon: Icons.alternate_email_rounded,
@@ -200,8 +200,8 @@ class _ProfileContent extends HookConsumerWidget {
             child: Column(
               children: [
                 _SettingsTile(
-                  title: 'Dark Mode',
-                  subtitle: 'Switch theme',
+                  title: 'Темная тема',
+                  subtitle: 'Переключить тему',
                   icon: Icons.dark_mode_outlined,
                   trailing: Switch(
                     value: isDark,
@@ -214,8 +214,8 @@ class _ProfileContent extends HookConsumerWidget {
                 ),
                 const Divider(height: 32, thickness: 0.5, indent: 40),
                 _SettingsTile(
-                  title: 'Notifications',
-                  subtitle: 'Enable push notifications',
+                  title: 'Уведомления',
+                  subtitle: 'Включить push-уведомления',
                   icon: Icons.notifications_none_rounded,
                   trailing: Switch(
                     value: true,
@@ -240,7 +240,7 @@ class _ProfileContent extends HookConsumerWidget {
                   const Icon(Icons.logout_rounded, color: Colors.redAccent),
                   const SizedBox(width: 12),
                   Text(
-                    'Logout',
+                    'Выйти',
                     style: ThemeTextStyles.h3(color: Colors.redAccent),
                   ),
                 ],

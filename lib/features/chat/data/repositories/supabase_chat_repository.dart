@@ -156,7 +156,7 @@ class SupabaseChatRepository implements ChatRepository {
   @override
   Future<String> createGroup(String name, List<String> participantIds) async {
     final myId = _client.auth.currentUser?.id;
-    if (myId == null) throw Exception('User not authenticated');
+    if (myId == null) throw Exception('Пользователь не авторизован');
 
     final allParticipants = {myId, ...participantIds}.toList();
 
@@ -181,7 +181,7 @@ class SupabaseChatRepository implements ChatRepository {
   @override
   Future<String> createChannel(String name, String? description) async {
     final myId = _client.auth.currentUser?.id;
-    if (myId == null) throw Exception('User not authenticated');
+    if (myId == null) throw Exception('Пользователь не авторизован');
 
     final roomData = await _client.from('rooms').insert({
       'type': 'channel',

@@ -80,7 +80,7 @@ class CreateChatScreen extends HookConsumerWidget {
                         color: isDark ? Colors.white : Colors.black,
                       ),
                     ),
-                    Text('New Chat', style: ThemeTextStyles.h2(isDark: isDark)),
+                    Text('Новый чат', style: ThemeTextStyles.h2(isDark: isDark)),
                   ],
                 ),
               ),
@@ -95,7 +95,7 @@ class CreateChatScreen extends HookConsumerWidget {
                     children: [
                       Expanded(
                         child: buildTypeButton(
-                          'Direct',
+                          'Личный',
                           RoomType.room,
                           chatType,
                           isDark,
@@ -103,7 +103,7 @@ class CreateChatScreen extends HookConsumerWidget {
                       ),
                       Expanded(
                         child: buildTypeButton(
-                          'Group',
+                          'Группа',
                           RoomType.group,
                           chatType,
                           isDark,
@@ -111,7 +111,7 @@ class CreateChatScreen extends HookConsumerWidget {
                       ),
                       Expanded(
                         child: buildTypeButton(
-                          'Channel',
+                          'Канал',
                           RoomType.channel,
                           chatType,
                           isDark,
@@ -132,10 +132,10 @@ class CreateChatScreen extends HookConsumerWidget {
                     controller: nameController,
                     decoration: InputDecoration(
                       hintText: chatType.value == RoomType.room
-                          ? 'Username'
-                          : (chatType.value == RoomType.group
-                                ? 'Group Name'
-                                : 'Channel Name'),
+                              ? 'Имя пользователя'
+                              : (chatType.value == RoomType.group
+                                    ? 'Название группы'
+                                    : 'Название канала'),
 
                       border: InputBorder.none,
                       prefixIcon: chatType.value == RoomType.room
@@ -157,7 +157,7 @@ class CreateChatScreen extends HookConsumerWidget {
                     child: TextField(
                       controller: descriptionController,
                       decoration: const InputDecoration(
-                        hintText: 'Description (Optional)',
+                        hintText: 'Описание (необязательно)',
                         border: InputBorder.none,
                       ),
                       style: ThemeTextStyles.bodyMedium(isDark: isDark),
@@ -255,7 +255,7 @@ class CreateChatScreen extends HookConsumerWidget {
                     },
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
-                    error: (err, st) => Center(child: Text('Error: $err')),
+                    error: (err, st) => Center(child: Text('Ошибка: $err')),
                   ),
                 )
               else
@@ -303,7 +303,7 @@ class CreateChatScreen extends HookConsumerWidget {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(
                                             content: Text(
-                                              'You cannot create a chat with yourself',
+                                              'Вы не можете создать чат с самим собой',
                                             ),
                                           ),
                                         );
@@ -314,9 +314,9 @@ class CreateChatScreen extends HookConsumerWidget {
                                     } else {
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
-                                          content: Text(
-                                            'User $username not found',
-                                          ),
+                                            content: Text(
+                                              'Пользователь $username не найден',
+                                            ),
                                         ),
                                       );
                                       isLoading.value = false;
@@ -360,7 +360,7 @@ class CreateChatScreen extends HookConsumerWidget {
                                 if (context.mounted) {
                                   isLoading.value = false;
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Error: $e')),
+                                    SnackBar(content: Text('Ошибка: $e')),
                                   );
                                 }
                               }
@@ -387,7 +387,7 @@ class CreateChatScreen extends HookConsumerWidget {
                                     ),
                                   )
                                 : const Text(
-                                    'Create',
+                                    'Создать',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 18,

@@ -39,7 +39,7 @@ class ChatListScreen extends HookConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Messenger', style: ThemeTextStyles.h1(isDark: isDark)),
+                    Text('Мессенджер', style: ThemeTextStyles.h1(isDark: isDark)),
                     GlassBox(
                       padding: const EdgeInsets.all(8),
                       borderRadius: BorderRadius.circular(12),
@@ -69,7 +69,7 @@ class ChatListScreen extends HookConsumerWidget {
                       itemCount: rooms.length,
                       itemBuilder: (context, index) {
                         final room = rooms[index];
-                        String displayName = 'Unknown';
+                        String displayName = 'Неизвестно';
                         String? avatarUrl = room.avatarUrl;
                         bool isOnline = false;
 
@@ -82,7 +82,7 @@ class ChatListScreen extends HookConsumerWidget {
                           avatarUrl = otherParticipant.avatarUrl;
                           isOnline = otherParticipant.isOnline ?? false;
                         } else {
-                          displayName = room.name ?? 'Group';
+                          displayName = room.name ?? 'Группа';
                         }
 
                         return Padding(
@@ -177,7 +177,7 @@ class ChatListScreen extends HookConsumerWidget {
                                           ),
                                           const SizedBox(height: 6),
                                           Text(
-                                            room.lastMessage ?? 'No messages yet',
+                                            room.lastMessage ?? 'Сообщений пока нет',
                                             style: ThemeTextStyles.bodyMedium(
                                               isDark: isDark,
                                               color: isDark ? Colors.white60 : Colors.black54,
@@ -201,7 +201,7 @@ class ChatListScreen extends HookConsumerWidget {
                       },
                     ),
                     loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => Center(child: Text('Error: $err')),
+                    error: (err, stack) => Center(child: Text('Ошибка: $err')),
                   ),
                 ),
               ),

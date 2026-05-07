@@ -31,7 +31,7 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Crop Avatar',
+              'Обрезать аватар',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -73,7 +73,7 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                       ),
                     ),
                     child: Text(
-                      'Cancel',
+                      'Отмена',
                       style: TextStyle(
                         fontSize: 16,
                         color: isDark ? Colors.white70 : Colors.black54,
@@ -95,7 +95,7 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                       elevation: 0,
                     ),
                     child: const Text(
-                      'Confirm',
+                      'Подтвердить',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),

@@ -29,7 +29,7 @@ class ChatInfoScreen extends ConsumerWidget {
           icon: Icon(Icons.arrow_back_ios_new, color: isDark ? Colors.white : Colors.black87),
           onPressed: () => context.pop(),
         ),
-        title: Text('Info', style: ThemeTextStyles.h3(isDark: isDark)),
+        title: Text('Информация', style: ThemeTextStyles.h3(isDark: isDark)),
       ),
       body: Container(
         width: double.infinity,
@@ -46,7 +46,7 @@ class ChatInfoScreen extends ConsumerWidget {
           child: roomsAsync.when(
             data: (rooms) {
               final room = rooms.where((r) => r.id == roomId).firstOrNull;
-              if (room == null) return const Center(child: Text('Room not found'));
+              if (room == null) return const Center(child: Text('Комната не найдена'));
 
               if (room.type == RoomType.room) {
                 final other = room.participants.firstWhere(
@@ -61,7 +61,7 @@ class ChatInfoScreen extends ConsumerWidget {
               }
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, st) => Center(child: Text('Error: $err')),
+            error: (err, st) => Center(child: Text('Ошибка: $err')),
           ),
         ),
       ),
@@ -75,12 +75,12 @@ class ChatInfoScreen extends ConsumerWidget {
         children: [
           _buildAvatar(profile.avatarUrl, profile.nickname ?? profile.username, isDark),
           const SizedBox(height: 24),
-          Text(profile.nickname ?? 'No nickname', style: ThemeTextStyles.h1(isDark: isDark)),
+          Text(profile.nickname ?? 'Нет никнейма', style: ThemeTextStyles.h1(isDark: isDark)),
           Text('@${profile.username}', style: ThemeTextStyles.bodyLarge(color: ThemeColors.blue)),
           const SizedBox(height: 40),
           _buildInfoSection(isDark, [
-            _InfoTile(label: 'Nickname', value: profile.nickname ?? '-', icon: Icons.badge_outlined, isDark: isDark),
-            _InfoTile(label: 'Username', value: '@${profile.username}', icon: Icons.alternate_email_rounded, isDark: isDark),
+            _InfoTile(label: 'Никнейм', value: profile.nickname ?? '-', icon: Icons.badge_outlined, isDark: isDark),
+            _InfoTile(label: 'Имя пользователя', value: '@${profile.username}', icon: Icons.alternate_email_rounded, isDark: isDark),
           ]),
         ],
       ),
@@ -92,18 +92,18 @@ class ChatInfoScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          _buildAvatar(room.avatarUrl, room.name ?? 'Group', isDark),
+          _buildAvatar(room.avatarUrl, room.name ?? 'Группа', isDark),
           const SizedBox(height: 24),
-          Text(room.name ?? 'Group', style: ThemeTextStyles.h1(isDark: isDark)),
-          Text('${room.participants.length} members', style: ThemeTextStyles.bodyLarge(color: ThemeColors.blue)),
+          Text(room.name ?? 'Группа', style: ThemeTextStyles.h1(isDark: isDark)),
+          Text('${room.participants.length} участников', style: ThemeTextStyles.bodyLarge(color: ThemeColors.blue)),
           const SizedBox(height: 40),
           _buildInfoSection(isDark, [
-            _InfoTile(label: 'Description', value: room.description ?? 'No description', icon: Icons.info_outline, isDark: isDark),
+            _InfoTile(label: 'Описание', value: room.description ?? 'Нет описания', icon: Icons.info_outline, isDark: isDark),
           ]),
           const SizedBox(height: 24),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text('Participants', style: ThemeTextStyles.h3(isDark: isDark)),
+            child: Text('Участники', style: ThemeTextStyles.h3(isDark: isDark)),
           ),
           const SizedBox(height: 16),
           ListView.builder(
@@ -150,13 +150,13 @@ class ChatInfoScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          _buildAvatar(room.avatarUrl, room.name ?? 'Channel', isDark),
+          _buildAvatar(room.avatarUrl, room.name ?? 'Канал', isDark),
           const SizedBox(height: 24),
-          Text(room.name ?? 'Channel', style: ThemeTextStyles.h1(isDark: isDark)),
-          Text('${room.participants.length} subscribers', style: ThemeTextStyles.bodyLarge(color: ThemeColors.blue)),
+          Text(room.name ?? 'Канал', style: ThemeTextStyles.h1(isDark: isDark)),
+          Text('${room.participants.length} подписчиков', style: ThemeTextStyles.bodyLarge(color: ThemeColors.blue)),
           const SizedBox(height: 40),
           _buildInfoSection(isDark, [
-            _InfoTile(label: 'Description', value: room.description ?? 'No description', icon: Icons.info_outline, isDark: isDark),
+            _InfoTile(label: 'Описание', value: room.description ?? 'Нет описания', icon: Icons.info_outline, isDark: isDark),
           ]),
         ],
       ),
