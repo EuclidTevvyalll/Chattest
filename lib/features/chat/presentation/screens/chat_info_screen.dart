@@ -9,6 +9,7 @@ import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';
 import 'package:rickandmorty/features/profile/presentation/providers/profile_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:typed_data';
 
 class ChatInfoScreen extends ConsumerWidget {
@@ -217,9 +218,9 @@ class ChatInfoScreen extends ConsumerWidget {
                           return CircleAvatar(
                             radius: 20,
                             backgroundColor: ThemeColors.blue.withValues(alpha: 0.1),
-                            backgroundImage: avatarBase64 != null
-                                ? MemoryImage(avatarBase64)
-                                : (p.avatarUrl != null ? NetworkImage(p.avatarUrl!) : null),
+                            backgroundImage: p.avatarUrl != null
+                                ? CachedNetworkImageProvider(p.avatarUrl!)
+                                : (avatarBase64 != null ? MemoryImage(avatarBase64) : null),
                             child: (avatarBase64 == null && p.avatarUrl == null)
                                 ? Text(p.username[0].toUpperCase())
                                 : null,
@@ -279,9 +280,9 @@ class ChatInfoScreen extends ConsumerWidget {
         child: CircleAvatar(
           radius: 60,
           backgroundColor: ThemeColors.blue.withValues(alpha: 0.1),
-          backgroundImage: base64 != null 
-              ? MemoryImage(base64) 
-              : (url != null ? NetworkImage(url) : null),
+          backgroundImage: url != null 
+              ? CachedNetworkImageProvider(url) 
+              : (base64 != null ? MemoryImage(base64) : null),
           child: (url == null && base64 == null) 
               ? Text(placeholder.isNotEmpty ? placeholder[0].toUpperCase() : '?', style: const TextStyle(fontSize: 40, color: ThemeColors.blue)) 
               : null,

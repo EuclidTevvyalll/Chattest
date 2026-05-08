@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
@@ -13,8 +12,7 @@ class SupabaseProfileRepository implements ProfileRepository {
   @override
   Future<ProfileModel?> getProfile(String id) async {
     try {
-      debugPrint('Supabase: Fetching light profile for id: $id...');
-      // We explicitly select everything EXCEPT the heavy avatar_base64
+      debugPrint('Supabase: Fetching profile for id: $id...');
       final data = await _client
           .from('profiles')
           .select('id, username, nickname, avatar_url, is_online, updated_at')
@@ -22,7 +20,7 @@ class SupabaseProfileRepository implements ProfileRepository {
           .maybeSingle();
 
       if (data == null) return null;
-      debugPrint('Supabase: Light profile fetched successfully.');
+      debugPrint('Supabase: Profile fetched successfully.');
       return ProfileModel.fromJson(data);
     } catch (e) {
       debugPrint('Supabase: Error fetching profile: $e');
@@ -30,103 +28,84 @@ class SupabaseProfileRepository implements ProfileRepository {
     }
   }
 
-  // Sequential loading queue
-  final List<_AvatarRequest> _avatarQueue = [];
-  bool _isProcessingQueue = false;
-
   @override
   Future<String?> getAvatarBase64(String id, {bool priority = false}) async {
-    final completer = Completer<String?>();
-    final request = _AvatarRequest(id, completer, priority);
-
-    if (priority) {
-      // Put high priority requests (own avatar) at the front
-      _avatarQueue.insert(0, request);
-    } else {
-      _avatarQueue.add(request);
-    }
-
-    _processAvatarQueue();
-    return completer.future;
-  }
-
-  Future<void> _processAvatarQueue() async {
-    if (_isProcessingQueue || _avatarQueue.isEmpty) return;
-    _isProcessingQueue = true;
-
-    while (_avatarQueue.isNotEmpty) {
-      final request = _avatarQueue.removeAt(0);
-      try {
-        final result = await _fetchAvatarInternal(request.id);
-        if (!request.completer.isCompleted) {
-          request.completer.complete(result);
-        }
-      } catch (e) {
-        if (!request.completer.isCompleted) {
-          request.completer.complete(null);
-        }
-      }
-      // Small delay between requests to be extra safe on Windows network stack
-      await Future.delayed(const Duration(milliseconds: 50));
-    }
-
-    _isProcessingQueue = false;
-  }
-
-  Future<String?> _fetchAvatarInternal(String id) async {
-    try {
-      debugPrint('Supabase: Fetching heavy avatar for id: $id...');
-      final data = await _client
-          .from('profiles')
-          .select('avatar_base64')
-          .eq('id', id)
-          .maybeSingle();
-
-      if (data == null) return null;
-      return data['avatar_base64'] as String?;
-    } catch (e) {
-      debugPrint('Supabase: Error fetching avatar: $e');
-      return null;
-    }
+    // avatar_base64 column has been removed from the database.
+    // The application now uses avatar_url for all profile images.
+    return null;
   }
 
   @override
   Future<void> updateProfile(ProfileModel profile) async {
-    try {
-      debugPrint('Supabase: Updating profile for id: ${profile.id}...');
+    // Adding an initial delay to let the network connection 'breathe' 
+    // after a potentially heavy storage upload.
+    await Future.delayed(const Duration(milliseconds: 1500));
 
-      await _client
-          .from('profiles')
-          .update({
-            'username': profile.username,
-            'nickname': profile.nickname,
-            'avatar_url': profile.avatarUrl,
-            'avatar_base64': profile.avatarBase64,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
-          .eq('id', profile.id);
+    int retryCount = 0;
+    const maxRetries = 5;
 
-      debugPrint('Supabase: Profile updated successfully.');
-    } catch (e) {
-      debugPrint('Supabase: Error updating profile: $e');
-      rethrow;
+    while (retryCount < maxRetries) {
+      try {
+        debugPrint('Supabase: Updating profile for id: ${profile.id} (Attempt ${retryCount + 1})...');
+
+        await _client
+            .from('profiles')
+            .update({
+              'username': profile.username,
+              'nickname': profile.nickname,
+              'avatar_url': profile.avatarUrl,
+              'updated_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', profile.id);
+
+        debugPrint('Supabase: Profile updated successfully.');
+        return;
+      } catch (e) {
+        retryCount++;
+        debugPrint('Supabase: Profile update attempt $retryCount failed: $e');
+        if (retryCount >= maxRetries) {
+          rethrow;
+        }
+        // Increasing wait time between retries
+        await Future.delayed(Duration(seconds: 1 * retryCount));
+      }
     }
   }
 
   @override
   Future<String> uploadAvatar(Uint8List bytes, String userId) async {
-    final base64String = base64Encode(bytes);
-    debugPrint(
-      'Supabase: Avatar prepared as Base64 (${base64String.length} chars)',
-    );
-    return 'base64:$base64String';
+    final fileName = 'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final path = fileName;
+
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        debugPrint('Supabase: Uploading avatar to storage (Attempt ${retryCount + 1}): $path...');
+
+        await _client.storage.from('avatars').uploadBinary(
+              path,
+              bytes,
+              fileOptions: const FileOptions(
+                contentType: 'image/jpeg',
+                upsert: true,
+              ),
+            );
+
+        final String publicUrl = _client.storage.from('avatars').getPublicUrl(path);
+        debugPrint('Supabase: Avatar uploaded successfully. URL: $publicUrl');
+        return publicUrl;
+      } catch (e) {
+        retryCount++;
+        debugPrint('Supabase: Upload attempt $retryCount failed: $e');
+        if (retryCount >= maxRetries) {
+          rethrow;
+        }
+        // Wait a bit before retrying
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+      }
+    }
+    throw Exception('Failed to upload avatar after $maxRetries attempts');
   }
-}
-
-class _AvatarRequest {
-  final String id;
-  final Completer<String?> completer;
-  final bool priority;
-
-  _AvatarRequest(this.id, this.completer, this.priority);
 }

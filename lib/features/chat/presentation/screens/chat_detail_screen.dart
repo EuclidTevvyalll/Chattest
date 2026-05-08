@@ -8,6 +8,7 @@ import 'package:rickandmorty/features/chat/presentation/widgets/chat_bubble.dart
 import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
@@ -121,10 +122,23 @@ class ChatDetailScreen extends HookConsumerWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: isDark 
+            ? const Color(0xFF1A1A2E).withValues(alpha: 0.7) 
+            : Colors.white.withValues(alpha: 0.7),
         elevation: 0,
         centerTitle: false,
         titleSpacing: 0,
+        flexibleSpace: ClipRect(
+          child: BackdropFilter(
+            filter: ColorFilter.mode(
+              isDark ? Colors.black.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.1),
+              BlendMode.srcOver,
+            ),
+            child: Container(
+              color: Colors.transparent,
+            ),
+          ),
+        ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new, color: isDark ? Colors.white : Colors.black87),
           onPressed: () => context.pop(),
@@ -141,9 +155,9 @@ class ChatDetailScreen extends HookConsumerWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: ThemeColors.blue.withValues(alpha: 0.1),
-                    backgroundImage: avatarBase64 != null 
-                      ? MemoryImage(avatarBase64!)
-                      : (avatarUrl != null ? NetworkImage(avatarUrl!) : null),
+                    backgroundImage: avatarUrl != null 
+                      ? CachedNetworkImageProvider(avatarUrl!)
+                      : (avatarBase64 != null ? MemoryImage(avatarBase64!) : null),
                     child: participantsAsync.isLoading
                       ? const SizedBox(
                           width: 15,

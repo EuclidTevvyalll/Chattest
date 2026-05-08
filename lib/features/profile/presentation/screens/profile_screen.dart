@@ -13,6 +13,7 @@ import 'package:rickandmorty/widgets/liquidglass_container.dart';
 import 'package:rickandmorty/core/providers/theme_mode/theme_provider.dart';
 import 'package:rickandmorty/features/profile/presentation/screens/avatar_crop_dialog.dart';
 import 'package:rickandmorty/main.dart'; // To access rootScaffoldMessengerKey
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileScreen extends HookConsumerWidget {
   const ProfileScreen({super.key});
@@ -286,10 +287,10 @@ class _ProfileContent extends HookConsumerWidget {
                         backgroundColor: isDark ? Colors.grey[900] : Colors.grey[200],
                         backgroundImage: previewImage != null
                             ? MemoryImage(previewImage)
-                            : (avatarBase64 != null
-                                ? MemoryImage(avatarBase64)
-                                : (profile.avatarUrl != null
-                                    ? NetworkImage(profile.avatarUrl!)
+                            : (profile.avatarUrl != null
+                                ? CachedNetworkImageProvider(profile.avatarUrl!)
+                                : (avatarBase64 != null
+                                    ? MemoryImage(avatarBase64)
                                     : null)),
                         child: Stack(
                           alignment: Alignment.center,

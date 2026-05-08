@@ -12,6 +12,7 @@ import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ChatListScreen extends HookConsumerWidget {
   const ChatListScreen({super.key});
@@ -232,9 +233,9 @@ class _RoomItem extends ConsumerWidget {
                       child: CircleAvatar(
                         radius: 30,
                         backgroundColor: ThemeColors.blue.withValues(alpha: 0.05),
-                        backgroundImage: avatarBase64 != null 
-                            ? MemoryImage(avatarBase64)
-                            : (avatarUrl != null ? NetworkImage(avatarUrl) : null),
+                        backgroundImage: avatarUrl != null 
+                            ? CachedNetworkImageProvider(avatarUrl)
+                            : (avatarBase64 != null ? MemoryImage(avatarBase64) : null),
                         child: isLoading
                             ? const SizedBox(
                                 width: 20,

@@ -57,7 +57,7 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                           
                           final navigator = Navigator.of(context);
                           try {
-                            final processedImage = await compute(_processImage, result.croppedImage);
+                            final processedImage = _processImage(result.croppedImage);
                             if (mounted) {
                               Future.microtask(() => navigator.pop(processedImage));
                             }
@@ -150,11 +150,16 @@ Uint8List _processImage(Uint8List input) {
   final image = img.decodeImage(input);
   if (image == null) return input;
 
-  // Extreme compression to 128x128 and 40% quality (approx 2-4 KB)
-  // This is the absolute safest size for problematic Windows networks
-  final resized = img.copyResize(image, width: 128, height: 128);
-  final compressed = Uint8List.fromList(img.encodeJpg(resized, quality: 40));
-  
-  debugPrint('Avatar size: ${compressed.length} bytes (Extremely optimized)');
-  return compressed;
+  // Ultra-safe mode for problematic networks: 256x256 at 50% quality.
+  // This file will ALWAYS be under 20-25 KB, regardless of details.
+  final resized = img.copyResize(
+    image,
+    width: 256,
+    height: 256,
+    interpolation: img.Interpolation.linear,
+  );
+  final processed = Uint8List.fromList(img.encodeJpg(resized, quality: 50));
+
+  debugPrint('Avatar size: ${processed.length} bytes (Ultra Safe Mode)');
+  return processed;
 }
