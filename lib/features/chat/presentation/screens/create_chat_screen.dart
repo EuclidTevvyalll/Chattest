@@ -80,7 +80,10 @@ class CreateChatScreen extends HookConsumerWidget {
                         color: isDark ? Colors.white : Colors.black,
                       ),
                     ),
-                    Text('Новый чат', style: ThemeTextStyles.h2(isDark: isDark)),
+                    Text(
+                      'Новый чат',
+                      style: ThemeTextStyles.h2(isDark: isDark),
+                    ),
                   ],
                 ),
               ),
@@ -132,10 +135,10 @@ class CreateChatScreen extends HookConsumerWidget {
                     controller: nameController,
                     decoration: InputDecoration(
                       hintText: chatType.value == RoomType.room
-                              ? 'Имя пользователя'
-                              : (chatType.value == RoomType.group
-                                    ? 'Название группы'
-                                    : 'Название канала'),
+                          ? 'Имя пользователя'
+                          : (chatType.value == RoomType.group
+                                ? 'Название группы'
+                                : 'Название канала'),
 
                       border: InputBorder.none,
                       prefixIcon: chatType.value == RoomType.room
@@ -231,14 +234,16 @@ class CreateChatScreen extends HookConsumerWidget {
                                           .withValues(alpha: 0.2),
 
                                       child: Text(
-                                        (profile.nickname ?? profile.username)[0].toUpperCase(),
+                                        (profile.nickname ??
+                                                profile.username)[0]
+                                            .toUpperCase(),
                                       ),
                                     ),
                                     const SizedBox(width: 16),
-                                      Text(
-                                        profile.nickname ?? profile.username,
-                                        style: ThemeTextStyles.h3(isDark: isDark),
-                                      ),
+                                    Text(
+                                      profile.nickname ?? profile.username,
+                                      style: ThemeTextStyles.h3(isDark: isDark),
+                                    ),
                                     const Spacer(),
                                     if (isSelected)
                                       const Icon(
@@ -263,9 +268,16 @@ class CreateChatScreen extends HookConsumerWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 32),
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: Colors.redAccent,
+                            size: 32,
+                          ),
                           const SizedBox(height: 8),
-                          Text('Ошибка загрузки пользователей', style: ThemeTextStyles.caption(isDark: isDark)),
+                          Text(
+                            'Ошибка загрузки пользователей',
+                            style: ThemeTextStyles.caption(isDark: isDark),
+                          ),
                         ],
                       ),
                     ),
@@ -313,7 +325,9 @@ class CreateChatScreen extends HookConsumerWidget {
                                     if (profile != null) {
                                       if (profile.id ==
                                           ref.read(authUserProvider)?.id) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           const SnackBar(
                                             content: Text(
                                               'Вы не можете создать чат с самим собой',
@@ -325,11 +339,13 @@ class CreateChatScreen extends HookConsumerWidget {
                                       }
                                       ids = [profile.id];
                                     } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
-                                            content: Text(
-                                              'Пользователь $username не найден',
-                                            ),
+                                          content: Text(
+                                            'Пользователь $username не найден',
+                                          ),
                                         ),
                                       );
                                       isLoading.value = false;
@@ -356,17 +372,19 @@ class CreateChatScreen extends HookConsumerWidget {
                                 }
 
                                 if (!context.mounted) return;
-                                
+
                                 // Invalidate roomsProvider to force an immediate refresh
                                 ref.invalidate(roomsProvider);
-                                
+
                                 isLoading.value = false;
 
                                 if (success && newRoomId != null) {
                                   context.pushReplacementNamed(
                                     'chat_detail',
                                     pathParameters: {'roomId': newRoomId},
-                                    queryParameters: {'type': chatType.value.name},
+                                    queryParameters: {
+                                      'type': chatType.value.name,
+                                    },
                                   );
                                 }
                               } catch (e) {

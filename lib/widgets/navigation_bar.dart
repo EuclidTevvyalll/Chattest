@@ -121,5 +121,3 @@ List<NavBarItem> navBarItems(BuildContext context) => [
     label: 'Settings',
   ),
 ];
-
-

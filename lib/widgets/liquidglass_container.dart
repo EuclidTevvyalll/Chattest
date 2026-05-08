@@ -36,9 +36,7 @@ class GlassBox extends StatelessWidget {
             border:
                 border ??
                 Border.all(color: color.withValues(alpha: 0.1), width: 1.0),
-
           ),
-
 
           child: child,
         ),

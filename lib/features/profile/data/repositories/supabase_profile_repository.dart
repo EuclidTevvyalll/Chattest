@@ -37,7 +37,7 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<void> updateProfile(ProfileModel profile) async {
-    // Adding an initial delay to let the network connection 'breathe' 
+    // Adding an initial delay to let the network connection 'breathe'
     // after a potentially heavy storage upload.
     await Future.delayed(const Duration(milliseconds: 1500));
 
@@ -46,7 +46,9 @@ class SupabaseProfileRepository implements ProfileRepository {
 
     while (retryCount < maxRetries) {
       try {
-        debugPrint('Supabase: Updating profile for id: ${profile.id} (Attempt ${retryCount + 1})...');
+        debugPrint(
+          'Supabase: Updating profile for id: ${profile.id} (Attempt ${retryCount + 1})...',
+        );
 
         await _client
             .from('profiles')
@@ -74,7 +76,8 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<String> uploadAvatar(Uint8List bytes, String userId) async {
-    final fileName = 'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final fileName =
+        'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final path = fileName;
 
     int retryCount = 0;
@@ -82,9 +85,13 @@ class SupabaseProfileRepository implements ProfileRepository {
 
     while (retryCount < maxRetries) {
       try {
-        debugPrint('Supabase: Uploading avatar to storage (Attempt ${retryCount + 1}): $path...');
+        debugPrint(
+          'Supabase: Uploading avatar to storage (Attempt ${retryCount + 1}): $path...',
+        );
 
-        await _client.storage.from('avatars').uploadBinary(
+        await _client.storage
+            .from('avatars')
+            .uploadBinary(
               path,
               bytes,
               fileOptions: const FileOptions(
@@ -93,7 +100,9 @@ class SupabaseProfileRepository implements ProfileRepository {
               ),
             );
 
-        final String publicUrl = _client.storage.from('avatars').getPublicUrl(path);
+        final String publicUrl = _client.storage
+            .from('avatars')
+            .getPublicUrl(path);
         debugPrint('Supabase: Avatar uploaded successfully. URL: $publicUrl');
         return publicUrl;
       } catch (e) {

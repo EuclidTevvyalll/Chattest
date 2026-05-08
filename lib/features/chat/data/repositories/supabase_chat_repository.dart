@@ -41,9 +41,9 @@ class SupabaseChatRepository implements ChatRepository {
 
           final results = roomsData.map((roomMap) {
             final room = Map<String, dynamic>.from(roomMap);
-            
+
             final lastMessageText = room['last_message']?.toString();
-            final lastMessageTime = room['last_message_at'] != null 
+            final lastMessageTime = room['last_message_at'] != null
                 ? DateTime.tryParse(room['last_message_at'].toString())
                 : null;
 
@@ -53,7 +53,9 @@ class SupabaseChatRepository implements ChatRepository {
               name: room['name']?.toString(),
               description: room['description']?.toString(),
               avatarUrl: room['avatar_url']?.toString(),
-              createdAt: DateTime.tryParse(room['created_at']?.toString() ?? '') ?? DateTime.now(),
+              createdAt:
+                  DateTime.tryParse(room['created_at']?.toString() ?? '') ??
+                  DateTime.now(),
               lastMessageAt: lastMessageTime,
               lastMessage: lastMessageText,
               createdBy: room['created_by']?.toString(),
@@ -79,18 +81,33 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
-  Stream<List<MessageModel>> watchMessages(String roomId, {RoomType type = RoomType.room}) {
+  Stream<List<MessageModel>> watchMessages(
+    String roomId, {
+    RoomType type = RoomType.room,
+  }) {
+    debugPrint('SupabaseChatRepository: Watching messages for room $roomId');
     return _client
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('room_id', roomId)
-        .order('created_at', ascending: false) // Order by latest first for the stream
+        .order('created_at', ascending: false)
         .limit(50)
-        .map((event) => event
-            .map((json) => MessageModel.fromJson(json))
-            .toList()
-            .reversed // Reverse locally to show in chronological order if needed, or keep for reverse ListView
-            .toList());
+        .map((event) {
+          debugPrint(
+            'SupabaseChatRepository: Stream event received with ${event.length} total messages',
+          );
+          for (var m in event) {
+            if (m['is_deleted'] == true) {
+              debugPrint('SupabaseChatRepository: Found deleted message in stream: ${m['id']}');
+            }
+          }
+          return event
+              .map((json) => MessageModel.fromJson(json))
+              .where((m) => m.isDeleted != true) // Always hide deleted messages
+              .toList()
+              .reversed
+              .toList();
+        });
   }
 
   @override
@@ -103,12 +120,25 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) return;
 
-    await _client.from('messages').insert({
-      'room_id': roomId,
-      'profile_id': myId,
-      'content': content,
-      'reply_to_message_id': replyToMessageId,
-    });
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        await _client.from('messages').insert({
+          'room_id': roomId,
+          'profile_id': myId,
+          'content': content,
+          'reply_to_message_id': replyToMessageId,
+        });
+        return;
+      } catch (e) {
+        retryCount++;
+        debugPrint('SupabaseChatRepository: Send attempt $retryCount failed: $e');
+        if (retryCount >= maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+      }
+    }
   }
 
   @override
@@ -121,36 +151,48 @@ class SupabaseChatRepository implements ChatRepository {
     // Check if a direct room already exists
     if (allParticipants.length == 2) {
       final otherId = participantIds.first;
-      
+
       // Fetch all direct rooms where I am a participant, including all other participants of those rooms
       final List myDirectRooms = await _client
           .from('room_participants')
-          .select('room_id, rooms!inner(type), all_participants:room_participants(profile_id)')
+          .select(
+            'room_id, rooms!inner(type), all_participants:room_participants(profile_id)',
+          )
           .eq('profile_id', myId)
           .eq('rooms.type', 'direct');
 
       for (final room in myDirectRooms) {
         final participants = room['all_participants'] as List? ?? [];
         // If any participant in this room matches the otherId, the room already exists
-        final hasOtherUser = participants.any((p) => p['profile_id'] == otherId);
+        final hasOtherUser = participants.any(
+          (p) => p['profile_id'] == otherId,
+        );
         if (hasOtherUser) return room['room_id']?.toString();
       }
     }
 
     // Create room
-    final roomData = await _client.from('rooms').insert({
-      'type': allParticipants.length > 2 ? 'group' : 'direct',
-      'created_by': myId,
-    }).select().single();
+    final roomData = await _client
+        .from('rooms')
+        .insert({
+          'type': allParticipants.length > 2 ? 'group' : 'direct',
+          'created_by': myId,
+        })
+        .select()
+        .single();
 
     final roomId = roomData['id'].toString();
 
     // Add participants
-    final participantsInsert = allParticipants.map((pid) => {
-      'room_id': roomId,
-      'profile_id': pid,
-      'role': pid == myId ? 'owner' : 'member',
-    }).toList();
+    final participantsInsert = allParticipants
+        .map(
+          (pid) => {
+            'room_id': roomId,
+            'profile_id': pid,
+            'role': pid == myId ? 'owner' : 'member',
+          },
+        )
+        .toList();
 
     await _client.from('room_participants').insert(participantsInsert);
     return roomId;
@@ -163,19 +205,23 @@ class SupabaseChatRepository implements ChatRepository {
 
     final allParticipants = {myId, ...participantIds}.toList();
 
-    final roomData = await _client.from('rooms').insert({
-      'type': 'group',
-      'name': name,
-      'created_by': myId,
-    }).select().single();
+    final roomData = await _client
+        .from('rooms')
+        .insert({'type': 'group', 'name': name, 'created_by': myId})
+        .select()
+        .single();
 
     final roomId = roomData['id'].toString();
 
-    final participantsInsert = allParticipants.map((pid) => {
-      'room_id': roomId,
-      'profile_id': pid,
-      'role': pid == myId ? 'owner' : 'member',
-    }).toList();
+    final participantsInsert = allParticipants
+        .map(
+          (pid) => {
+            'room_id': roomId,
+            'profile_id': pid,
+            'role': pid == myId ? 'owner' : 'member',
+          },
+        )
+        .toList();
 
     await _client.from('room_participants').insert(participantsInsert);
     return roomId;
@@ -186,12 +232,16 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) throw Exception('Пользователь не авторизован');
 
-    final roomData = await _client.from('rooms').insert({
-      'type': 'channel',
-      'name': name,
-      'description': description,
-      'created_by': myId,
-    }).select().single();
+    final roomData = await _client
+        .from('rooms')
+        .insert({
+          'type': 'channel',
+          'name': name,
+          'description': description,
+          'created_by': myId,
+        })
+        .select()
+        .single();
 
     final roomId = roomData['id'].toString();
 
@@ -219,7 +269,7 @@ class SupabaseChatRepository implements ChatRepository {
         .select('id, username, nickname, avatar_url, is_online')
         .ilike('username', username)
         .maybeSingle();
-    
+
     if (data == null) return null;
     return ProfileModel.fromJson(data);
   }
@@ -230,9 +280,13 @@ class SupabaseChatRepository implements ChatRepository {
         .from('room_participants')
         .select('profiles(id, username, nickname, avatar_url, is_online)')
         .eq('room_id', roomId);
-    
+
     return (data as List)
-        .map((p) => p['profiles'] != null ? ProfileModel.fromJson(p['profiles']) : null)
+        .map(
+          (p) => p['profiles'] != null
+              ? ProfileModel.fromJson(p['profiles'])
+              : null,
+        )
         .whereType<ProfileModel>()
         .toList();
   }
@@ -274,7 +328,7 @@ class SupabaseChatRepository implements ChatRepository {
             .from('messages')
             .update({'reactions': reactions})
             .eq('id', messageId);
-            
+
         debugPrint('Supabase: Reaction toggled successfully.');
         return;
       } catch (e) {
@@ -287,5 +341,78 @@ class SupabaseChatRepository implements ChatRepository {
         await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }
     }
+  }
+
+  @override
+  Future<void> editMessage(String messageId, String newContent) async {
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        await _client
+            .from('messages')
+            .update({
+              'content': newContent,
+              'is_edited': true,
+              'edited_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', messageId);
+        return;
+      } catch (e) {
+        retryCount++;
+        debugPrint('SupabaseChatRepository: Edit attempt $retryCount failed: $e');
+        if (retryCount >= maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+      }
+    }
+  }
+
+  @override
+  Future<void> deleteMessage(String messageId) async {
+    debugPrint('SupabaseChatRepository: Deleting message $messageId');
+
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        // Use soft delete by setting is_deleted = true
+        await _client
+            .from('messages')
+            .update({
+              'is_deleted': true,
+              'deleted_at': DateTime.now().toIso8601String(),
+              'deleted_by': _client.auth.currentUser?.id,
+            })
+            .eq('id', messageId);
+        debugPrint('SupabaseChatRepository: Soft delete successful');
+        return;
+      } catch (e) {
+        retryCount++;
+        debugPrint('SupabaseChatRepository: Delete attempt $retryCount failed: $e');
+        if (retryCount >= maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+      }
+    }
+  }
+
+  @override
+  Future<void> reportTarget({
+    required String targetId,
+    required String targetType,
+    required String reason,
+    String? details,
+  }) async {
+    final myId = _client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    await _client.from('reports').insert({
+      'reporter_id': myId,
+      'target_id': targetId,
+      'target_type': targetType,
+      'reason': reason,
+      'details': details,
+    });
   }
 }

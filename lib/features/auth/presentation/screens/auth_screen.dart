@@ -18,7 +18,6 @@ class AuthScreen extends HookConsumerWidget {
     final isLoading = useState(false);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -103,18 +102,17 @@ class AuthScreen extends HookConsumerWidget {
                                         usernameController.text,
                                       );
                                 }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(e.toString())),
-                                    );
-                                  }
-                                } finally {
-                                  if (context.mounted) {
-                                    isLoading.value = false;
-                                  }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(e.toString())),
+                                  );
                                 }
-
+                              } finally {
+                                if (context.mounted) {
+                                  isLoading.value = false;
+                                }
+                              }
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: ThemeColors.blue,

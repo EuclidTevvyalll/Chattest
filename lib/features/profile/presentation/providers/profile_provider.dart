@@ -15,7 +15,9 @@ class AvatarPreviewNotifier extends Notifier<Uint8List?> {
 }
 
 final avatarUploadPreviewProvider =
-    NotifierProvider<AvatarPreviewNotifier, Uint8List?>(AvatarPreviewNotifier.new);
+    NotifierProvider<AvatarPreviewNotifier, Uint8List?>(
+      AvatarPreviewNotifier.new,
+    );
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   return SupabaseProfileRepository(Supabase.instance.client);
@@ -28,14 +30,21 @@ final currentProfileProvider = Provider<ProfileModel?>((ref) {
 final currentAvatarBase64Provider = FutureProvider<Uint8List?>((ref) async {
   final user = ref.watch(authUserProvider);
   if (user == null) return null;
-  
-  final base64 = await ref.watch(profileRepositoryProvider).getAvatarBase64(user.id, priority: true);
+
+  final base64 = await ref
+      .watch(profileRepositoryProvider)
+      .getAvatarBase64(user.id, priority: true);
   if (base64 == null) return null;
   return base64Decode(base64);
 });
 
-final userAvatarBase64Provider = FutureProvider.family<Uint8List?, String>((ref, userId) async {
-  final base64 = await ref.watch(profileRepositoryProvider).getAvatarBase64(userId);
+final userAvatarBase64Provider = FutureProvider.family<Uint8List?, String>((
+  ref,
+  userId,
+) async {
+  final base64 = await ref
+      .watch(profileRepositoryProvider)
+      .getAvatarBase64(userId);
   if (base64 == null) return null;
   return base64Decode(base64);
 });
@@ -84,7 +93,9 @@ class ProfileController extends AsyncNotifier<ProfileModel?> {
     if (currentProfile == null) return;
 
     try {
-      final res = await ref.read(profileRepositoryProvider).uploadAvatar(bytes, currentProfile.id);
+      final res = await ref
+          .read(profileRepositoryProvider)
+          .uploadAvatar(bytes, currentProfile.id);
       if (res.startsWith('base64:')) {
         await updateProfile(avatarBase64: res.replaceFirst('base64:', ''));
       } else {
@@ -99,5 +110,5 @@ class ProfileController extends AsyncNotifier<ProfileModel?> {
 
 final profileControllerProvider =
     AsyncNotifierProvider<ProfileController, ProfileModel?>(
-  ProfileController.new,
-);
+      ProfileController.new,
+    );

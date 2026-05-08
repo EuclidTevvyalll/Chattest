@@ -18,8 +18,6 @@ import 'package:rickandmorty/features/auth/presentation/screens/auth_screen.dart
 import 'package:rickandmorty/features/profile/presentation/screens/profile_screen.dart';
 import 'package:rickandmorty/features/chat/presentation/screens/chat_info_screen.dart';
 
-
-
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
@@ -47,7 +45,6 @@ final routerProvider = Provider<GoRouter>((ref) {
   // Use listen to ensure we don't recreate the router if authListenable changes
   // (though it shouldn't as it's not autoDispose now)
   final authListenable = ref.read(authListenableProvider);
-
 
   return GoRouter(
     initialLocation: Routes.auth,
@@ -125,7 +122,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-
       GoRoute(
         path: Routes.auth,
         builder: (context, state) => const AuthScreen(),
@@ -144,4 +140,3 @@ int _calculateSelectedIndex(String location) {
   if (location == Routes.profile) return 2;
   return 0;
 }
-

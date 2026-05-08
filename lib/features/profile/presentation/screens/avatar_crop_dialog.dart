@@ -54,16 +54,22 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                       onCropped: (result) async {
                         if (result is CropSuccess) {
                           setState(() => _isProcessing = true);
-                          
+
                           final navigator = Navigator.of(context);
                           try {
-                            final processedImage = _processImage(result.croppedImage);
+                            final processedImage = _processImage(
+                              result.croppedImage,
+                            );
                             if (mounted) {
-                              Future.microtask(() => navigator.pop(processedImage));
+                              Future.microtask(
+                                () => navigator.pop(processedImage),
+                              );
                             }
                           } catch (e) {
                             if (mounted) {
-                              Future.microtask(() => navigator.pop(result.croppedImage));
+                              Future.microtask(
+                                () => navigator.pop(result.croppedImage),
+                              );
                             }
                           }
                         }
@@ -71,7 +77,9 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                       },
                       aspectRatio: 1,
                       withCircleUi: true,
-                      baseColor: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+                      baseColor: isDark
+                          ? const Color(0xFF1A1A2E)
+                          : Colors.white,
                       maskColor: Colors.black.withValues(alpha: 0.6),
                       interactive: !_isProcessing,
                     ),
@@ -91,7 +99,9 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
               children: [
                 Expanded(
                   child: TextButton(
-                    onPressed: _isProcessing ? null : () => Navigator.pop(context),
+                    onPressed: _isProcessing
+                        ? null
+                        : () => Navigator.pop(context),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -110,7 +120,9 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _isProcessing ? null : () => _cropController.crop(),
+                    onPressed: _isProcessing
+                        ? null
+                        : () => _cropController.crop(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: ThemeColors.blue,
                       foregroundColor: Colors.white,
@@ -132,7 +144,9 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
                         : const Text(
                             'Подтвердить',
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold),
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                   ),
                 ),

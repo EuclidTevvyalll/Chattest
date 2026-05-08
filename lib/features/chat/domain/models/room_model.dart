@@ -5,14 +5,16 @@ part 'room_model.freezed.dart';
 part 'room_model.g.dart';
 
 enum RoomType {
-  @JsonValue('direct') room,
-  @JsonValue('group') group,
-  @JsonValue('channel') channel
+  @JsonValue('direct')
+  room,
+  @JsonValue('group')
+  group,
+  @JsonValue('channel')
+  channel,
 }
 
 @freezed
 abstract class RoomModel with _$RoomModel {
-
   const factory RoomModel({
     required String id,
     @Default(RoomType.room) RoomType type,
@@ -26,7 +28,6 @@ abstract class RoomModel with _$RoomModel {
 
     @Default([]) List<ProfileModel> participants,
   }) = _RoomModel;
-
 
   factory RoomModel.fromJson(Map<String, dynamic> json) =>
       _$RoomModelFromJson(json);

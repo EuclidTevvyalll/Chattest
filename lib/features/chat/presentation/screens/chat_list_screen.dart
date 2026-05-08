@@ -7,7 +7,6 @@ import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
 import 'package:rickandmorty/features/profile/presentation/providers/profile_provider.dart';
 import 'dart:typed_data';
 
-
 import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';
@@ -38,17 +37,24 @@ class ChatListScreen extends HookConsumerWidget {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Мессенджер', style: ThemeTextStyles.h1(isDark: isDark)),
+                    Text(
+                      'Мессенджер',
+                      style: ThemeTextStyles.h1(isDark: isDark),
+                    ),
                     GlassBox(
                       padding: const EdgeInsets.all(8),
                       borderRadius: BorderRadius.circular(12),
                       opacity: isDark ? 0.2 : 0.1,
                       child: IconButton(
-                        onPressed: () => ref.read(authRepositoryProvider).logout(),
+                        onPressed: () =>
+                            ref.read(authRepositoryProvider).logout(),
                         icon: Icon(
                           Icons.logout_rounded,
                           color: isDark ? Colors.white : Colors.black87,
@@ -90,9 +96,16 @@ class ChatListScreen extends HookConsumerWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.cloud_off_rounded, size: 64, color: Colors.redAccent),
+                            const Icon(
+                              Icons.cloud_off_rounded,
+                              size: 64,
+                              color: Colors.redAccent,
+                            ),
                             const SizedBox(height: 16),
-                            Text('Не удалось загрузить чаты', style: ThemeTextStyles.h3(isDark: isDark)),
+                            Text(
+                              'Не удалось загрузить чаты',
+                              style: ThemeTextStyles.h3(isDark: isDark),
+                            ),
                             const SizedBox(height: 8),
                             Text(
                               err.toString(),
@@ -104,9 +117,14 @@ class ChatListScreen extends HookConsumerWidget {
                               onPressed: () => ref.invalidate(roomsProvider),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: ThemeColors.blue,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                              child: const Text('Повторить', style: TextStyle(color: Colors.white)),
+                              child: const Text(
+                                'Повторить',
+                                style: TextStyle(color: Colors.white),
+                              ),
                             ),
                           ],
                         ),
@@ -171,13 +189,15 @@ class _RoomItem extends ConsumerWidget {
           displayName = otherParticipant.nickname ?? otherParticipant.username;
           avatarUrl = otherParticipant.avatarUrl;
           isOnline = otherParticipant.isOnline ?? false;
-          
-          final otherAvatarBase64Async = ref.watch(userAvatarBase64Provider(otherParticipant.id));
+
+          final otherAvatarBase64Async = ref.watch(
+            userAvatarBase64Provider(otherParticipant.id),
+          );
           return _buildItem(
-            context, 
-            displayName, 
-            avatarUrl, 
-            isOnline, 
+            context,
+            displayName,
+            avatarUrl,
+            isOnline,
             false, // Don't block UI for avatar loading
             otherAvatarBase64Async.asData?.value,
           );
@@ -187,14 +207,42 @@ class _RoomItem extends ConsumerWidget {
           displayName = room.name ?? 'Группа';
         }
 
-        return _buildItem(context, displayName, avatarUrl, isOnline, participantsAsync.isLoading, null);
+        return _buildItem(
+          context,
+          displayName,
+          avatarUrl,
+          isOnline,
+          participantsAsync.isLoading,
+          null,
+        );
       },
-      loading: () => _buildItem(context, room.name ?? 'Загрузка...', room.avatarUrl, false, true, null),
-      error: (err, _) => _buildItem(context, room.name ?? 'Ошибка', room.avatarUrl, false, false, null),
+      loading: () => _buildItem(
+        context,
+        room.name ?? 'Загрузка...',
+        room.avatarUrl,
+        false,
+        true,
+        null,
+      ),
+      error: (err, _) => _buildItem(
+        context,
+        room.name ?? 'Ошибка',
+        room.avatarUrl,
+        false,
+        false,
+        null,
+      ),
     );
   }
 
-  Widget _buildItem(BuildContext context, String displayName, String? avatarUrl, bool isOnline, bool isLoading, Uint8List? avatarBase64) {
+  Widget _buildItem(
+    BuildContext context,
+    String displayName,
+    String? avatarUrl,
+    bool isOnline,
+    bool isLoading,
+    Uint8List? avatarBase64,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: GestureDetector(
@@ -232,10 +280,14 @@ class _RoomItem extends ConsumerWidget {
                       ),
                       child: CircleAvatar(
                         radius: 30,
-                        backgroundColor: ThemeColors.blue.withValues(alpha: 0.05),
-                        backgroundImage: avatarUrl != null 
+                        backgroundColor: ThemeColors.blue.withValues(
+                          alpha: 0.05,
+                        ),
+                        backgroundImage: avatarUrl != null
                             ? CachedNetworkImageProvider(avatarUrl)
-                            : (avatarBase64 != null ? MemoryImage(avatarBase64) : null),
+                            : (avatarBase64 != null
+                                  ? MemoryImage(avatarBase64)
+                                  : null),
                         child: isLoading
                             ? const SizedBox(
                                 width: 20,
@@ -246,11 +298,17 @@ class _RoomItem extends ConsumerWidget {
                                 ),
                               )
                             : (avatarUrl == null && avatarBase64 == null
-                                ? Text(
-                                    displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : '?',
-                                    style: ThemeTextStyles.h2(color: ThemeColors.blue),
-                                  )
-                                : null),
+                                  ? Text(
+                                      displayName.isNotEmpty
+                                          ? displayName
+                                                .substring(0, 1)
+                                                .toUpperCase()
+                                          : '?',
+                                      style: ThemeTextStyles.h2(
+                                        color: ThemeColors.blue,
+                                      ),
+                                    )
+                                  : null),
                       ),
                     ),
                     if (isOnline)
@@ -263,7 +321,12 @@ class _RoomItem extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: Colors.green,
                             shape: BoxShape.circle,
-                            border: Border.all(color: isDark ? const Color(0xFF16213E) : Colors.white, width: 2),
+                            border: Border.all(
+                              color: isDark
+                                  ? const Color(0xFF16213E)
+                                  : Colors.white,
+                              width: 2,
+                            ),
                           ),
                         ),
                       ),
@@ -286,7 +349,9 @@ class _RoomItem extends ConsumerWidget {
                           ),
                           if (room.lastMessageAt != null)
                             Text(
-                              DateFormat.Hm().format(room.lastMessageAt!.toLocal()),
+                              DateFormat.Hm().format(
+                                room.lastMessageAt!.toLocal(),
+                              ),
                               style: ThemeTextStyles.caption(
                                 isDark: isDark,
                                 color: ThemeColors.blue,

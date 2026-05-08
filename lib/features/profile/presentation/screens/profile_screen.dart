@@ -42,9 +42,16 @@ class ProfileScreen extends HookConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.person_off_rounded, size: 64, color: isDark ? Colors.white24 : Colors.black12),
+                      Icon(
+                        Icons.person_off_rounded,
+                        size: 64,
+                        color: isDark ? Colors.white24 : Colors.black12,
+                      ),
                       const SizedBox(height: 16),
-                      Text('Профиль не найден', style: ThemeTextStyles.h3(isDark: isDark)),
+                      Text(
+                        'Профиль не найден',
+                        style: ThemeTextStyles.h3(isDark: isDark),
+                      ),
                     ],
                   ),
                 );
@@ -64,7 +71,9 @@ class ProfileScreen extends HookConsumerWidget {
             },
             orElse: () => profileAsync.when(
               data: (profile) => _ProfileContent(profile: profile!),
-              loading: () => const Center(child: CircularProgressIndicator(color: ThemeColors.blue)),
+              loading: () => const Center(
+                child: CircularProgressIndicator(color: ThemeColors.blue),
+              ),
               error: (err, stack) => Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -105,7 +114,8 @@ class ProfileScreen extends HookConsumerWidget {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () => ref.invalidate(profileControllerProvider),
+                            onPressed: () =>
+                                ref.invalidate(profileControllerProvider),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: ThemeColors.blue,
                               foregroundColor: Colors.white,
@@ -148,19 +158,19 @@ class _ProfileContent extends HookConsumerWidget {
     Future<void> pickAndUploadImage() async {
       if (isPicking.value || !isEditing.value) return;
       isPicking.value = true;
-      
+
       try {
         Uint8List? imageBytes;
-        
-        if (defaultTargetPlatform == TargetPlatform.windows || 
-            defaultTargetPlatform == TargetPlatform.linux || 
+
+        if (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.linux ||
             defaultTargetPlatform == TargetPlatform.macOS) {
           final result = await FilePicker.platform.pickFiles(
             type: FileType.image,
             allowMultiple: false,
             withData: true,
           );
-          
+
           if (result != null && result.files.single.bytes != null) {
             imageBytes = result.files.single.bytes;
           }
@@ -171,7 +181,7 @@ class _ProfileContent extends HookConsumerWidget {
             imageBytes = await image.readAsBytes();
           }
         }
-        
+
         if (imageBytes != null && context.mounted) {
           final croppedBytes = await showDialog<Uint8List>(
             context: context,
@@ -181,11 +191,13 @@ class _ProfileContent extends HookConsumerWidget {
           if (croppedBytes != null && context.mounted) {
             // Optimistic update: show preview immediately
             ref.read(avatarUploadPreviewProvider.notifier).update(croppedBytes);
-            
+
             try {
               // Wait for upload to complete
-              await ref.read(profileControllerProvider.notifier).uploadAvatar(croppedBytes);
-              
+              await ref
+                  .read(profileControllerProvider.notifier)
+                  .uploadAvatar(croppedBytes);
+
               if (context.mounted) {
                 rootScaffoldMessengerKey.currentState?.showSnackBar(
                   const SnackBar(
@@ -278,20 +290,26 @@ class _ProfileContent extends HookConsumerWidget {
                   ),
                   child: Consumer(
                     builder: (context, ref, _) {
-                      final avatarAsync = ref.watch(currentAvatarBase64Provider);
+                      final avatarAsync = ref.watch(
+                        currentAvatarBase64Provider,
+                      );
                       final avatarBase64 = avatarAsync.asData?.value;
                       final isLoading = avatarAsync.isLoading;
 
                       return CircleAvatar(
                         radius: 60,
-                        backgroundColor: isDark ? Colors.grey[900] : Colors.grey[200],
+                        backgroundColor: isDark
+                            ? Colors.grey[900]
+                            : Colors.grey[200],
                         backgroundImage: previewImage != null
                             ? MemoryImage(previewImage)
                             : (profile.avatarUrl != null
-                                ? CachedNetworkImageProvider(profile.avatarUrl!)
-                                : (avatarBase64 != null
-                                    ? MemoryImage(avatarBase64)
-                                    : null)),
+                                  ? CachedNetworkImageProvider(
+                                      profile.avatarUrl!,
+                                    )
+                                  : (avatarBase64 != null
+                                        ? MemoryImage(avatarBase64)
+                                        : null)),
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
@@ -304,8 +322,8 @@ class _ProfileContent extends HookConsumerWidget {
                                   color: ThemeColors.blue,
                                 ),
                               ),
-                            if (profile.avatarUrl == null && 
-                                previewImage == null && 
+                            if (profile.avatarUrl == null &&
+                                previewImage == null &&
                                 avatarBase64 == null &&
                                 !isLoading)
                               Icon(
@@ -314,22 +332,22 @@ class _ProfileContent extends HookConsumerWidget {
                                 color: ThemeColors.blue,
                               ),
                             if (previewImage != null)
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: SizedBox(
-                                width: 30,
-                                height: 30,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 30,
+                                    height: 30,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ),
                           ],
                         ),
                       );
