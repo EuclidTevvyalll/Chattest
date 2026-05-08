@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$MessageModel {
 
- String get id;@JsonKey(name: 'profile_id') String get profileId; String get content;@JsonKey(name: 'created_at') DateTime get createdAt;@JsonKey(name: 'room_id') String get roomId;@JsonKey(name: 'reply_to_message_id') String? get replyToMessageId;@JsonKey(name: 'is_edited') bool? get isEdited;@JsonKey(name: 'edited_at') DateTime? get editedAt;@JsonKey(name: 'is_deleted') bool? get isDeleted;@JsonKey(name: 'deleted_at') DateTime? get deletedAt;@JsonKey(name: 'forwarded_from') String? get forwardedFrom;@JsonKey(name: 'deleted_by') String? get deletedBy;@JsonKey(name: 'forwarded_info') Map<String, dynamic>? get forwardedInfo;@JsonKey(name: 'media_type') String? get mediaType;@JsonKey(name: 'media_url') String? get mediaUrl;@JsonKey(name: 'media_thumbnail_url') String? get mediaThumbnailUrl;@JsonKey(name: 'media_duration') int? get mediaDuration;@JsonKey(name: 'media_size') int? get mediaSize;@JsonKey(name: 'media_name') String? get mediaName; String? get media;
+ String get id;@JsonKey(name: 'profile_id') String get profileId; String get content;@JsonKey(name: 'created_at') DateTime get createdAt;@JsonKey(name: 'room_id') String get roomId;@JsonKey(name: 'reply_to_message_id') String? get replyToMessageId;@JsonKey(name: 'is_edited') bool? get isEdited;@JsonKey(name: 'edited_at') DateTime? get editedAt;@JsonKey(name: 'is_deleted') bool? get isDeleted;@JsonKey(name: 'deleted_at') DateTime? get deletedAt;@JsonKey(name: 'forwarded_from') String? get forwardedFrom;@JsonKey(name: 'deleted_by') String? get deletedBy;@JsonKey(name: 'forwarded_info') Map<String, dynamic>? get forwardedInfo;@JsonKey(name: 'media_type') String? get mediaType;@JsonKey(name: 'media_url') String? get mediaUrl;@JsonKey(name: 'media_thumbnail_url') String? get mediaThumbnailUrl;@JsonKey(name: 'media_duration') int? get mediaDuration;@JsonKey(name: 'media_size') int? get mediaSize;@JsonKey(name: 'media_name') String? get mediaName; String? get media; Map<String, List<String>> get reactions;
 /// Create a copy of MessageModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $MessageModelCopyWith<MessageModel> get copyWith => _$MessageModelCopyWithImpl<M
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MessageModel&&(identical(other.id, id) || other.id == id)&&(identical(other.profileId, profileId) || other.profileId == profileId)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.replyToMessageId, replyToMessageId) || other.replyToMessageId == replyToMessageId)&&(identical(other.isEdited, isEdited) || other.isEdited == isEdited)&&(identical(other.editedAt, editedAt) || other.editedAt == editedAt)&&(identical(other.isDeleted, isDeleted) || other.isDeleted == isDeleted)&&(identical(other.deletedAt, deletedAt) || other.deletedAt == deletedAt)&&(identical(other.forwardedFrom, forwardedFrom) || other.forwardedFrom == forwardedFrom)&&(identical(other.deletedBy, deletedBy) || other.deletedBy == deletedBy)&&const DeepCollectionEquality().equals(other.forwardedInfo, forwardedInfo)&&(identical(other.mediaType, mediaType) || other.mediaType == mediaType)&&(identical(other.mediaUrl, mediaUrl) || other.mediaUrl == mediaUrl)&&(identical(other.mediaThumbnailUrl, mediaThumbnailUrl) || other.mediaThumbnailUrl == mediaThumbnailUrl)&&(identical(other.mediaDuration, mediaDuration) || other.mediaDuration == mediaDuration)&&(identical(other.mediaSize, mediaSize) || other.mediaSize == mediaSize)&&(identical(other.mediaName, mediaName) || other.mediaName == mediaName)&&(identical(other.media, media) || other.media == media));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MessageModel&&(identical(other.id, id) || other.id == id)&&(identical(other.profileId, profileId) || other.profileId == profileId)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.replyToMessageId, replyToMessageId) || other.replyToMessageId == replyToMessageId)&&(identical(other.isEdited, isEdited) || other.isEdited == isEdited)&&(identical(other.editedAt, editedAt) || other.editedAt == editedAt)&&(identical(other.isDeleted, isDeleted) || other.isDeleted == isDeleted)&&(identical(other.deletedAt, deletedAt) || other.deletedAt == deletedAt)&&(identical(other.forwardedFrom, forwardedFrom) || other.forwardedFrom == forwardedFrom)&&(identical(other.deletedBy, deletedBy) || other.deletedBy == deletedBy)&&const DeepCollectionEquality().equals(other.forwardedInfo, forwardedInfo)&&(identical(other.mediaType, mediaType) || other.mediaType == mediaType)&&(identical(other.mediaUrl, mediaUrl) || other.mediaUrl == mediaUrl)&&(identical(other.mediaThumbnailUrl, mediaThumbnailUrl) || other.mediaThumbnailUrl == mediaThumbnailUrl)&&(identical(other.mediaDuration, mediaDuration) || other.mediaDuration == mediaDuration)&&(identical(other.mediaSize, mediaSize) || other.mediaSize == mediaSize)&&(identical(other.mediaName, mediaName) || other.mediaName == mediaName)&&(identical(other.media, media) || other.media == media)&&const DeepCollectionEquality().equals(other.reactions, reactions));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,profileId,content,createdAt,roomId,replyToMessageId,isEdited,editedAt,isDeleted,deletedAt,forwardedFrom,deletedBy,const DeepCollectionEquality().hash(forwardedInfo),mediaType,mediaUrl,mediaThumbnailUrl,mediaDuration,mediaSize,mediaName,media]);
+int get hashCode => Object.hashAll([runtimeType,id,profileId,content,createdAt,roomId,replyToMessageId,isEdited,editedAt,isDeleted,deletedAt,forwardedFrom,deletedBy,const DeepCollectionEquality().hash(forwardedInfo),mediaType,mediaUrl,mediaThumbnailUrl,mediaDuration,mediaSize,mediaName,media,const DeepCollectionEquality().hash(reactions)]);
 
 @override
 String toString() {
-  return 'MessageModel(id: $id, profileId: $profileId, content: $content, createdAt: $createdAt, roomId: $roomId, replyToMessageId: $replyToMessageId, isEdited: $isEdited, editedAt: $editedAt, isDeleted: $isDeleted, deletedAt: $deletedAt, forwardedFrom: $forwardedFrom, deletedBy: $deletedBy, forwardedInfo: $forwardedInfo, mediaType: $mediaType, mediaUrl: $mediaUrl, mediaThumbnailUrl: $mediaThumbnailUrl, mediaDuration: $mediaDuration, mediaSize: $mediaSize, mediaName: $mediaName, media: $media)';
+  return 'MessageModel(id: $id, profileId: $profileId, content: $content, createdAt: $createdAt, roomId: $roomId, replyToMessageId: $replyToMessageId, isEdited: $isEdited, editedAt: $editedAt, isDeleted: $isDeleted, deletedAt: $deletedAt, forwardedFrom: $forwardedFrom, deletedBy: $deletedBy, forwardedInfo: $forwardedInfo, mediaType: $mediaType, mediaUrl: $mediaUrl, mediaThumbnailUrl: $mediaThumbnailUrl, mediaDuration: $mediaDuration, mediaSize: $mediaSize, mediaName: $mediaName, media: $media, reactions: $reactions)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $MessageModelCopyWith<$Res>  {
   factory $MessageModelCopyWith(MessageModel value, $Res Function(MessageModel) _then) = _$MessageModelCopyWithImpl;
 @useResult
 $Res call({
- String id,@JsonKey(name: 'profile_id') String profileId, String content,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'room_id') String roomId,@JsonKey(name: 'reply_to_message_id') String? replyToMessageId,@JsonKey(name: 'is_edited') bool? isEdited,@JsonKey(name: 'edited_at') DateTime? editedAt,@JsonKey(name: 'is_deleted') bool? isDeleted,@JsonKey(name: 'deleted_at') DateTime? deletedAt,@JsonKey(name: 'forwarded_from') String? forwardedFrom,@JsonKey(name: 'deleted_by') String? deletedBy,@JsonKey(name: 'forwarded_info') Map<String, dynamic>? forwardedInfo,@JsonKey(name: 'media_type') String? mediaType,@JsonKey(name: 'media_url') String? mediaUrl,@JsonKey(name: 'media_thumbnail_url') String? mediaThumbnailUrl,@JsonKey(name: 'media_duration') int? mediaDuration,@JsonKey(name: 'media_size') int? mediaSize,@JsonKey(name: 'media_name') String? mediaName, String? media
+ String id,@JsonKey(name: 'profile_id') String profileId, String content,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'room_id') String roomId,@JsonKey(name: 'reply_to_message_id') String? replyToMessageId,@JsonKey(name: 'is_edited') bool? isEdited,@JsonKey(name: 'edited_at') DateTime? editedAt,@JsonKey(name: 'is_deleted') bool? isDeleted,@JsonKey(name: 'deleted_at') DateTime? deletedAt,@JsonKey(name: 'forwarded_from') String? forwardedFrom,@JsonKey(name: 'deleted_by') String? deletedBy,@JsonKey(name: 'forwarded_info') Map<String, dynamic>? forwardedInfo,@JsonKey(name: 'media_type') String? mediaType,@JsonKey(name: 'media_url') String? mediaUrl,@JsonKey(name: 'media_thumbnail_url') String? mediaThumbnailUrl,@JsonKey(name: 'media_duration') int? mediaDuration,@JsonKey(name: 'media_size') int? mediaSize,@JsonKey(name: 'media_name') String? mediaName, String? media, Map<String, List<String>> reactions
 });
 
 
@@ -65,7 +65,7 @@ class _$MessageModelCopyWithImpl<$Res>
 
 /// Create a copy of MessageModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? profileId = null,Object? content = null,Object? createdAt = null,Object? roomId = null,Object? replyToMessageId = freezed,Object? isEdited = freezed,Object? editedAt = freezed,Object? isDeleted = freezed,Object? deletedAt = freezed,Object? forwardedFrom = freezed,Object? deletedBy = freezed,Object? forwardedInfo = freezed,Object? mediaType = freezed,Object? mediaUrl = freezed,Object? mediaThumbnailUrl = freezed,Object? mediaDuration = freezed,Object? mediaSize = freezed,Object? mediaName = freezed,Object? media = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? profileId = null,Object? content = null,Object? createdAt = null,Object? roomId = null,Object? replyToMessageId = freezed,Object? isEdited = freezed,Object? editedAt = freezed,Object? isDeleted = freezed,Object? deletedAt = freezed,Object? forwardedFrom = freezed,Object? deletedBy = freezed,Object? forwardedInfo = freezed,Object? mediaType = freezed,Object? mediaUrl = freezed,Object? mediaThumbnailUrl = freezed,Object? mediaDuration = freezed,Object? mediaSize = freezed,Object? mediaName = freezed,Object? media = freezed,Object? reactions = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,profileId: null == profileId ? _self.profileId : profileId // ignore: cast_nullable_to_non_nullable
@@ -87,7 +87,8 @@ as String?,mediaDuration: freezed == mediaDuration ? _self.mediaDuration : media
 as int?,mediaSize: freezed == mediaSize ? _self.mediaSize : mediaSize // ignore: cast_nullable_to_non_nullable
 as int?,mediaName: freezed == mediaName ? _self.mediaName : mediaName // ignore: cast_nullable_to_non_nullable
 as String?,media: freezed == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,reactions: null == reactions ? _self.reactions : reactions // ignore: cast_nullable_to_non_nullable
+as Map<String, List<String>>,
   ));
 }
 
@@ -172,10 +173,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'profile_id')  String profileId,  String content, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'room_id')  String roomId, @JsonKey(name: 'reply_to_message_id')  String? replyToMessageId, @JsonKey(name: 'is_edited')  bool? isEdited, @JsonKey(name: 'edited_at')  DateTime? editedAt, @JsonKey(name: 'is_deleted')  bool? isDeleted, @JsonKey(name: 'deleted_at')  DateTime? deletedAt, @JsonKey(name: 'forwarded_from')  String? forwardedFrom, @JsonKey(name: 'deleted_by')  String? deletedBy, @JsonKey(name: 'forwarded_info')  Map<String, dynamic>? forwardedInfo, @JsonKey(name: 'media_type')  String? mediaType, @JsonKey(name: 'media_url')  String? mediaUrl, @JsonKey(name: 'media_thumbnail_url')  String? mediaThumbnailUrl, @JsonKey(name: 'media_duration')  int? mediaDuration, @JsonKey(name: 'media_size')  int? mediaSize, @JsonKey(name: 'media_name')  String? mediaName,  String? media)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'profile_id')  String profileId,  String content, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'room_id')  String roomId, @JsonKey(name: 'reply_to_message_id')  String? replyToMessageId, @JsonKey(name: 'is_edited')  bool? isEdited, @JsonKey(name: 'edited_at')  DateTime? editedAt, @JsonKey(name: 'is_deleted')  bool? isDeleted, @JsonKey(name: 'deleted_at')  DateTime? deletedAt, @JsonKey(name: 'forwarded_from')  String? forwardedFrom, @JsonKey(name: 'deleted_by')  String? deletedBy, @JsonKey(name: 'forwarded_info')  Map<String, dynamic>? forwardedInfo, @JsonKey(name: 'media_type')  String? mediaType, @JsonKey(name: 'media_url')  String? mediaUrl, @JsonKey(name: 'media_thumbnail_url')  String? mediaThumbnailUrl, @JsonKey(name: 'media_duration')  int? mediaDuration, @JsonKey(name: 'media_size')  int? mediaSize, @JsonKey(name: 'media_name')  String? mediaName,  String? media,  Map<String, List<String>> reactions)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MessageModel() when $default != null:
-return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roomId,_that.replyToMessageId,_that.isEdited,_that.editedAt,_that.isDeleted,_that.deletedAt,_that.forwardedFrom,_that.deletedBy,_that.forwardedInfo,_that.mediaType,_that.mediaUrl,_that.mediaThumbnailUrl,_that.mediaDuration,_that.mediaSize,_that.mediaName,_that.media);case _:
+return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roomId,_that.replyToMessageId,_that.isEdited,_that.editedAt,_that.isDeleted,_that.deletedAt,_that.forwardedFrom,_that.deletedBy,_that.forwardedInfo,_that.mediaType,_that.mediaUrl,_that.mediaThumbnailUrl,_that.mediaDuration,_that.mediaSize,_that.mediaName,_that.media,_that.reactions);case _:
   return orElse();
 
 }
@@ -193,10 +194,10 @@ return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roo
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'profile_id')  String profileId,  String content, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'room_id')  String roomId, @JsonKey(name: 'reply_to_message_id')  String? replyToMessageId, @JsonKey(name: 'is_edited')  bool? isEdited, @JsonKey(name: 'edited_at')  DateTime? editedAt, @JsonKey(name: 'is_deleted')  bool? isDeleted, @JsonKey(name: 'deleted_at')  DateTime? deletedAt, @JsonKey(name: 'forwarded_from')  String? forwardedFrom, @JsonKey(name: 'deleted_by')  String? deletedBy, @JsonKey(name: 'forwarded_info')  Map<String, dynamic>? forwardedInfo, @JsonKey(name: 'media_type')  String? mediaType, @JsonKey(name: 'media_url')  String? mediaUrl, @JsonKey(name: 'media_thumbnail_url')  String? mediaThumbnailUrl, @JsonKey(name: 'media_duration')  int? mediaDuration, @JsonKey(name: 'media_size')  int? mediaSize, @JsonKey(name: 'media_name')  String? mediaName,  String? media)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id, @JsonKey(name: 'profile_id')  String profileId,  String content, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'room_id')  String roomId, @JsonKey(name: 'reply_to_message_id')  String? replyToMessageId, @JsonKey(name: 'is_edited')  bool? isEdited, @JsonKey(name: 'edited_at')  DateTime? editedAt, @JsonKey(name: 'is_deleted')  bool? isDeleted, @JsonKey(name: 'deleted_at')  DateTime? deletedAt, @JsonKey(name: 'forwarded_from')  String? forwardedFrom, @JsonKey(name: 'deleted_by')  String? deletedBy, @JsonKey(name: 'forwarded_info')  Map<String, dynamic>? forwardedInfo, @JsonKey(name: 'media_type')  String? mediaType, @JsonKey(name: 'media_url')  String? mediaUrl, @JsonKey(name: 'media_thumbnail_url')  String? mediaThumbnailUrl, @JsonKey(name: 'media_duration')  int? mediaDuration, @JsonKey(name: 'media_size')  int? mediaSize, @JsonKey(name: 'media_name')  String? mediaName,  String? media,  Map<String, List<String>> reactions)  $default,) {final _that = this;
 switch (_that) {
 case _MessageModel():
-return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roomId,_that.replyToMessageId,_that.isEdited,_that.editedAt,_that.isDeleted,_that.deletedAt,_that.forwardedFrom,_that.deletedBy,_that.forwardedInfo,_that.mediaType,_that.mediaUrl,_that.mediaThumbnailUrl,_that.mediaDuration,_that.mediaSize,_that.mediaName,_that.media);case _:
+return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roomId,_that.replyToMessageId,_that.isEdited,_that.editedAt,_that.isDeleted,_that.deletedAt,_that.forwardedFrom,_that.deletedBy,_that.forwardedInfo,_that.mediaType,_that.mediaUrl,_that.mediaThumbnailUrl,_that.mediaDuration,_that.mediaSize,_that.mediaName,_that.media,_that.reactions);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -213,10 +214,10 @@ return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roo
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'profile_id')  String profileId,  String content, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'room_id')  String roomId, @JsonKey(name: 'reply_to_message_id')  String? replyToMessageId, @JsonKey(name: 'is_edited')  bool? isEdited, @JsonKey(name: 'edited_at')  DateTime? editedAt, @JsonKey(name: 'is_deleted')  bool? isDeleted, @JsonKey(name: 'deleted_at')  DateTime? deletedAt, @JsonKey(name: 'forwarded_from')  String? forwardedFrom, @JsonKey(name: 'deleted_by')  String? deletedBy, @JsonKey(name: 'forwarded_info')  Map<String, dynamic>? forwardedInfo, @JsonKey(name: 'media_type')  String? mediaType, @JsonKey(name: 'media_url')  String? mediaUrl, @JsonKey(name: 'media_thumbnail_url')  String? mediaThumbnailUrl, @JsonKey(name: 'media_duration')  int? mediaDuration, @JsonKey(name: 'media_size')  int? mediaSize, @JsonKey(name: 'media_name')  String? mediaName,  String? media)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id, @JsonKey(name: 'profile_id')  String profileId,  String content, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'room_id')  String roomId, @JsonKey(name: 'reply_to_message_id')  String? replyToMessageId, @JsonKey(name: 'is_edited')  bool? isEdited, @JsonKey(name: 'edited_at')  DateTime? editedAt, @JsonKey(name: 'is_deleted')  bool? isDeleted, @JsonKey(name: 'deleted_at')  DateTime? deletedAt, @JsonKey(name: 'forwarded_from')  String? forwardedFrom, @JsonKey(name: 'deleted_by')  String? deletedBy, @JsonKey(name: 'forwarded_info')  Map<String, dynamic>? forwardedInfo, @JsonKey(name: 'media_type')  String? mediaType, @JsonKey(name: 'media_url')  String? mediaUrl, @JsonKey(name: 'media_thumbnail_url')  String? mediaThumbnailUrl, @JsonKey(name: 'media_duration')  int? mediaDuration, @JsonKey(name: 'media_size')  int? mediaSize, @JsonKey(name: 'media_name')  String? mediaName,  String? media,  Map<String, List<String>> reactions)?  $default,) {final _that = this;
 switch (_that) {
 case _MessageModel() when $default != null:
-return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roomId,_that.replyToMessageId,_that.isEdited,_that.editedAt,_that.isDeleted,_that.deletedAt,_that.forwardedFrom,_that.deletedBy,_that.forwardedInfo,_that.mediaType,_that.mediaUrl,_that.mediaThumbnailUrl,_that.mediaDuration,_that.mediaSize,_that.mediaName,_that.media);case _:
+return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roomId,_that.replyToMessageId,_that.isEdited,_that.editedAt,_that.isDeleted,_that.deletedAt,_that.forwardedFrom,_that.deletedBy,_that.forwardedInfo,_that.mediaType,_that.mediaUrl,_that.mediaThumbnailUrl,_that.mediaDuration,_that.mediaSize,_that.mediaName,_that.media,_that.reactions);case _:
   return null;
 
 }
@@ -228,7 +229,7 @@ return $default(_that.id,_that.profileId,_that.content,_that.createdAt,_that.roo
 @JsonSerializable()
 
 class _MessageModel implements MessageModel {
-  const _MessageModel({required this.id, @JsonKey(name: 'profile_id') required this.profileId, required this.content, @JsonKey(name: 'created_at') required this.createdAt, @JsonKey(name: 'room_id') required this.roomId, @JsonKey(name: 'reply_to_message_id') this.replyToMessageId, @JsonKey(name: 'is_edited') this.isEdited, @JsonKey(name: 'edited_at') this.editedAt, @JsonKey(name: 'is_deleted') this.isDeleted, @JsonKey(name: 'deleted_at') this.deletedAt, @JsonKey(name: 'forwarded_from') this.forwardedFrom, @JsonKey(name: 'deleted_by') this.deletedBy, @JsonKey(name: 'forwarded_info') final  Map<String, dynamic>? forwardedInfo, @JsonKey(name: 'media_type') this.mediaType, @JsonKey(name: 'media_url') this.mediaUrl, @JsonKey(name: 'media_thumbnail_url') this.mediaThumbnailUrl, @JsonKey(name: 'media_duration') this.mediaDuration, @JsonKey(name: 'media_size') this.mediaSize, @JsonKey(name: 'media_name') this.mediaName, this.media}): _forwardedInfo = forwardedInfo;
+  const _MessageModel({required this.id, @JsonKey(name: 'profile_id') required this.profileId, required this.content, @JsonKey(name: 'created_at') required this.createdAt, @JsonKey(name: 'room_id') required this.roomId, @JsonKey(name: 'reply_to_message_id') this.replyToMessageId, @JsonKey(name: 'is_edited') this.isEdited, @JsonKey(name: 'edited_at') this.editedAt, @JsonKey(name: 'is_deleted') this.isDeleted, @JsonKey(name: 'deleted_at') this.deletedAt, @JsonKey(name: 'forwarded_from') this.forwardedFrom, @JsonKey(name: 'deleted_by') this.deletedBy, @JsonKey(name: 'forwarded_info') final  Map<String, dynamic>? forwardedInfo, @JsonKey(name: 'media_type') this.mediaType, @JsonKey(name: 'media_url') this.mediaUrl, @JsonKey(name: 'media_thumbnail_url') this.mediaThumbnailUrl, @JsonKey(name: 'media_duration') this.mediaDuration, @JsonKey(name: 'media_size') this.mediaSize, @JsonKey(name: 'media_name') this.mediaName, this.media, final  Map<String, List<String>> reactions = const {}}): _forwardedInfo = forwardedInfo,_reactions = reactions;
   factory _MessageModel.fromJson(Map<String, dynamic> json) => _$MessageModelFromJson(json);
 
 @override final  String id;
@@ -259,6 +260,13 @@ class _MessageModel implements MessageModel {
 @override@JsonKey(name: 'media_size') final  int? mediaSize;
 @override@JsonKey(name: 'media_name') final  String? mediaName;
 @override final  String? media;
+ final  Map<String, List<String>> _reactions;
+@override@JsonKey() Map<String, List<String>> get reactions {
+  if (_reactions is EqualUnmodifiableMapView) return _reactions;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(_reactions);
+}
+
 
 /// Create a copy of MessageModel
 /// with the given fields replaced by the non-null parameter values.
@@ -273,16 +281,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MessageModel&&(identical(other.id, id) || other.id == id)&&(identical(other.profileId, profileId) || other.profileId == profileId)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.replyToMessageId, replyToMessageId) || other.replyToMessageId == replyToMessageId)&&(identical(other.isEdited, isEdited) || other.isEdited == isEdited)&&(identical(other.editedAt, editedAt) || other.editedAt == editedAt)&&(identical(other.isDeleted, isDeleted) || other.isDeleted == isDeleted)&&(identical(other.deletedAt, deletedAt) || other.deletedAt == deletedAt)&&(identical(other.forwardedFrom, forwardedFrom) || other.forwardedFrom == forwardedFrom)&&(identical(other.deletedBy, deletedBy) || other.deletedBy == deletedBy)&&const DeepCollectionEquality().equals(other._forwardedInfo, _forwardedInfo)&&(identical(other.mediaType, mediaType) || other.mediaType == mediaType)&&(identical(other.mediaUrl, mediaUrl) || other.mediaUrl == mediaUrl)&&(identical(other.mediaThumbnailUrl, mediaThumbnailUrl) || other.mediaThumbnailUrl == mediaThumbnailUrl)&&(identical(other.mediaDuration, mediaDuration) || other.mediaDuration == mediaDuration)&&(identical(other.mediaSize, mediaSize) || other.mediaSize == mediaSize)&&(identical(other.mediaName, mediaName) || other.mediaName == mediaName)&&(identical(other.media, media) || other.media == media));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MessageModel&&(identical(other.id, id) || other.id == id)&&(identical(other.profileId, profileId) || other.profileId == profileId)&&(identical(other.content, content) || other.content == content)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.roomId, roomId) || other.roomId == roomId)&&(identical(other.replyToMessageId, replyToMessageId) || other.replyToMessageId == replyToMessageId)&&(identical(other.isEdited, isEdited) || other.isEdited == isEdited)&&(identical(other.editedAt, editedAt) || other.editedAt == editedAt)&&(identical(other.isDeleted, isDeleted) || other.isDeleted == isDeleted)&&(identical(other.deletedAt, deletedAt) || other.deletedAt == deletedAt)&&(identical(other.forwardedFrom, forwardedFrom) || other.forwardedFrom == forwardedFrom)&&(identical(other.deletedBy, deletedBy) || other.deletedBy == deletedBy)&&const DeepCollectionEquality().equals(other._forwardedInfo, _forwardedInfo)&&(identical(other.mediaType, mediaType) || other.mediaType == mediaType)&&(identical(other.mediaUrl, mediaUrl) || other.mediaUrl == mediaUrl)&&(identical(other.mediaThumbnailUrl, mediaThumbnailUrl) || other.mediaThumbnailUrl == mediaThumbnailUrl)&&(identical(other.mediaDuration, mediaDuration) || other.mediaDuration == mediaDuration)&&(identical(other.mediaSize, mediaSize) || other.mediaSize == mediaSize)&&(identical(other.mediaName, mediaName) || other.mediaName == mediaName)&&(identical(other.media, media) || other.media == media)&&const DeepCollectionEquality().equals(other._reactions, _reactions));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hashAll([runtimeType,id,profileId,content,createdAt,roomId,replyToMessageId,isEdited,editedAt,isDeleted,deletedAt,forwardedFrom,deletedBy,const DeepCollectionEquality().hash(_forwardedInfo),mediaType,mediaUrl,mediaThumbnailUrl,mediaDuration,mediaSize,mediaName,media]);
+int get hashCode => Object.hashAll([runtimeType,id,profileId,content,createdAt,roomId,replyToMessageId,isEdited,editedAt,isDeleted,deletedAt,forwardedFrom,deletedBy,const DeepCollectionEquality().hash(_forwardedInfo),mediaType,mediaUrl,mediaThumbnailUrl,mediaDuration,mediaSize,mediaName,media,const DeepCollectionEquality().hash(_reactions)]);
 
 @override
 String toString() {
-  return 'MessageModel(id: $id, profileId: $profileId, content: $content, createdAt: $createdAt, roomId: $roomId, replyToMessageId: $replyToMessageId, isEdited: $isEdited, editedAt: $editedAt, isDeleted: $isDeleted, deletedAt: $deletedAt, forwardedFrom: $forwardedFrom, deletedBy: $deletedBy, forwardedInfo: $forwardedInfo, mediaType: $mediaType, mediaUrl: $mediaUrl, mediaThumbnailUrl: $mediaThumbnailUrl, mediaDuration: $mediaDuration, mediaSize: $mediaSize, mediaName: $mediaName, media: $media)';
+  return 'MessageModel(id: $id, profileId: $profileId, content: $content, createdAt: $createdAt, roomId: $roomId, replyToMessageId: $replyToMessageId, isEdited: $isEdited, editedAt: $editedAt, isDeleted: $isDeleted, deletedAt: $deletedAt, forwardedFrom: $forwardedFrom, deletedBy: $deletedBy, forwardedInfo: $forwardedInfo, mediaType: $mediaType, mediaUrl: $mediaUrl, mediaThumbnailUrl: $mediaThumbnailUrl, mediaDuration: $mediaDuration, mediaSize: $mediaSize, mediaName: $mediaName, media: $media, reactions: $reactions)';
 }
 
 
@@ -293,7 +301,7 @@ abstract mixin class _$MessageModelCopyWith<$Res> implements $MessageModelCopyWi
   factory _$MessageModelCopyWith(_MessageModel value, $Res Function(_MessageModel) _then) = __$MessageModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id,@JsonKey(name: 'profile_id') String profileId, String content,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'room_id') String roomId,@JsonKey(name: 'reply_to_message_id') String? replyToMessageId,@JsonKey(name: 'is_edited') bool? isEdited,@JsonKey(name: 'edited_at') DateTime? editedAt,@JsonKey(name: 'is_deleted') bool? isDeleted,@JsonKey(name: 'deleted_at') DateTime? deletedAt,@JsonKey(name: 'forwarded_from') String? forwardedFrom,@JsonKey(name: 'deleted_by') String? deletedBy,@JsonKey(name: 'forwarded_info') Map<String, dynamic>? forwardedInfo,@JsonKey(name: 'media_type') String? mediaType,@JsonKey(name: 'media_url') String? mediaUrl,@JsonKey(name: 'media_thumbnail_url') String? mediaThumbnailUrl,@JsonKey(name: 'media_duration') int? mediaDuration,@JsonKey(name: 'media_size') int? mediaSize,@JsonKey(name: 'media_name') String? mediaName, String? media
+ String id,@JsonKey(name: 'profile_id') String profileId, String content,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'room_id') String roomId,@JsonKey(name: 'reply_to_message_id') String? replyToMessageId,@JsonKey(name: 'is_edited') bool? isEdited,@JsonKey(name: 'edited_at') DateTime? editedAt,@JsonKey(name: 'is_deleted') bool? isDeleted,@JsonKey(name: 'deleted_at') DateTime? deletedAt,@JsonKey(name: 'forwarded_from') String? forwardedFrom,@JsonKey(name: 'deleted_by') String? deletedBy,@JsonKey(name: 'forwarded_info') Map<String, dynamic>? forwardedInfo,@JsonKey(name: 'media_type') String? mediaType,@JsonKey(name: 'media_url') String? mediaUrl,@JsonKey(name: 'media_thumbnail_url') String? mediaThumbnailUrl,@JsonKey(name: 'media_duration') int? mediaDuration,@JsonKey(name: 'media_size') int? mediaSize,@JsonKey(name: 'media_name') String? mediaName, String? media, Map<String, List<String>> reactions
 });
 
 
@@ -310,7 +318,7 @@ class __$MessageModelCopyWithImpl<$Res>
 
 /// Create a copy of MessageModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? profileId = null,Object? content = null,Object? createdAt = null,Object? roomId = null,Object? replyToMessageId = freezed,Object? isEdited = freezed,Object? editedAt = freezed,Object? isDeleted = freezed,Object? deletedAt = freezed,Object? forwardedFrom = freezed,Object? deletedBy = freezed,Object? forwardedInfo = freezed,Object? mediaType = freezed,Object? mediaUrl = freezed,Object? mediaThumbnailUrl = freezed,Object? mediaDuration = freezed,Object? mediaSize = freezed,Object? mediaName = freezed,Object? media = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? profileId = null,Object? content = null,Object? createdAt = null,Object? roomId = null,Object? replyToMessageId = freezed,Object? isEdited = freezed,Object? editedAt = freezed,Object? isDeleted = freezed,Object? deletedAt = freezed,Object? forwardedFrom = freezed,Object? deletedBy = freezed,Object? forwardedInfo = freezed,Object? mediaType = freezed,Object? mediaUrl = freezed,Object? mediaThumbnailUrl = freezed,Object? mediaDuration = freezed,Object? mediaSize = freezed,Object? mediaName = freezed,Object? media = freezed,Object? reactions = null,}) {
   return _then(_MessageModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,profileId: null == profileId ? _self.profileId : profileId // ignore: cast_nullable_to_non_nullable
@@ -332,7 +340,8 @@ as String?,mediaDuration: freezed == mediaDuration ? _self.mediaDuration : media
 as int?,mediaSize: freezed == mediaSize ? _self.mediaSize : mediaSize // ignore: cast_nullable_to_non_nullable
 as int?,mediaName: freezed == mediaName ? _self.mediaName : mediaName // ignore: cast_nullable_to_non_nullable
 as String?,media: freezed == media ? _self.media : media // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,reactions: null == reactions ? _self._reactions : reactions // ignore: cast_nullable_to_non_nullable
+as Map<String, List<String>>,
   ));
 }
 

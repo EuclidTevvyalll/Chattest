@@ -32,6 +32,14 @@ _MessageModel _$MessageModelFromJson(Map<String, dynamic> json) =>
       mediaSize: (json['media_size'] as num?)?.toInt(),
       mediaName: json['media_name'] as String?,
       media: json['media'] as String?,
+      reactions:
+          (json['reactions'] as Map<String, dynamic>?)?.map(
+            (k, e) => MapEntry(
+              k,
+              (e as List<dynamic>).map((e) => e as String).toList(),
+            ),
+          ) ??
+          const {},
     );
 
 Map<String, dynamic> _$MessageModelToJson(_MessageModel instance) =>
@@ -56,4 +64,5 @@ Map<String, dynamic> _$MessageModelToJson(_MessageModel instance) =>
       'media_size': instance.mediaSize,
       'media_name': instance.mediaName,
       'media': instance.media,
+      'reactions': instance.reactions,
     };

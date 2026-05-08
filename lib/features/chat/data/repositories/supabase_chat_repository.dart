@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
@@ -14,6 +15,9 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) return Stream.value([]);
 
+    // We listen to room_participants to know which rooms the user is in.
+    // To make it update on new messages, we'll also 'touch' the room_participants
+    // or rely on the rooms table updates if we add a trigger.
     return _client
         .from('room_participants')
         .stream(primaryKey: ['room_id', 'profile_id'])
@@ -24,25 +28,23 @@ class SupabaseChatRepository implements ChatRepository {
           final roomIds = participants
               .map((p) => p['room_id']?.toString())
               .whereType<String>()
+              .toSet()
               .toList();
 
           if (roomIds.isEmpty) return [];
 
+          // Fetch rooms directly. They are updated by the database trigger on every new message.
           final List roomsData = await _client
               .from('rooms')
-              .select('*, messages(content, created_at)')
-              .inFilter('id', roomIds)
-              .order('created_at', referencedTable: 'messages', ascending: false)
-              .limit(1, referencedTable: 'messages');
+              .select('*')
+              .inFilter('id', roomIds);
 
-          return roomsData.map((roomMap) {
+          final results = roomsData.map((roomMap) {
             final room = Map<String, dynamic>.from(roomMap);
-            final participantsList = <ProfileModel>[];
-
-            // Get the last message from the nested messages list
-            final messages = room['messages'] as List?;
-            final lastMessageText = (messages != null && messages.isNotEmpty) 
-                ? messages.first['content']?.toString() 
+            
+            final lastMessageText = room['last_message']?.toString();
+            final lastMessageTime = room['last_message_at'] != null 
+                ? DateTime.tryParse(room['last_message_at'].toString())
                 : null;
 
             return RoomModel(
@@ -52,12 +54,21 @@ class SupabaseChatRepository implements ChatRepository {
               description: room['description']?.toString(),
               avatarUrl: room['avatar_url']?.toString(),
               createdAt: DateTime.tryParse(room['created_at']?.toString() ?? '') ?? DateTime.now(),
-              lastMessageAt: DateTime.tryParse(room['last_message_at']?.toString() ?? ''),
+              lastMessageAt: lastMessageTime,
               lastMessage: lastMessageText,
               createdBy: room['created_by']?.toString(),
-              participants: participantsList,
+              participants: [],
             );
           }).toList();
+
+          // Sorting: latest activity first
+          results.sort((a, b) {
+            final timeA = a.lastMessageAt ?? a.createdAt;
+            final timeB = b.lastMessageAt ?? b.createdAt;
+            return timeB.compareTo(timeA);
+          });
+
+          return results;
         });
   }
 
@@ -87,6 +98,7 @@ class SupabaseChatRepository implements ChatRepository {
     String roomId,
     String content, {
     RoomType type = RoomType.room,
+    String? replyToMessageId,
   }) async {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) return;
@@ -95,12 +107,8 @@ class SupabaseChatRepository implements ChatRepository {
       'room_id': roomId,
       'profile_id': myId,
       'content': content,
+      'reply_to_message_id': replyToMessageId,
     });
-
-    // Update last_message_at in background to avoid blocking and potential timeouts
-    _client.from('rooms').update({
-      'last_message_at': DateTime.now().toIso8601String(),
-    }).eq('id', roomId).then((_) {}).catchError((_) {});
   }
 
   @override
@@ -227,5 +235,57 @@ class SupabaseChatRepository implements ChatRepository {
         .map((p) => p['profiles'] != null ? ProfileModel.fromJson(p['profiles']) : null)
         .whereType<ProfileModel>()
         .toList();
+  }
+
+  @override
+  Future<void> toggleReaction(String messageId, String emoji) async {
+    final myId = _client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    int retryCount = 0;
+    const maxRetries = 5;
+
+    while (retryCount < maxRetries) {
+      try {
+        // 1. Fetch current reactions
+        final data = await _client
+            .from('messages')
+            .select('reactions')
+            .eq('id', messageId)
+            .single();
+
+        final reactions = Map<String, dynamic>.from(data['reactions'] ?? {});
+        final users = List<String>.from(reactions[emoji] ?? []);
+
+        if (users.contains(myId)) {
+          users.remove(myId);
+        } else {
+          users.add(myId);
+        }
+
+        if (users.isEmpty) {
+          reactions.remove(emoji);
+        } else {
+          reactions[emoji] = users;
+        }
+
+        // 2. Update reactions
+        await _client
+            .from('messages')
+            .update({'reactions': reactions})
+            .eq('id', messageId);
+            
+        debugPrint('Supabase: Reaction toggled successfully.');
+        return;
+      } catch (e) {
+        retryCount++;
+        debugPrint('Supabase: Toggle reaction attempt $retryCount failed: $e');
+        if (retryCount >= maxRetries) {
+          rethrow;
+        }
+        // Small delay before next attempt
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+      }
+    }
   }
 }

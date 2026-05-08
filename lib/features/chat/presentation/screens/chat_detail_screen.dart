@@ -8,6 +8,7 @@ import 'package:rickandmorty/features/chat/presentation/widgets/chat_bubble.dart
 import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';
+import 'package:rickandmorty/features/chat/presentation/providers/chat_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
@@ -70,52 +71,48 @@ class ChatDetailScreen extends HookConsumerWidget {
       }
     }
 
-    final pendingMessages = useState<List<MessageModel>>([]);
+    final pendingMessagesMap = ref.watch(chatControllerProvider);
+    final roomPendingMessages = pendingMessagesMap[roomId] ?? [];
+    final replyMessage = useState<MessageModel?>(null);
 
     final allMessages = useMemoized(() {
       final messages = messagesAsync.value ?? [];
-      final filteredPending = pendingMessages.value.where((pm) {
+      final filteredPending = roomPendingMessages.where((pm) {
+        // More robust check: if there is ANY message from us with same content 
+        // within a reasonable time window (60s), consider it 'delivered'
         return !messages.any((m) => 
           m.profileId == pm.profileId &&
           m.content == pm.content && 
-          (m.createdAt.difference(pm.createdAt).inSeconds.abs() < 10));
+          (m.createdAt.difference(pm.createdAt).inSeconds.abs() < 60));
       }).toList();
       
       final combined = [...messages, ...filteredPending];
       combined.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       return combined;
-    }, [messagesAsync.value, pendingMessages.value]);
+    }, [messagesAsync.value, roomPendingMessages]);
 
     Future<void> handleSend() async {
-      if (controller.text.trim().isNotEmpty) {
+      if (controller.text.trim().isNotEmpty && currentUserId != null) {
         final text = controller.text.trim();
+        final replyId = replyMessage.value?.id;
+        
         controller.clear();
+        replyMessage.value = null;
         focusNode.requestFocus();
 
-        if (currentUserId == null) return;
-
-        final temporaryMessage = MessageModel(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          roomId: roomId,
-          profileId: currentUserId,
-          content: text,
-          createdAt: DateTime.now(),
-        );
-
-        pendingMessages.value = [...pendingMessages.value, temporaryMessage];
-
-        try {
-          await ref.read(chatRepositoryProvider).sendMessage(roomId, text);
-        } catch (e) {
+        // Send via controller (background)
+        ref.read(chatControllerProvider.notifier).sendMessage(
+          roomId, 
+          text, 
+          currentUserId,
+          replyToMessageId: replyId,
+        ).catchError((e) {
           if (context.mounted) {
-            pendingMessages.value = pendingMessages.value
-                .where((m) => m.id != temporaryMessage.id)
-                .toList();
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Не удалось отправить сообщение: $e')),
+              SnackBar(content: Text('Ошибка: $e')),
             );
           }
-        }
+        });
       }
     }
 
@@ -224,10 +221,36 @@ class ChatDetailScreen extends HookConsumerWidget {
                     itemCount: allMessages.length,
                     itemBuilder: (context, index) {
                       final message = allMessages[allMessages.length - 1 - index];
+                      
+                      // Find replied message info
+                      String? repliedContent;
+                      String? repliedSenderName;
+                      if (message.replyToMessageId != null) {
+                        final repliedMsg = allMessages.where((m) => m.id == message.replyToMessageId).firstOrNull;
+                        if (repliedMsg != null) {
+                          repliedContent = repliedMsg.content;
+                          // Find sender name
+                          final participants = participantsAsync.value ?? [];
+                          final sender = participants.where((p) => p.id == repliedMsg.profileId).firstOrNull;
+                          repliedSenderName = sender?.nickname ?? sender?.username ?? (repliedMsg.profileId == currentUserId ? 'Вы' : 'Пользователь');
+                        }
+                      }
+
                       return ChatBubble(
                         content: message.content,
                         isMine: message.profileId == currentUserId,
                         timestamp: message.createdAt.toLocal(),
+                        reactions: message.reactions,
+                        currentUserId: currentUserId,
+                        repliedMessageContent: repliedContent,
+                        repliedMessageSenderName: repliedSenderName,
+                        onReactionToggled: (emoji) {
+                          ref.read(chatRepositoryProvider).toggleReaction(message.id, emoji);
+                        },
+                        onReply: () {
+                          replyMessage.value = message;
+                          focusNode.requestFocus();
+                        },
                       );
                     },
                   ),
@@ -258,6 +281,52 @@ class ChatDetailScreen extends HookConsumerWidget {
                   ),
                 ),
               ),
+              
+              // Reply Preview
+              if (replyMessage.value != null) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: GlassBox(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    borderRadius: BorderRadius.circular(16),
+                    opacity: isDark ? 0.2 : 0.1,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.reply_rounded, color: ThemeColors.blue, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                replyMessage.value!.profileId == currentUserId ? 'Вы' : 'Ответ на сообщение',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: ThemeColors.blue,
+                                ),
+                              ),
+                              Text(
+                                replyMessage.value!.content,
+                                style: ThemeTextStyles.bodySmall(isDark: isDark),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close_rounded, size: 20, color: isDark ? Colors.white54 : Colors.black45),
+                          onPressed: () => replyMessage.value = null,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               
               // Input Area
               Padding(
