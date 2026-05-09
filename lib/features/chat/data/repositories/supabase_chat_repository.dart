@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:io';
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
@@ -118,6 +119,9 @@ class SupabaseChatRepository implements ChatRepository {
     String? replyToMessageId,
     String? forwardedFrom,
     Map<String, dynamic>? forwardedInfo,
+    String? mediaUrl,
+    String? mediaType,
+    String? mediaName,
   }) async {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) return;
@@ -134,6 +138,9 @@ class SupabaseChatRepository implements ChatRepository {
           'reply_to_message_id': replyToMessageId,
           'forwarded_from': forwardedFrom,
           'forwarded_info': forwardedInfo,
+          'media_url': mediaUrl,
+          'media_type': mediaType,
+          'media_name': mediaName,
         });
         return;
       } catch (e) {
@@ -143,6 +150,24 @@ class SupabaseChatRepository implements ChatRepository {
         await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }
     }
+  }
+
+  @override
+  Future<String> uploadMedia(
+      String roomId, String filePath, String fileName) async {
+    final file = File(filePath);
+    final fileExt = fileName.split('.').last;
+    final path = 'messages/$roomId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+
+    await _client.storage.from('chat_media').upload(
+          path,
+          file,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
+        );
+
+    final String publicUrl =
+        _client.storage.from('chat_media').getPublicUrl(path);
+    return publicUrl;
   }
 
   @override

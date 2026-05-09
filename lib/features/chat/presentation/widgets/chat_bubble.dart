@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
@@ -25,6 +26,8 @@ class ChatBubble extends StatelessWidget {
   final String? currentUserId;
   final String? repliedMessageContent;
   final String? repliedMessageSenderName;
+  final String? mediaUrl;
+  final String? mediaType;
 
   const ChatBubble({
     super.key,
@@ -48,6 +51,8 @@ class ChatBubble extends StatelessWidget {
     this.currentUserId,
     this.repliedMessageContent,
     this.repliedMessageSenderName,
+    this.mediaUrl,
+    this.mediaType,
   });
 
   void _showReactionPicker(BuildContext context) {
@@ -522,6 +527,75 @@ class ChatBubble extends StatelessWidget {
                                     ],
                                   ),
                                 ),
+                              ],
+                              if (mediaUrl != null) ...[
+                                if (mediaType?.startsWith('image') ?? true)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: CachedNetworkImage(
+                                        imageUrl: mediaUrl!,
+                                        placeholder: (context, url) =>
+                                            Container(
+                                          height: 200,
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: isMine
+                                                ? Colors.white12
+                                                : (isDark
+                                                    ? Colors.white10
+                                                    : Colors.black.withValues(
+                                                        alpha: 0.1)),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: const Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: ThemeColors.blue,
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) =>
+                                            const SizedBox(
+                                          height: 200,
+                                          child: Center(
+                                            child: Icon(Icons.broken_image,
+                                                color: Colors.redAccent),
+                                          ),
+                                        ),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  // For other file types
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: isMine
+                                            ? Colors.white12
+                                            : Colors.black.withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.insert_drive_file,
+                                              size: 20, color: ThemeColors.blue),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            'Файл',
+                                            style: ThemeTextStyles.bodySmall(
+                                                isDark: isDark),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                               ],
                               if (isDeleted ?? false)
                                 Row(

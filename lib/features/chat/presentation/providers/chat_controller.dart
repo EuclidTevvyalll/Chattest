@@ -41,6 +41,9 @@ class ChatController extends Notifier<ChatControllerState> {
     String? replyToMessageId,
     String? forwardedFrom,
     Map<String, dynamic>? forwardedInfo,
+    String? mediaUrl,
+    String? mediaType,
+    String? mediaName,
   }) async {
     final temporaryMessage = MessageModel(
       id: 'temp_${DateTime.now().microsecondsSinceEpoch}',
@@ -51,6 +54,9 @@ class ChatController extends Notifier<ChatControllerState> {
       replyToMessageId: replyToMessageId,
       forwardedFrom: forwardedFrom,
       forwardedInfo: forwardedInfo,
+      mediaUrl: mediaUrl,
+      mediaType: mediaType,
+      mediaName: mediaName,
     );
 
     // Add to pending messages for this room
@@ -69,6 +75,9 @@ class ChatController extends Notifier<ChatControllerState> {
             replyToMessageId: replyToMessageId,
             forwardedFrom: forwardedFrom,
             forwardedInfo: forwardedInfo,
+            mediaUrl: mediaUrl,
+            mediaType: mediaType,
+            mediaName: mediaName,
           );
 
       // Remove pending after a delay, but don't block the caller
@@ -77,6 +86,34 @@ class ChatController extends Notifier<ChatControllerState> {
       });
     } catch (e) {
       _removePending(roomId, temporaryMessage.id);
+      rethrow;
+    }
+  }
+
+  Future<void> sendMediaMessage(
+    String roomId,
+    String currentUserId,
+    String filePath,
+    String fileName,
+    String mediaType,
+  ) async {
+    try {
+      // 1. Upload the file
+      final mediaUrl = await ref
+          .read(chatRepositoryProvider)
+          .uploadMedia(roomId, filePath, fileName);
+
+      // 2. Send the message with the media URL
+      // Content can be empty or the filename for media messages
+      await sendMessage(
+        roomId,
+        '', // Empty text for pure media messages
+        currentUserId,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
+        mediaName: fileName,
+      );
+    } catch (e) {
       rethrow;
     }
   }
@@ -153,6 +190,9 @@ class ChatController extends Notifier<ChatControllerState> {
           'fwd_replied_content': ?replyContent,
           'fwd_replied_sender': ?replySender,
         },
+        mediaUrl: msg.mediaUrl,
+        mediaType: msg.mediaType,
+        mediaName: msg.mediaName,
       );
       // Increased delay to ensure database timestamps and triggers are sequential
       await Future.delayed(const Duration(milliseconds: 300));

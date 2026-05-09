@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -356,6 +357,8 @@ class ChatDetailScreen extends HookConsumerWidget {
                         repliedMessageContent: repliedContent,
                         repliedMessageSenderName: repliedSenderName,
                         forwardedInfo: message.forwardedInfo,
+                        mediaUrl: message.mediaUrl,
+                        mediaType: message.mediaType,
                         isSelected: selectedMessages.value
                             .any((m) => m.id == message.id),
                         isSelectionMode: isSelectionMode,
@@ -830,13 +833,46 @@ class ChatDetailScreen extends HookConsumerWidget {
                           opacity: isDark ? 0.15 : 0.08,
                           child: Row(
                             children: [
-                              IconButton(
-                                icon: Icon(
-                                  Icons.add_circle_outline_rounded,
-                                  color: isDark ? Colors.white54 : Colors.black45,
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    color: isDark
+                                        ? Colors.white54
+                                        : Colors.black45,
+                                  ),
+                                  onPressed: () async {
+                                    try {
+                                      final picker = ImagePicker();
+                                      final image = await picker.pickImage(
+                                        source: ImageSource.gallery,
+                                        imageQuality: 70,
+                                      );
+
+                                      if (image != null && context.mounted) {
+                                        await ref
+                                            .read(
+                                                chatControllerProvider.notifier)
+                                            .sendMediaMessage(
+                                              roomId,
+                                              currentUserId!,
+                                              image.path,
+                                              image.name,
+                                              'image/${image.name.split('.').last}',
+                                            );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content:
+                                                Text('Ошибка загрузки: $e'),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
                                 ),
-                                onPressed: () {},
-                              ),
                               Expanded(
                                 child: TextField(
                                   controller: controller,

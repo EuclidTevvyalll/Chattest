@@ -18,7 +18,12 @@ abstract class ChatRepository {
     String? replyToMessageId,
     String? forwardedFrom,
     Map<String, dynamic>? forwardedInfo,
+    String? mediaUrl,
+    String? mediaType,
+    String? mediaName,
   });
+
+  Future<String> uploadMedia(String roomId, String filePath, String fileName);
   Future<String?> createRoom(List<String> participantIds);
   Future<String?> createGroup(String name, List<String> participantIds);
   Future<String?> createChannel(String name, String? description);
