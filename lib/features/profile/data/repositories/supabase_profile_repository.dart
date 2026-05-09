@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
@@ -76,45 +77,34 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<String> uploadAvatar(Uint8List bytes, String userId) async {
-    final fileName =
-        'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final path = fileName;
+    try {
+      final fileName = 'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      debugPrint('Supabase: Uploading avatar via Edge Function (Base64 JSON): $fileName...');
+      
+      final base64File = base64Encode(bytes);
+      
+      final response = await _client.functions.invoke(
+        'upload-media',
+        body: {
+          'roomId': 'avatars', // Use 'avatars' as a pseudo-room for bucket selection in function
+          'fileName': fileName,
+          'fileBase64': base64File,
+          'contentType': 'image/jpeg',
+        },
+      );
 
-    int retryCount = 0;
-    const maxRetries = 3;
-
-    while (retryCount < maxRetries) {
-      try {
-        debugPrint(
-          'Supabase: Uploading avatar to storage (Attempt ${retryCount + 1}): $path...',
-        );
-
-        await _client.storage
-            .from('avatars')
-            .uploadBinary(
-              path,
-              bytes,
-              fileOptions: const FileOptions(
-                contentType: 'image/jpeg',
-                upsert: true,
-              ),
-            );
-
-        final String publicUrl = _client.storage
-            .from('avatars')
-            .getPublicUrl(path);
-        debugPrint('Supabase: Avatar uploaded successfully. URL: $publicUrl');
-        return publicUrl;
-      } catch (e) {
-        retryCount++;
-        debugPrint('Supabase: Upload attempt $retryCount failed: $e');
-        if (retryCount >= maxRetries) {
-          rethrow;
+      if (response.status == 200 || response.status == 201) {
+        final data = response.data;
+        if (data is Map && data.containsKey('url')) {
+          return data['url'];
         }
-        // Wait a bit before retrying
-        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+        throw Exception('Invalid response from Edge Function: ${response.data}');
+      } else {
+        throw Exception('Edge Function Error (Status ${response.status}): ${response.data}');
       }
+    } catch (e) {
+      debugPrint('Supabase: Avatar upload failed: $e');
+      rethrow;
     }
-    throw Exception('Failed to upload avatar after $maxRetries attempts');
   }
 }

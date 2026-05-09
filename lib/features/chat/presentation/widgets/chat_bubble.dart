@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
@@ -28,6 +29,7 @@ class ChatBubble extends StatelessWidget {
   final String? repliedMessageSenderName;
   final String? mediaUrl;
   final String? mediaType;
+  final String? mediaName;
 
   const ChatBubble({
     super.key,
@@ -53,6 +55,7 @@ class ChatBubble extends StatelessWidget {
     this.repliedMessageSenderName,
     this.mediaUrl,
     this.mediaType,
+    this.mediaName,
   });
 
   void _showReactionPicker(BuildContext context) {
@@ -411,24 +414,28 @@ class ChatBubble extends StatelessWidget {
                                 : null,
                           ),
                         ),
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(20),
-                            topRight: const Radius.circular(20),
-                            bottomLeft: Radius.circular(isMine ? 20 : 4),
-                            bottomRight: Radius.circular(isMine ? 4 : 20),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: (isMine ? ThemeColors.blue : Colors.black)
-                                  .withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.75,
                         ),
-                        child: GlassBox(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(20),
+                              topRight: const Radius.circular(20),
+                              bottomLeft: Radius.circular(isMine ? 20 : 4),
+                              bottomRight: Radius.circular(isMine ? 4 : 20),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (isMine ? ThemeColors.blue : Colors.black)
+                                    .withValues(alpha: 0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: GlassBox(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
                             vertical: 12,
@@ -528,18 +535,47 @@ class ChatBubble extends StatelessWidget {
                                   ),
                                 ),
                               ],
-                              if (mediaUrl != null) ...[
-                                if (mediaType?.startsWith('image') ?? true)
+                              if (mediaUrl != null || mediaName != null) ...[
+                                if (mediaType?.startsWith('image') ?? (mediaUrl == null && mediaName != null))
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(12),
-                                      child: CachedNetworkImage(
-                                        imageUrl: mediaUrl!,
+                                      child: mediaUrl == null 
+                                        ? Container(
+                                            height: 200,
+                                            width: double.infinity,
+                                            color: isMine ? Colors.white12 : Colors.black12,
+                                            child: const Center(
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: ThemeColors.blue,
+                                              ),
+                                            ),
+                                          )
+                                        : mediaUrl!.startsWith('data:image')
+                                          ? Image.memory(
+                                              base64Decode(
+                                                  mediaUrl!.split(',').last),
+                                              fit: BoxFit.cover,
+                                              height: 200,
+                                              errorBuilder: (context, error,
+                                                      stackTrace) =>
+                                                  const SizedBox(
+                                                height: 200,
+                                                child: Center(
+                                                  child: Icon(
+                                                      Icons.broken_image,
+                                                      color:
+                                                          Colors.redAccent),
+                                                ),
+                                              ),
+                                            )
+                                          : CachedNetworkImage(
+                                              imageUrl: mediaUrl!,
                                         placeholder: (context, url) =>
                                             Container(
                                           height: 200,
-                                          width: double.infinity,
                                           decoration: BoxDecoration(
                                             color: isMine
                                                 ? Colors.white12
@@ -570,29 +606,78 @@ class ChatBubble extends StatelessWidget {
                                     ),
                                   )
                                 else
-                                  // For other file types
+                                  // For other file types (Videos, Files)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(8),
-                                      decoration: BoxDecoration(
-                                        color: isMine
-                                            ? Colors.white12
-                                            : Colors.black.withValues(alpha: 0.05),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(Icons.insert_drive_file,
-                                              size: 20, color: ThemeColors.blue),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            'Файл',
-                                            style: ThemeTextStyles.bodySmall(
-                                                isDark: isDark),
+                                    child: InkWell(
+                                      onTap: () {
+                                        // Open media URL in browser or viewer
+                                        if (mediaUrl != null) {
+                                          // TODO: Implement media viewer or launcher
+                                          debugPrint('Opening media: $mediaUrl');
+                                        }
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: isMine
+                                              ? Colors.white.withValues(alpha: 0.15)
+                                              : Colors.black.withValues(alpha: 0.05),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: isMine 
+                                              ? Colors.white24 
+                                              : Colors.black12,
                                           ),
-                                        ],
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            if (mediaUrl == null && mediaName != null)
+                                              const SizedBox(
+                                                width: 32,
+                                                height: 32,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.white70,
+                                                ),
+                                              )
+                                            else
+                                              Icon(
+                                                (mediaType?.startsWith('video/') ?? false)
+                                                    ? Icons.play_circle_fill_rounded
+                                                    : Icons.insert_drive_file_rounded,
+                                                size: 32,
+                                                color: isMine ? Colors.white : ThemeColors.blue,
+                                              ),
+                                            const SizedBox(width: 12),
+                                            Flexible(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    mediaName ?? 'Файл',
+                                                    style: ThemeTextStyles.bodyMedium(
+                                                      color: isMine ? Colors.white : (isDark ? Colors.white : Colors.black87),
+                                                    ).copyWith(fontWeight: FontWeight.w600),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                  if (mediaType != null)
+                                                    Text(
+                                                      mediaType!.split('/').last.toUpperCase(),
+                                                      style: ThemeTextStyles.caption(
+                                                        isDark: isDark,
+                                                        color: isMine ? Colors.white70 : (isDark ? Colors.white54 : Colors.black54),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -666,7 +751,8 @@ class ChatBubble extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ],
+                    ),
+                  ],
                   ),
                 ),
               ),

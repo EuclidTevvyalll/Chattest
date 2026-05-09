@@ -8,6 +8,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:rickandmorty/features/chat/presentation/providers/chat_provider.dart';
+import 'package:rickandmorty/features/chat/presentation/providers/chat_repository_provider.dart';
 import 'package:rickandmorty/features/chat/presentation/widgets/chat_bubble.dart';
 import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
@@ -82,7 +83,6 @@ class ChatDetailScreen extends HookConsumerWidget {
     }
 
     final chatState = ref.watch(chatControllerProvider);
-    final roomPendingMessages = chatState.pendingMessages[roomId] ?? [];
     final replyMessage = useState<MessageModel?>(null);
     final editingMessage = useState<MessageModel?>(null);
     final selectedMessages = useState<List<MessageModel>>([]);
@@ -113,27 +113,9 @@ class ChatDetailScreen extends HookConsumerWidget {
       final messages = messagesAsync.value ?? [];
       
       // Filter out messages that are being deleted optimistically
-      final activeMessages = messages.where((m) => !chatState.deletingIds.contains(m.id)).toList();
-
-      final filteredPending = roomPendingMessages.where((pm) {
-        // Check if there's a real message that matches this pending one
-        return !activeMessages.any((m) {
-          final isSameContent = m.content == pm.content && m.profileId == pm.profileId;
-          final isSameForward = m.forwardedFrom == pm.forwardedFrom;
-          final isWithinTime = m.createdAt.difference(pm.createdAt).inSeconds.abs() < 60;
-
-          if (pm.forwardedFrom != null) {
-            // For forwarded messages, be more specific with forwardedFrom ID
-            return isSameForward && isWithinTime;
-          }
-          return isSameContent && isWithinTime;
-        });
-      }).toList();
-
-      final combined = [...activeMessages, ...filteredPending];
-      combined.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      return combined;
-    }, [messagesAsync.value, chatState]);
+      // (Pending messages are already included in messagesAsync.value by the provider)
+      return messages.where((m) => !chatState.deletingIds.contains(m.id)).toList();
+    }, [messagesAsync.value, chatState.deletingIds]);
 
     Future<void> handleSend() async {
       if (controller.text.trim().isNotEmpty && currentUserId != null) {
@@ -362,6 +344,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                         forwardedInfo: message.forwardedInfo,
                         mediaUrl: message.mediaUrl,
                         mediaType: message.mediaType,
+                        mediaName: message.mediaName,
                         isSelected: selectedMessages.value
                             .any((m) => m.id == message.id),
                         isSelectionMode: isSelectionMode,
@@ -854,87 +837,13 @@ class ChatDetailScreen extends HookConsumerWidget {
                                         ),
                                   onPressed: isUploading.value
                                       ? null
-                                      : () async {
-                                          // Small delay before opening the system dialog
-                                          await Future.delayed(
-                                              const Duration(milliseconds: 100));
-                                          try {
-                                            final result = await FilePicker.platform.pickFiles(
-                                              type: FileType.image,
-                                              allowMultiple: false,
-                                            );
-
-                                            if (result != null && result.files.single.path != null && context.mounted) {
-                                              final file = result.files.single;
-                                              isUploading.value = true;
-
-                                              // Read bytes from the file path
-                                              Uint8List bytes = await File(file.path!).readAsBytes();
-
-                                              // Compress if it's an image
-                                              if (file.extension?.toLowerCase() == 'jpg' || 
-                                                  file.extension?.toLowerCase() == 'jpeg' || 
-                                                  file.extension?.toLowerCase() == 'png') {
-                                                try {
-                                                  final image = img.decodeImage(bytes);
-                                                  if (image != null) {
-                                                    // Resize if too large (max 1920px width/height)
-                                                    img.Image resized = image;
-                                                    if (image.width > 1920 || image.height > 1920) {
-                                                      resized = img.copyResize(image, 
-                                                        width: image.width > image.height ? 1920 : null,
-                                                        height: image.height >= image.width ? 1920 : null,
-                                                      );
-                                                    }
-                                                    // Encode to JPG with 80% quality
-                                                    bytes = Uint8List.fromList(img.encodeJpg(resized, quality: 80));
-                                                  }
-                                                } catch (e) {
-                                                  debugPrint('Compression error: $e');
-                                                  // Fallback to original bytes if compression fails
-                                                }
-                                              }
-
-                                              // Increased delay to prevent Windows network contention
-                                              await Future.delayed(
-                                                  const Duration(
-                                                      milliseconds: 1500));
-
-                                              if (!context.mounted) return;
-
-                                              final mimeType = 'image/jpeg';
-
-                                              await ref
-                                                  .read(
-                                                      chatControllerProvider.notifier)
-                                                  .sendMediaMessage(
-                                                    roomId,
-                                                    currentUserId!,
-                                                    bytes,
-                                                    file.name,
-                                                    mimeType,
-                                                  );
-                                            }
-                                          } catch (e) {
-                                            debugPrint('Media Upload Error: $e');
-                                            if (context.mounted) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  duration: const Duration(seconds: 5),
-                                                  content: Text(
-                                                      'Ошибка загрузки: $e'),
-                                                  action: SnackBarAction(
-                                                    label: 'OK',
-                                                    onPressed: () {},
-                                                  ),
-                                                ),
-                                              );
-                                            }
-                                          } finally {
-                                            isUploading.value = false;
-                                          }
-                                        },
+                                      : () => _showAttachmentMenu(
+                                            context,
+                                            ref,
+                                            roomId,
+                                            currentUserId!,
+                                            isUploading,
+                                          ),
                                 ),
                               Expanded(
                                 child: TextField(
@@ -991,5 +900,454 @@ class ChatDetailScreen extends HookConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+void _showAttachmentMenu(
+  BuildContext context,
+  WidgetRef ref,
+  String roomId,
+  String currentUserId,
+  ValueNotifier<bool> isUploading,
+) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => GlassBox(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+      opacity: isDark ? 0.3 : 0.1,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white24 : Colors.black12,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _AttachmentOption(
+                icon: Icons.image_rounded,
+                label: 'Фото',
+                color: Colors.blue,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndUpload(
+                    context,
+                    ref,
+                    roomId,
+                    currentUserId,
+                    isUploading,
+                    FileType.image,
+                  );
+                },
+              ),
+              _AttachmentOption(
+                icon: Icons.video_library_rounded,
+                label: 'Видео',
+                color: Colors.purple,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndUpload(
+                    context,
+                    ref,
+                    roomId,
+                    currentUserId,
+                    isUploading,
+                    FileType.video,
+                  );
+                },
+              ),
+              _AttachmentOption(
+                icon: Icons.insert_drive_file_rounded,
+                label: 'Файл',
+                color: Colors.orange,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _pickAndUpload(
+                    context,
+                    ref,
+                    roomId,
+                    currentUserId,
+                    isUploading,
+                    FileType.any,
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    ),
+  );
+}
+
+class _AttachmentOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _AttachmentOption({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _pickAndUpload(
+  BuildContext context,
+  WidgetRef ref,
+  String roomId,
+  String currentUserId,
+  ValueNotifier<bool> isUploading,
+  FileType type,
+) async {
+  debugPrint('ChatDetailScreen: _pickAndUpload called with type: $type');
+  try {
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    debugPrint('ChatDetailScreen: Opening FilePicker...');
+    final result = await FilePicker.platform.pickFiles(
+      type: type,
+      allowMultiple: false,
+    );
+
+    if (result == null) {
+      debugPrint('ChatDetailScreen: FilePicker returned null (user cancelled)');
+      return;
+    }
+
+    if ((result.files.single.bytes != null || result.files.single.path != null) &&
+        context.mounted) {
+      final file = result.files.single;
+      debugPrint('ChatDetailScreen: File picked: ${file.name}, size: ${file.size}, path: ${file.path}');
+      isUploading.value = true;
+
+      try {
+        Uint8List bytes;
+        if (file.bytes != null) {
+          bytes = file.bytes!;
+          debugPrint('ChatDetailScreen: Using file.bytes');
+        } else {
+          debugPrint('ChatDetailScreen: Reading from path: ${file.path}');
+          bytes = await File(file.path!).readAsBytes();
+        }
+        debugPrint('ChatDetailScreen: Read ${bytes.length} bytes');
+
+        String contentType = 'application/octet-stream';
+        if (type == FileType.image) {
+          contentType = 'image/jpeg';
+          debugPrint('ChatDetailScreen: Processing image...');
+          final image = img.decodeImage(bytes);
+          if (image != null) {
+            img.Image resized = image;
+            if (image.width > 1200 || image.height > 1200) {
+              debugPrint('ChatDetailScreen: Resizing image from ${image.width}x${image.height}');
+              resized = img.copyResize(
+                image,
+                width: image.width > image.height ? 1200 : null,
+                height: image.height >= image.width ? 1200 : null,
+              );
+            }
+            bytes = Uint8List.fromList(img.encodeJpg(resized, quality: 80));
+            debugPrint('ChatDetailScreen: Image processed, new size: ${bytes.length}');
+          } else {
+            debugPrint('ChatDetailScreen: Failed to decode image!');
+          }
+        } else if (type == FileType.video) {
+          final ext = file.extension?.toLowerCase();
+          if (ext == 'mov') {
+            contentType = 'video/quicktime';
+          } else if (ext == 'avi') {
+            contentType = 'video/x-msvideo';
+          } else if (ext == 'mkv') {
+            contentType = 'video/x-matroska';
+          } else if (ext == 'webm') {
+            contentType = 'video/webm';
+          } else {
+            contentType = 'video/mp4';
+          }
+        } else {
+          // Try to guess content type from extension
+          final ext = file.extension?.toLowerCase();
+          if (ext == 'pdf') {
+            contentType = 'application/pdf';
+          } else if (ext == 'txt') {
+            contentType = 'text/plain';
+          } else if (ext == 'doc' || ext == 'docx') {
+            contentType = 'application/msword';
+          } else if (ext == 'xls' || ext == 'xlsx') {
+            contentType = 'application/vnd.ms-excel';
+          } else if (ext == 'ppt' || ext == 'pptx') {
+            contentType = 'application/vnd.ms-powerpoint';
+          } else if (ext == 'zip') {
+            contentType = 'application/zip';
+          } else if (ext == 'rar') {
+            contentType = 'application/x-rar-compressed';
+          } else if (ext == '7z') {
+            contentType = 'application/x-7z-compressed';
+          } else {
+            // If unknown, use application/zip or application/octet-stream
+            // but many servers prefer a specific type or none at all
+            contentType = 'application/octet-stream';
+          }
+        }
+
+        if (!context.mounted) {
+          debugPrint('ChatDetailScreen: Context not mounted after processing');
+          return;
+        }
+
+        // Show preview and get caption
+        final caption = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => MediaPreviewDialog(
+            bytes: bytes,
+            fileName: file.name,
+            type: type,
+          ),
+        );
+
+        if (caption == null) {
+          debugPrint('ChatDetailScreen: Upload cancelled by user');
+          return;
+        }
+
+        debugPrint('ChatDetailScreen: Calling sendMediaMessage with caption: $caption');
+        await ref.read(chatControllerProvider.notifier).sendMediaMessage(
+              roomId,
+              currentUserId,
+              bytes,
+              file.name,
+              contentType,
+              content: caption,
+            );
+        debugPrint('ChatDetailScreen: sendMediaMessage completed');
+      } catch (e) {
+        debugPrint('ChatDetailScreen: Send Error: $e');
+      } finally {
+        isUploading.value = false;
+      }
+    } else {
+      debugPrint('ChatDetailScreen: Invalid file or context not mounted. Path: ${result.files.single.path}, Bytes: ${result.files.single.bytes != null}');
+    }
+  } catch (e) {
+    debugPrint('ChatDetailScreen: Outer Error: $e');
+  }
+}
+
+class MediaPreviewDialog extends StatefulWidget {
+  final Uint8List bytes;
+  final String fileName;
+  final FileType type;
+
+  const MediaPreviewDialog({
+    super.key,
+    required this.bytes,
+    required this.fileName,
+    required this.type,
+  });
+
+  @override
+  State<MediaPreviewDialog> createState() => _MediaPreviewDialogState();
+}
+
+class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final size = MediaQuery.of(context).size;
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(20),
+      child: GlassBox(
+        borderRadius: BorderRadius.circular(24),
+        opacity: isDark ? 0.3 : 0.1,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Отправить медиа',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: size.height * 0.4,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: _buildPreview(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Добавьте комментарий...',
+                hintStyle: TextStyle(
+                  color: isDark ? Colors.white54 : Colors.black54,
+                ),
+                filled: true,
+                fillColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              maxLines: 3,
+              minLines: 1,
+              onSubmitted: (_) {
+                Navigator.pop(context, _controller.text);
+              },
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Отмена'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, _controller.text),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: const Text('Отправить'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreview() {
+    if (widget.type == FileType.image) {
+      return Image.memory(
+        widget.bytes,
+        fit: BoxFit.contain,
+      );
+    } else if (widget.type == FileType.video) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        color: Colors.black.withValues(alpha: 0.2),
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.video_library_rounded, size: 64, color: Colors.white70),
+            SizedBox(height: 12),
+            Text(
+              'Видео',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        color: Colors.black.withValues(alpha: 0.1),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.insert_drive_file_rounded, size: 64, color: Colors.blue),
+            const SizedBox(height: 12),
+            Text(
+              widget.fileName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

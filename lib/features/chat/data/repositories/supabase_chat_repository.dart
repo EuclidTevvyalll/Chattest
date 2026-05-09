@@ -1,7 +1,7 @@
-import 'package:dio/dio.dart';
-import 'package:http_parser/http_parser.dart';
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide MultipartFile;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
@@ -9,9 +9,6 @@ import 'package:rickandmorty/features/chat/domain/repositories/chat_repository.d
 
 class SupabaseChatRepository implements ChatRepository {
   final SupabaseClient _client;
-  
-  static const _supabaseUrl = 'https://qhrcpooazwkdckusqcvx.supabase.co';
-  static const _anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFocmNwb29hendrZGNrdXNxY3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNDQ2MTUsImV4cCI6MjA5MzYyMDYxNX0.8XPliDnwo_-63kqqbMRSvC0oi_M8Biw2Rt4hjLpipx8';
 
   SupabaseChatRepository(this._client);
 
@@ -159,38 +156,38 @@ class SupabaseChatRepository implements ChatRepository {
   @override
   Future<String> uploadMedia(String roomId, Uint8List bytes, String fileName,
       String? contentType) async {
-    // Instead of direct storage upload, we use an Edge Function for better stability on Windows
     try {
-      final dio = Dio();
-      final uri = '$_supabaseUrl/functions/v1/upload-media';
+      final sizeMb = bytes.length / (1024 * 1024);
+      debugPrint('SupabaseChatRepository: Uploading $fileName (${sizeMb.toStringAsFixed(2)} MB) via Edge Function...');
       
-      final formData = FormData.fromMap({
-        'roomId': roomId,
-        'file': MultipartFile.fromBytes(
-          bytes,
-          filename: fileName,
-          contentType: MediaType.parse(contentType ?? 'image/jpeg'),
-        ),
-      });
-
-      final response = await dio.post(
-        uri,
-        data: formData,
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $_anonKey',
-            'apikey': _anonKey,
-          },
-        ),
+      final base64File = base64Encode(bytes);
+      debugPrint('SupabaseChatRepository: Base64 encoding complete, size: ${base64File.length} chars');
+      
+      final response = await _client.functions.invoke(
+        'upload-media',
+        body: {
+          'roomId': roomId,
+          'fileName': fileName,
+          'fileBase64': base64File,
+          'contentType': contentType ?? 'application/octet-stream',
+        },
       );
 
-      if (response.statusCode == 200) {
-        return response.data['url'];
+      debugPrint('SupabaseChatRepository: Edge Function response status: ${response.status}');
+
+      if (response.status == 200 || response.status == 201) {
+        final data = response.data;
+        if (data is Map && data.containsKey('url')) {
+          debugPrint('SupabaseChatRepository: Upload successful! URL: ${data['url']}');
+          return data['url'];
+        }
+        throw Exception('Invalid response from Edge Function: ${response.data}');
       } else {
-        throw Exception('Edge Function Error: ${response.data}');
+        debugPrint('SupabaseChatRepository: Edge Function failed with status ${response.status}: ${response.data}');
+        throw Exception('Edge Function Error (Status ${response.status}): ${response.data}');
       }
     } catch (e) {
-      debugPrint('Edge Function Upload failed: $e');
+      debugPrint('SupabaseChatRepository: Upload failed with error: $e');
       rethrow;
     }
   }

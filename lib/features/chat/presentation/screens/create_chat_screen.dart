@@ -6,6 +6,7 @@ import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
 
 import 'package:rickandmorty/features/chat/presentation/providers/chat_provider.dart';
+import 'package:rickandmorty/features/chat/presentation/providers/chat_repository_provider.dart';
 import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';

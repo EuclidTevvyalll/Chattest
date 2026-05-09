@@ -164,16 +164,15 @@ Uint8List _processImage(Uint8List input) {
   final image = img.decodeImage(input);
   if (image == null) return input;
 
-  // Ultra-safe mode for problematic networks: 256x256 at 50% quality.
-  // This file will ALWAYS be under 20-25 KB, regardless of details.
+  // Normal high quality mode since we are using stable Edge Functions now.
   final resized = img.copyResize(
     image,
-    width: 256,
-    height: 256,
+    width: 600,
+    height: 600,
     interpolation: img.Interpolation.linear,
   );
-  final processed = Uint8List.fromList(img.encodeJpg(resized, quality: 50));
+  final processed = Uint8List.fromList(img.encodeJpg(resized, quality: 85));
 
-  debugPrint('Avatar size: ${processed.length} bytes (Ultra Safe Mode)');
+  debugPrint('Avatar size: ${processed.length} bytes (High Quality Mode)');
   return processed;
 }

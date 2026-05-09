@@ -1,8 +1,8 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
-import 'package:rickandmorty/features/chat/presentation/providers/chat_provider.dart';
+import 'package:rickandmorty/features/chat/presentation/providers/chat_repository_provider.dart';
 
 class ChatControllerState {
   final Map<String, List<MessageModel>> pendingMessages;
@@ -96,25 +96,55 @@ class ChatController extends Notifier<ChatControllerState> {
     String currentUserId,
     Uint8List bytes,
     String fileName,
-    String mediaType,
-  ) async {
+    String mediaType, {
+    String? content,
+  }) async {
+    final temporaryMessage = MessageModel(
+      id: 'temp_${DateTime.now().microsecondsSinceEpoch}',
+      roomId: roomId,
+      profileId: currentUserId,
+      content: content ?? '',
+      createdAt: DateTime.now(),
+      mediaName: fileName,
+      mediaType: mediaType,
+    );
+
+    // Add to pending messages immediately
+    final currentPending = state.pendingMessages[roomId] ?? [];
+    state = state.copyWith(
+      pendingMessages: {
+        ...state.pendingMessages,
+        roomId: [...currentPending, temporaryMessage],
+      },
+    );
+
     try {
+      debugPrint('ChatController: Starting media upload for $fileName');
       // 1. Upload the file
       final mediaUrl = await ref
           .read(chatRepositoryProvider)
           .uploadMedia(roomId, bytes, fileName, mediaType);
+      
+      debugPrint('ChatController: Media uploaded successfully: $mediaUrl');
 
-      // 2. Send the message with the media URL
-      // Content can be empty or the filename for media messages
-      await sendMessage(
-        roomId,
-        '', // Empty text for pure media messages
-        currentUserId,
-        mediaUrl: mediaUrl,
-        mediaType: mediaType,
-        mediaName: fileName,
-      );
+      // 2. Send the real message
+      await ref.read(chatRepositoryProvider).sendMessage(
+            roomId,
+            content ?? '',
+            mediaUrl: mediaUrl,
+            mediaType: mediaType,
+            mediaName: fileName,
+          );
+      
+      debugPrint('ChatController: Real message sent successfully');
+
+      // Remove pending after a short delay to allow stream to catch up
+      Future.delayed(const Duration(seconds: 1)).then((_) {
+        _removePending(roomId, temporaryMessage.id);
+      });
     } catch (e) {
+      debugPrint('ChatController: Error sending media message: $e');
+      _removePending(roomId, temporaryMessage.id);
       rethrow;
     }
   }

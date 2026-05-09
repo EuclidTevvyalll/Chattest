@@ -157,6 +157,10 @@ class _ProfileContent extends HookConsumerWidget {
 
     Future<void> pickAndUploadImage() async {
       if (isPicking.value || !isEditing.value) return;
+      
+      // Delay to prevent UI glitches
+      await Future.delayed(const Duration(milliseconds: 200));
+      
       isPicking.value = true;
 
       try {
