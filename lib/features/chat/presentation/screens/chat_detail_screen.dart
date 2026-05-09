@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -853,25 +853,23 @@ class ChatDetailScreen extends HookConsumerWidget {
                                   onPressed: isUploading.value
                                       ? null
                                       : () async {
-                                          // Small delay before opening the system dialog to prevent UI thread crashes
+                                          // Small delay before opening the system dialog
                                           await Future.delayed(
                                               const Duration(milliseconds: 100));
                                           try {
-                                            final picker = ImagePicker();
-                                            final image =
-                                                await picker.pickImage(
-                                              source: ImageSource.gallery,
-                                              imageQuality: 70,
+                                            final result = await FilePicker.platform.pickFiles(
+                                              type: FileType.image,
+                                              allowMultiple: false,
                                             );
 
-                                            if (image != null &&
-                                                context.mounted) {
+                                            if (result != null && result.files.single.path != null && context.mounted) {
+                                              final file = result.files.single;
                                               isUploading.value = true;
 
-                                              // Added artificial delay to prevent Windows network contention (SocketException 10054)
+                                              // Increased delay to prevent Windows network contention (SocketException 10054)
                                               await Future.delayed(
                                                   const Duration(
-                                                      milliseconds: 500));
+                                                      milliseconds: 1000));
 
                                               if (!context.mounted) return;
 
@@ -881,18 +879,24 @@ class ChatDetailScreen extends HookConsumerWidget {
                                                   .sendMediaMessage(
                                                     roomId,
                                                     currentUserId!,
-                                                    image.path,
-                                                    image.name,
-                                                    'image/${image.name.split('.').last}',
+                                                    file.path!,
+                                                    file.name,
+                                                    'image/${file.extension ?? 'jpg'}',
                                                   );
                                             }
                                           } catch (e) {
+                                            debugPrint('Media Upload Error: $e');
                                             if (context.mounted) {
                                               ScaffoldMessenger.of(context)
                                                   .showSnackBar(
                                                 SnackBar(
+                                                  duration: const Duration(seconds: 5),
                                                   content: Text(
                                                       'Ошибка загрузки: $e'),
+                                                  action: SnackBarAction(
+                                                    label: 'OK',
+                                                    onPressed: () {},
+                                                  ),
                                                 ),
                                               );
                                             }
