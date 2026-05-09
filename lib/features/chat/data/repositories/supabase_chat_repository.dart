@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide MultipartFile;
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
@@ -7,6 +9,9 @@ import 'package:rickandmorty/features/chat/domain/repositories/chat_repository.d
 
 class SupabaseChatRepository implements ChatRepository {
   final SupabaseClient _client;
+  
+  static const _supabaseUrl = 'https://qhrcpooazwkdckusqcvx.supabase.co';
+  static const _anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFocmNwb29hendrZGNrdXNxY3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNDQ2MTUsImV4cCI6MjA5MzYyMDYxNX0.8XPliDnwo_-63kqqbMRSvC0oi_M8Biw2Rt4hjLpipx8';
 
   SupabaseChatRepository(this._client);
 
@@ -154,37 +159,40 @@ class SupabaseChatRepository implements ChatRepository {
   @override
   Future<String> uploadMedia(String roomId, Uint8List bytes, String fileName,
       String? contentType) async {
-    final fileExt = fileName.split('.').last;
-    final path =
-        'messages/$roomId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+    // Instead of direct storage upload, we use an Edge Function for better stability on Windows
+    try {
+      final dio = Dio();
+      final uri = '$_supabaseUrl/functions/v1/upload-media';
+      
+      final formData = FormData.fromMap({
+        'roomId': roomId,
+        'file': MultipartFile.fromBytes(
+          bytes,
+          filename: fileName,
+          contentType: MediaType.parse(contentType ?? 'image/jpeg'),
+        ),
+      });
 
-    int retryCount = 0;
-    const maxRetries = 3;
+      final response = await dio.post(
+        uri,
+        data: formData,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $_anonKey',
+            'apikey': _anonKey,
+          },
+        ),
+      );
 
-    while (retryCount < maxRetries) {
-      try {
-        await _client.storage.from('chat-images').uploadBinary(
-              path,
-              bytes,
-              fileOptions: FileOptions(
-                cacheControl: '3600',
-                upsert: false,
-                contentType: contentType,
-              ),
-            );
-
-        final String publicUrl =
-            _client.storage.from('chat-images').getPublicUrl(path);
-        return publicUrl;
-      } catch (e) {
-        retryCount++;
-        debugPrint('Upload attempt $retryCount failed: $e');
-        if (retryCount >= maxRetries) rethrow;
-        // Wait before retry, increasing delay
-        await Future.delayed(Duration(milliseconds: 1000 * retryCount));
+      if (response.statusCode == 200) {
+        return response.data['url'];
+      } else {
+        throw Exception('Edge Function Error: ${response.data}');
       }
+    } catch (e) {
+      debugPrint('Edge Function Upload failed: $e');
+      rethrow;
     }
-    throw Exception('Failed to upload media after $maxRetries attempts');
   }
 
   @override
