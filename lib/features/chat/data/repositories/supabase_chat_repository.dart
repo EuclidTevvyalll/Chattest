@@ -152,20 +152,39 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
-  Future<String> uploadMedia(
-      String roomId, Uint8List bytes, String fileName) async {
+  Future<String> uploadMedia(String roomId, Uint8List bytes, String fileName,
+      String? contentType) async {
     final fileExt = fileName.split('.').last;
-    final path = 'messages/$roomId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+    final path =
+        'messages/$roomId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
 
-    await _client.storage.from('chat-images').uploadBinary(
-          path,
-          bytes,
-          fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
-        );
+    int retryCount = 0;
+    const maxRetries = 3;
 
-    final String publicUrl =
-        _client.storage.from('chat-images').getPublicUrl(path);
-    return publicUrl;
+    while (retryCount < maxRetries) {
+      try {
+        await _client.storage.from('chat-images').uploadBinary(
+              path,
+              bytes,
+              fileOptions: FileOptions(
+                cacheControl: '3600',
+                upsert: false,
+                contentType: contentType,
+              ),
+            );
+
+        final String publicUrl =
+            _client.storage.from('chat-images').getPublicUrl(path);
+        return publicUrl;
+      } catch (e) {
+        retryCount++;
+        debugPrint('Upload attempt $retryCount failed: $e');
+        if (retryCount >= maxRetries) rethrow;
+        // Wait before retry, increasing delay
+        await Future.delayed(Duration(milliseconds: 1000 * retryCount));
+      }
+    }
+    throw Exception('Failed to upload media after $maxRetries attempts');
   }
 
   @override

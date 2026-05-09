@@ -870,12 +870,15 @@ class ChatDetailScreen extends HookConsumerWidget {
                                               // Read bytes from the file path
                                               final bytes = await File(file.path!).readAsBytes();
 
-                                              // Increased delay to prevent Windows network contention (SocketException 10054)
+                                              // Increased delay to prevent Windows network contention
                                               await Future.delayed(
                                                   const Duration(
-                                                      milliseconds: 1000));
+                                                      milliseconds: 1500));
 
                                               if (!context.mounted) return;
+
+                                              final extension = file.extension ?? 'jpg';
+                                              final mimeType = 'image/$extension';
 
                                               await ref
                                                   .read(
@@ -885,7 +888,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                                                     currentUserId!,
                                                     bytes,
                                                     file.name,
-                                                    'image/${file.extension ?? 'jpg'}',
+                                                    mimeType,
                                                   );
                                             }
                                           } catch (e) {

@@ -102,7 +102,7 @@ class ChatController extends Notifier<ChatControllerState> {
       // 1. Upload the file
       final mediaUrl = await ref
           .read(chatRepositoryProvider)
-          .uploadMedia(roomId, bytes, fileName);
+          .uploadMedia(roomId, bytes, fileName, mediaType);
 
       // 2. Send the message with the media URL
       // Content can be empty or the filename for media messages
