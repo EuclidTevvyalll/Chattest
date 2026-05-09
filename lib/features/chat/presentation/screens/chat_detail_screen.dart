@@ -853,6 +853,9 @@ class ChatDetailScreen extends HookConsumerWidget {
                                   onPressed: isUploading.value
                                       ? null
                                       : () async {
+                                          // Small delay before opening the system dialog to prevent UI thread crashes
+                                          await Future.delayed(
+                                              const Duration(milliseconds: 100));
                                           try {
                                             final picker = ImagePicker();
                                             final image =
