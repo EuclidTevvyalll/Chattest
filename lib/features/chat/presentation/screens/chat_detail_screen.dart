@@ -84,6 +84,7 @@ class ChatDetailScreen extends HookConsumerWidget {
     final replyMessage = useState<MessageModel?>(null);
     final editingMessage = useState<MessageModel?>(null);
     final selectedMessages = useState<List<MessageModel>>([]);
+    final isUploading = useState(false);
     final isSelectionMode = selectedMessages.value.isNotEmpty;
 
     void toggleSelection(MessageModel message) {
@@ -834,44 +835,68 @@ class ChatDetailScreen extends HookConsumerWidget {
                           child: Row(
                             children: [
                                 IconButton(
-                                  icon: Icon(
-                                    Icons.add_circle_outline_rounded,
-                                    color: isDark
-                                        ? Colors.white54
-                                        : Colors.black45,
-                                  ),
-                                  onPressed: () async {
-                                    try {
-                                      final picker = ImagePicker();
-                                      final image = await picker.pickImage(
-                                        source: ImageSource.gallery,
-                                        imageQuality: 70,
-                                      );
-
-                                      if (image != null && context.mounted) {
-                                        await ref
-                                            .read(
-                                                chatControllerProvider.notifier)
-                                            .sendMediaMessage(
-                                              roomId,
-                                              currentUserId!,
-                                              image.path,
-                                              image.name,
-                                              'image/${image.name.split('.').last}',
-                                            );
-                                      }
-                                    } catch (e) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content:
-                                                Text('Ошибка загрузки: $e'),
+                                  icon: isUploading.value
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: ThemeColors.blue,
                                           ),
-                                        );
-                                      }
-                                    }
-                                  },
+                                        )
+                                      : Icon(
+                                          Icons.add_circle_outline_rounded,
+                                          color: isDark
+                                              ? Colors.white54
+                                              : Colors.black45,
+                                        ),
+                                  onPressed: isUploading.value
+                                      ? null
+                                      : () async {
+                                          try {
+                                            final picker = ImagePicker();
+                                            final image =
+                                                await picker.pickImage(
+                                              source: ImageSource.gallery,
+                                              imageQuality: 70,
+                                            );
+
+                                            if (image != null &&
+                                                context.mounted) {
+                                              isUploading.value = true;
+
+                                              // Added artificial delay to prevent Windows network contention (SocketException 10054)
+                                              await Future.delayed(
+                                                  const Duration(
+                                                      milliseconds: 500));
+
+                                              if (!context.mounted) return;
+
+                                              await ref
+                                                  .read(
+                                                      chatControllerProvider.notifier)
+                                                  .sendMediaMessage(
+                                                    roomId,
+                                                    currentUserId!,
+                                                    image.path,
+                                                    image.name,
+                                                    'image/${image.name.split('.').last}',
+                                                  );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      'Ошибка загрузки: $e'),
+                                                ),
+                                              );
+                                            }
+                                          } finally {
+                                            isUploading.value = false;
+                                          }
+                                        },
                                 ),
                               Expanded(
                                 child: TextField(
