@@ -489,7 +489,7 @@ class _InfoTile extends StatelessWidget {
               ],
             ),
           ),
-          if (t != null) t,
+          ?t,
         ],
       ),
     );

@@ -11,11 +11,17 @@ class ChatBubble extends StatelessWidget {
   final Map<String, List<String>> reactions;
   final Function(String emoji)? onReactionToggled;
   final Function()? onReply;
+  final Function()? onForward;
   final VoidCallback? onReport;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onLongPress; // Added
+  final VoidCallback? onTap; // Added
+  final Map<String, dynamic>? forwardedInfo;
   final bool? isEdited;
   final bool? isDeleted;
+  final bool isSelected; // Added
+  final bool isSelectionMode; // Added
   final String? currentUserId;
   final String? repliedMessageContent;
   final String? repliedMessageSenderName;
@@ -28,11 +34,17 @@ class ChatBubble extends StatelessWidget {
     this.reactions = const {},
     this.onReactionToggled,
     this.onReply,
+    this.onForward,
     this.onReport,
     this.onEdit,
     this.onDelete,
+    this.onLongPress,
+    this.onTap,
+    this.forwardedInfo,
     this.isEdited,
     this.isDeleted,
+    this.isSelected = false,
+    this.isSelectionMode = false,
     this.currentUserId,
     this.repliedMessageContent,
     this.repliedMessageSenderName,
@@ -70,140 +82,80 @@ class ChatBubble extends StatelessWidget {
             borderRadius: BorderRadius.circular(28),
             opacity: isDark ? 0.2 : 0.4,
             color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.black12,
-                    borderRadius: BorderRadius.circular(2),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.black12,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                SizedBox(
-                  height: 50,
-                  child: Listener(
-                    onPointerSignal: (pointerSignal) {
-                      if (pointerSignal is PointerScrollEvent) {
-                        final newOffset =
-                            scrollController.offset +
-                            pointerSignal.scrollDelta.dy;
-                        if (newOffset < 0) {
-                          scrollController.jumpTo(0);
-                        } else if (newOffset >
-                            scrollController.position.maxScrollExtent) {
-                          scrollController.jumpTo(
-                            scrollController.position.maxScrollExtent,
-                          );
-                        } else {
-                          scrollController.jumpTo(newOffset);
+                  SizedBox(
+                    height: 50,
+                    child: Listener(
+                      onPointerSignal: (pointerSignal) {
+                        if (pointerSignal is PointerScrollEvent) {
+                          final newOffset = scrollController.offset +
+                              pointerSignal.scrollDelta.dy;
+                          if (newOffset < 0) {
+                            scrollController.jumpTo(0);
+                          } else if (newOffset >
+                              scrollController.position.maxScrollExtent) {
+                            scrollController.jumpTo(
+                              scrollController.position.maxScrollExtent,
+                            );
+                          } else {
+                            scrollController.jumpTo(newOffset);
+                          }
                         }
-                      }
-                    },
-                    child: ListView.builder(
-                      controller: scrollController,
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: emojis.length,
-                      itemBuilder: (context, index) {
-                        final emoji = emojis[index];
-                        return GestureDetector(
-                          onTap: () {
-                            onReactionToggled?.call(emoji);
-                            Navigator.pop(context);
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color:
-                                  (reactions[emoji]?.contains(currentUserId) ??
-                                      false)
-                                  ? ThemeColors.blue.withValues(alpha: 0.2)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              emoji,
-                              style: const TextStyle(fontSize: 28),
-                            ),
-                          ),
-                        );
                       },
+                      child: ListView.builder(
+                        controller: scrollController,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: emojis.length,
+                        itemBuilder: (context, index) {
+                          final emoji = emojis[index];
+                          return GestureDetector(
+                            onTap: () {
+                              onReactionToggled?.call(emoji);
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: (reactions[emoji]
+                                            ?.contains(currentUserId) ??
+                                        false)
+                                    ? ThemeColors.blue.withValues(alpha: 0.2)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                emoji,
+                                style: const TextStyle(fontSize: 28),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                const Divider(height: 1, color: Colors.white10),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: () {
-                    Navigator.pop(context);
-                    onReply?.call();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 16,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.reply_rounded,
-                          color: ThemeColors.blue,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Ответить',
-                          style: ThemeTextStyles.bodyLarge(
-                            isDark: isDark,
-                            color: ThemeColors.blue,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                InkWell(
-                  onTap: () {
-                    Navigator.pop(context);
-                    onReport?.call();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 8,
-                      horizontal: 16,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.report_problem_rounded,
-                          color: Colors.redAccent,
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Пожаловаться',
-                          style: ThemeTextStyles.bodyLarge(
-                            isDark: isDark,
-                            color: Colors.redAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (isMine && !(isDeleted ?? false)) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: Colors.white10),
+                  const SizedBox(height: 12),
                   InkWell(
                     onTap: () {
                       Navigator.pop(context);
-                      onEdit?.call();
+                      onReply?.call();
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
@@ -214,12 +166,12 @@ class ChatBubble extends StatelessWidget {
                       child: Row(
                         children: [
                           const Icon(
-                            Icons.edit_rounded,
+                            Icons.reply_rounded,
                             color: ThemeColors.blue,
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            'Изменить',
+                            'Ответить',
                             style: ThemeTextStyles.bodyLarge(
                               isDark: isDark,
                               color: ThemeColors.blue,
@@ -233,7 +185,7 @@ class ChatBubble extends StatelessWidget {
                   InkWell(
                     onTap: () {
                       Navigator.pop(context);
-                      onDelete?.call();
+                      onForward?.call();
                     },
                     borderRadius: BorderRadius.circular(12),
                     child: Padding(
@@ -244,12 +196,72 @@ class ChatBubble extends StatelessWidget {
                       child: Row(
                         children: [
                           const Icon(
-                            Icons.delete_rounded,
+                            Icons.forward_rounded,
+                            color: ThemeColors.blue,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Переслать',
+                            style: ThemeTextStyles.bodyLarge(
+                              isDark: isDark,
+                              color: ThemeColors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                      onLongPress?.call();
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 16,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: ThemeColors.blue,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Выбрать',
+                            style: ThemeTextStyles.bodyLarge(
+                              isDark: isDark,
+                              color: ThemeColors.blue,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () {
+                      Navigator.pop(context);
+                      onReport?.call();
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 16,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.report_problem_rounded,
                             color: Colors.redAccent,
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            'Удалить',
+                            'Пожаловаться',
                             style: ThemeTextStyles.bodyLarge(
                               isDark: isDark,
                               color: Colors.redAccent,
@@ -259,18 +271,85 @@ class ChatBubble extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (isMine && !(isDeleted ?? false)) ...[
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        onEdit?.call();
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 16,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.edit_rounded,
+                              color: ThemeColors.blue,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Изменить',
+                              style: ThemeTextStyles.bodyLarge(
+                                isDark: isDark,
+                                color: ThemeColors.blue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        onDelete?.call();
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 16,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.delete_rounded,
+                              color: Colors.redAccent,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Удалить',
+                              style: ThemeTextStyles.bodyLarge(
+                                isDark: isDark,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final displayRepliedContent = repliedMessageContent ??
+        forwardedInfo?['fwd_replied_content'] ??
+        forwardedInfo?['replied_content'];
+    final displayRepliedSender = repliedMessageSenderName ??
+        forwardedInfo?['fwd_replied_sender'] ??
+        forwardedInfo?['replied_sender'];
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -281,170 +360,239 @@ class ChatBubble extends StatelessWidget {
             maxWidth: MediaQuery.of(context).size.width * 0.75,
           ),
           child: Column(
-            crossAxisAlignment: isMine
-                ? CrossAxisAlignment.end
-                : CrossAxisAlignment.start,
+            crossAxisAlignment:
+                isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
               GestureDetector(
-                onLongPress: () => _showReactionPicker(context),
-                child: Container(
+                onLongPress: isSelectionMode
+                    ? onLongPress
+                    : () => _showReactionPicker(context),
+                onTap: isSelectionMode ? onTap : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding:
+                      isSelectionMode ? const EdgeInsets.all(4) : EdgeInsets.zero,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft: Radius.circular(isMine ? 20 : 4),
-                      bottomRight: Radius.circular(isMine ? 4 : 20),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isMine ? ThemeColors.blue : Colors.black)
-                            .withValues(alpha: 0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    color: isSelected
+                        ? ThemeColors.blue.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: GlassBox(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    color: isMine
-                        ? ThemeColors.blue
-                        : (isDark
-                              ? Colors.white.withValues(alpha: 0.1)
-                              : Colors.white),
-                    opacity: isMine
-                        ? (isDark ? 0.3 : 0.6)
-                        : (isDark ? 0.1 : 0.7),
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft: Radius.circular(isMine ? 20 : 4),
-                      bottomRight: Radius.circular(isMine ? 4 : 20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (repliedMessageContent != null) ...[
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isSelectionMode)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: 24,
+                            height: 24,
                             decoration: BoxDecoration(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.1)
-                                  : Colors.black.withValues(alpha: 0.05),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border(
-                                left: BorderSide(
-                                  color: isMine
-                                      ? Colors.white70
-                                      : ThemeColors.blue,
-                                  width: 3,
-                                ),
+                              shape: BoxShape.circle,
+                              color: isSelected
+                                  ? ThemeColors.blue
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: isSelected
+                                    ? ThemeColors.blue
+                                    : (isDark ? Colors.white24 : Colors.black26),
+                                width: 2,
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  repliedMessageSenderName ??
-                                      'Удаленный пользователь',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: isMine
-                                        ? Colors.white
-                                        : ThemeColors.blue,
-                                  ),
-                                ),
-                                Text(
-                                  repliedMessageContent!,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: isMine
-                                        ? Colors.white70
-                                        : (isDark
-                                              ? Colors.white60
-                                              : Colors.black54),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
+                            child: isSelected
+                                ? const Icon(Icons.check_rounded,
+                                    color: Colors.white, size: 16)
+                                : null,
                           ),
-                        ],
-                        if (isDeleted ?? false)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.delete_outline_rounded,
-                                size: 14,
-                                color: isMine ? Colors.white60 : Colors.grey,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Сообщение удалено',
-                                style: ThemeTextStyles.bodyMedium(
-                                  color: isMine
-                                      ? Colors.white60
-                                      : Colors.grey,
-                                ).copyWith(
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          )
-                        else
-                          Text(
-                            content,
-                            style: ThemeTextStyles.bodyMedium(
-                              color: isMine
-                                  ? Colors.white
-                                  : (isDark
-                                        ? Colors.white.withValues(alpha: 0.9)
-                                        : Colors.black87),
-                            ),
+                        ),
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(20),
+                            topRight: const Radius.circular(20),
+                            bottomLeft: Radius.circular(isMine ? 20 : 4),
+                            bottomRight: Radius.circular(isMine ? 4 : 20),
                           ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              timestamp,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isMine
-                                    ? Colors.white70
-                                    : (isDark
-                                          ? Colors.white38
-                                          : Colors.black38),
-                              ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (isMine ? ThemeColors.blue : Colors.black)
+                                  .withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
-                            if (isEdited ?? false) ...[
-                              const SizedBox(width: 4),
-                              Text(
-                                'изменено',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontStyle: FontStyle.italic,
-                                  color: isMine
-                                      ? Colors.white70
-                                      : (isDark
-                                            ? Colors.white38
-                                            : Colors.black38),
-                                ),
-                              ),
-                            ],
                           ],
                         ),
-                      ],
-                    ),
+                        child: GlassBox(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          color: isMine
+                              ? ThemeColors.blue
+                              : (isDark
+                                  ? Colors.white.withValues(alpha: 0.1)
+                                  : Colors.white),
+                          opacity: isMine
+                              ? (isDark ? 0.3 : 0.6)
+                              : (isDark ? 0.1 : 0.7),
+                          borderRadius: BorderRadius.only(
+                            topLeft: const Radius.circular(20),
+                            topRight: const Radius.circular(20),
+                            bottomLeft: Radius.circular(isMine ? 20 : 4),
+                            bottomRight: Radius.circular(isMine ? 4 : 20),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (forwardedInfo != null) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.forward_rounded,
+                                        size: 12,
+                                        color: isMine
+                                            ? Colors.white70
+                                            : Colors.grey,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Переслано от ${forwardedInfo!['sender_name'] ?? 'Пользователь'}',
+                                        style: ThemeTextStyles.caption(
+                                          color: isMine
+                                              ? Colors.white70
+                                              : Colors.grey,
+                                        ).copyWith(fontStyle: FontStyle.italic),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              if (displayRepliedContent != null) ...[
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.1)
+                                        : Colors.black.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border(
+                                      left: BorderSide(
+                                        color: isMine
+                                            ? Colors.white70
+                                            : ThemeColors.blue,
+                                        width: 3,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        displayRepliedSender ??
+                                            'Удаленный пользователь',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isMine
+                                              ? Colors.white
+                                              : ThemeColors.blue,
+                                        ),
+                                      ),
+                                      Text(
+                                        displayRepliedContent,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isMine
+                                              ? Colors.white70
+                                              : (isDark
+                                                  ? Colors.white60
+                                                  : Colors.black54),
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              if (isDeleted ?? false)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.delete_outline_rounded,
+                                      size: 14,
+                                      color: isMine ? Colors.white60 : Colors.grey,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Сообщение удалено',
+                                      style: ThemeTextStyles.bodyMedium(
+                                        color: isMine
+                                            ? Colors.white60
+                                            : Colors.grey,
+                                      ).copyWith(
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              else
+                                Text(
+                                  content,
+                                  style: ThemeTextStyles.bodyMedium(
+                                    color: isMine
+                                        ? Colors.white
+                                        : (isDark
+                                            ? Colors.white.withValues(alpha: 0.9)
+                                            : Colors.black87),
+                                  ),
+                                ),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    timestamp,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: isMine
+                                          ? Colors.white70
+                                          : (isDark
+                                              ? Colors.white38
+                                              : Colors.black38),
+                                    ),
+                                  ),
+                                  if (isEdited ?? false) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'изменено',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontStyle: FontStyle.italic,
+                                        color: isMine
+                                            ? Colors.white70
+                                            : (isDark
+                                                ? Colors.white38
+                                                : Colors.black38),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -482,8 +630,8 @@ class ChatBubble extends StatelessWidget {
                                   color: isSelected
                                       ? ThemeColors.blue
                                       : (isDark
-                                            ? Colors.white70
-                                            : Colors.black54),
+                                          ? Colors.white70
+                                          : Colors.black54),
                                 ),
                               ),
                             ],

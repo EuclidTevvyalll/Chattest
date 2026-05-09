@@ -116,6 +116,8 @@ class SupabaseChatRepository implements ChatRepository {
     String content, {
     RoomType type = RoomType.room,
     String? replyToMessageId,
+    String? forwardedFrom,
+    Map<String, dynamic>? forwardedInfo,
   }) async {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) return;
@@ -130,6 +132,8 @@ class SupabaseChatRepository implements ChatRepository {
           'profile_id': myId,
           'content': content,
           'reply_to_message_id': replyToMessageId,
+          'forwarded_from': forwardedFrom,
+          'forwarded_info': forwardedInfo,
         });
         return;
       } catch (e) {
@@ -391,6 +395,35 @@ class SupabaseChatRepository implements ChatRepository {
       } catch (e) {
         retryCount++;
         debugPrint('SupabaseChatRepository: Delete attempt $retryCount failed: $e');
+        if (retryCount >= maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+      }
+    }
+  }
+
+  @override
+  Future<void> deleteMessages(List<String> messageIds) async {
+    debugPrint('SupabaseChatRepository: Deleting ${messageIds.length} messages');
+    if (messageIds.isEmpty) return;
+
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        await _client
+            .from('messages')
+            .update({
+              'is_deleted': true,
+              'deleted_at': DateTime.now().toIso8601String(),
+              'deleted_by': _client.auth.currentUser?.id,
+            })
+            .inFilter('id', messageIds);
+        debugPrint('SupabaseChatRepository: Bulk soft delete successful');
+        return;
+      } catch (e) {
+        retryCount++;
+        debugPrint('SupabaseChatRepository: Bulk delete attempt $retryCount failed: $e');
         if (retryCount >= maxRetries) rethrow;
         await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }

@@ -9,6 +9,7 @@ import 'package:rickandmorty/features/chat/presentation/widgets/chat_bubble.dart
 import 'package:rickandmorty/theme/text_theme.dart';
 import 'package:rickandmorty/theme/theme_colors.dart';
 import 'package:rickandmorty/widgets/liquidglass_container.dart';
+import 'package:rickandmorty/features/chat/presentation/widgets/forward_dialog.dart';
 import 'package:rickandmorty/features/chat/presentation/widgets/report_dialog.dart';
 import 'package:rickandmorty/features/chat/presentation/providers/chat_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -77,10 +78,23 @@ class ChatDetailScreen extends HookConsumerWidget {
       }
     }
 
-    final pendingMessagesMap = ref.watch(chatControllerProvider);
-    final roomPendingMessages = pendingMessagesMap[roomId] ?? [];
+    final chatState = ref.watch(chatControllerProvider);
+    final roomPendingMessages = chatState.pendingMessages[roomId] ?? [];
     final replyMessage = useState<MessageModel?>(null);
     final editingMessage = useState<MessageModel?>(null);
+    final selectedMessages = useState<List<MessageModel>>([]);
+    final isSelectionMode = selectedMessages.value.isNotEmpty;
+
+    void toggleSelection(MessageModel message) {
+      if (message.id.startsWith('temp_')) return;
+      if (selectedMessages.value.any((m) => m.id == message.id)) {
+        selectedMessages.value = selectedMessages.value
+            .where((m) => m.id != message.id)
+            .toList();
+      } else {
+        selectedMessages.value = [...selectedMessages.value, message];
+      }
+    }
 
     // Sync editing message content to text field
     useEffect(() {
@@ -93,21 +107,29 @@ class ChatDetailScreen extends HookConsumerWidget {
 
     final allMessages = useMemoized(() {
       final messages = messagesAsync.value ?? [];
+      
+      // Filter out messages that are being deleted optimistically
+      final activeMessages = messages.where((m) => !chatState.deletingIds.contains(m.id)).toList();
+
       final filteredPending = roomPendingMessages.where((pm) {
-        // More robust check: if there is ANY message from us with same content
-        // within a reasonable time window (60s), consider it 'delivered'
-        return !messages.any(
-          (m) =>
-              m.profileId == pm.profileId &&
-              m.content == pm.content &&
-              (m.createdAt.difference(pm.createdAt).inSeconds.abs() < 60),
-        );
+        // Check if there's a real message that matches this pending one
+        return !activeMessages.any((m) {
+          final isSameContent = m.content == pm.content && m.profileId == pm.profileId;
+          final isSameForward = m.forwardedFrom == pm.forwardedFrom;
+          final isWithinTime = m.createdAt.difference(pm.createdAt).inSeconds.abs() < 60;
+
+          if (pm.forwardedFrom != null) {
+            // For forwarded messages, be more specific with forwardedFrom ID
+            return isSameForward && isWithinTime;
+          }
+          return isSameContent && isWithinTime;
+        });
       }).toList();
 
-      final combined = [...messages, ...filteredPending];
+      final combined = [...activeMessages, ...filteredPending];
       combined.sort((a, b) => a.createdAt.compareTo(b.createdAt));
       return combined;
-    }, [messagesAsync.value, roomPendingMessages]);
+    }, [messagesAsync.value, chatState]);
 
     Future<void> handleSend() async {
       if (controller.text.trim().isNotEmpty && currentUserId != null) {
@@ -321,9 +343,10 @@ class ChatDetailScreen extends HookConsumerWidget {
                         }
                       }
 
+                      final isMine = message.profileId == currentUserId;
                       return ChatBubble(
                         content: message.content,
-                        isMine: message.profileId == currentUserId,
+                        isMine: isMine,
                         timestamp: DateFormat('HH:mm')
                             .format(message.createdAt.toLocal()),
                         isEdited: message.isEdited,
@@ -332,6 +355,12 @@ class ChatDetailScreen extends HookConsumerWidget {
                         currentUserId: currentUserId,
                         repliedMessageContent: repliedContent,
                         repliedMessageSenderName: repliedSenderName,
+                        forwardedInfo: message.forwardedInfo,
+                        isSelected: selectedMessages.value
+                            .any((m) => m.id == message.id),
+                        isSelectionMode: isSelectionMode,
+                        onTap: () => toggleSelection(message),
+                        onLongPress: () => toggleSelection(message),
                         onReactionToggled: (emoji) {
                           ref
                               .read(chatRepositoryProvider)
@@ -341,51 +370,107 @@ class ChatDetailScreen extends HookConsumerWidget {
                           replyMessage.value = message;
                           focusNode.requestFocus();
                         },
-                        onEdit: () {
-                          editingMessage.value = message;
-                        },
-                        onDelete: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Удалить сообщение?'),
-                              content: const Text(
-                                'Это действие нельзя отменить.',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, false),
-                                  child: const Text('Отмена'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text(
-                                    'Удалить',
-                                    style: TextStyle(color: Colors.redAccent),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-
-                          if (confirm == true) {
-                            try {
-                              // If it's a temporary message, we might need a different logic
-                              // but for now deleteMessage handles the repository call.
-                              await ref
-                                  .read(chatControllerProvider.notifier)
-                                  .deleteMessage(roomId, message.id);
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Ошибка при удалении: $e'),
+                        onEdit: isMine
+                            ? () {
+                                editingMessage.value = message;
+                              }
+                            : null,
+                        onDelete: (isMine || room?.type == RoomType.room)
+                            ? () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Удалить сообщение?'),
+                                    content: const Text(
+                                      'Это действие нельзя отменить.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('Отмена'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text(
+                                          'Удалить',
+                                          style: TextStyle(
+                                              color: Colors.redAccent),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 );
+
+                                if (confirm == true) {
+                                  try {
+                                    await ref
+                                        .read(chatControllerProvider.notifier)
+                                        .deleteMessage(roomId, message.id);
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content:
+                                              Text('Ошибка при удалении: $e'),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
                               }
-                            }
-                          }
+                            : null,
+                        onForward: () {
+                          // Find sender name for forwarding info
+                          final participants = participantsAsync.value ?? [];
+                          final sender = participants
+                              .where((p) => p.id == message.profileId)
+                              .firstOrNull;
+                          final senderName = sender?.nickname ??
+                              sender?.username ??
+                              (message.profileId == currentUserId
+                                  ? 'Вы'
+                                  : 'Пользователь');
+
+                          showDialog(
+                            context: context,
+                            builder: (context) => ForwardDialog(
+                              content: message.content,
+                              onForward: (targetRoomId) {
+                                ref
+                                    .read(chatControllerProvider.notifier)
+                                    .sendMessage(
+                                      targetRoomId,
+                                      message.content,
+                                      currentUserId!,
+                                      forwardedFrom: message.id,
+                                      forwardedInfo: {
+                                        'sender_name': senderName,
+                                        'sender_id': message.profileId,
+                                      },
+                                    )
+                                    .then((_) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Сообщение переслано'),
+                                      ),
+                                    );
+                                  }
+                                }).catchError((e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Ошибка пересылки: $e'),
+                                      ),
+                                    );
+                                  }
+                                });
+                              },
+                            ),
+                          );
                         },
                         onReport: () {
                           showDialog(
@@ -596,69 +681,210 @@ class ChatDetailScreen extends HookConsumerWidget {
                 ),
               ],
 
-              // Input Area
+              // Selection Action Bar or Input Area
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: GlassBox(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                  opacity: isDark ? 0.15 : 0.08,
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          Icons.add_circle_outline_rounded,
-                          color: isDark ? Colors.white54 : Colors.black45,
-                        ),
-                        onPressed: () {},
-                      ),
-                      Expanded(
-                        child: TextField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          onSubmitted: (_) => handleSend(),
-                          decoration: InputDecoration(
-                            hintText: 'Напишите сообщение...',
-                            hintStyle: ThemeTextStyles.bodyMedium(
-                              color: isDark ? Colors.white38 : Colors.black38,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                            ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: isSelectionMode
+                      ? GlassBox(
+                          key: const ValueKey('selection_bar'),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          borderRadius: BorderRadius.circular(30),
+                          opacity: isDark ? 0.2 : 0.3,
+                          color: ThemeColors.blue.withValues(alpha: 0.1),
+                          child: Row(
+                            children: [
+                              Text(
+                                '${selectedMessages.value.length}',
+                                style: ThemeTextStyles.h3(
+                                    isDark: isDark, color: ThemeColors.blue),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  'Выбрано',
+                                  style: ThemeTextStyles.bodyMedium(
+                                      isDark: isDark),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.forward_rounded,
+                                    color: ThemeColors.blue),
+                                tooltip: 'Переслать',
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => ForwardDialog(
+                                      content:
+                                          '${selectedMessages.value.length} сообщения',
+                                      onForward: (targetRoomId) async {
+                                        final msgs =
+                                            List<MessageModel>.from(
+                                                selectedMessages.value);
+                                        selectedMessages.value = [];
+
+                                        final profiles =
+                                            participantsAsync.value ?? [];
+
+                                        final replyContents = <String, String>{};
+                                        for (final msg in msgs) {
+                                          if (msg.replyToMessageId != null) {
+                                            final replied = messagesAsync.value
+                                                ?.where((m) =>
+                                                    m.id == msg.replyToMessageId)
+                                                .firstOrNull;
+                                            if (replied != null) {
+                                              replyContents[msg.id] =
+                                                  replied.content;
+                                            }
+                                          }
+                                        }
+
+                                        ref
+                                            .read(chatControllerProvider
+                                                .notifier)
+                                            .forwardMessages(
+                                              targetRoomId,
+                                              msgs,
+                                              currentUserId!,
+                                              profiles,
+                                              replyContents: replyContents,
+                                            );
+
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                              content:
+                                                  Text('Сообщения пересланы'),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                              if (room?.type == RoomType.room ||
+                                  selectedMessages.value.every(
+                                      (m) => m.profileId == currentUserId))
+                                IconButton(
+                                  icon: const Icon(Icons.delete_rounded,
+                                      color: Colors.redAccent),
+                                  tooltip: 'Удалить',
+                                  onPressed: () async {
+                                    final confirmed = await showDialog<bool>(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        backgroundColor: isDark
+                                            ? const Color(0xFF1A1A1A)
+                                            : Colors.white,
+                                        title: const Text('Удалить сообщения?'),
+                                        content: Text(
+                                            'Вы уверены, что хотите удалить ${selectedMessages.value.length} сообщения?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('Отмена'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            style: TextButton.styleFrom(
+                                                foregroundColor: Colors.red),
+                                            child: const Text('Удалить'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (confirmed == true) {
+                                      final ids = selectedMessages.value
+                                          .map((m) => m.id)
+                                          .toList();
+                                      selectedMessages.value = [];
+                                      await ref
+                                          .read(chatControllerProvider.notifier)
+                                          .deleteMessages(roomId, ids);
+                                    }
+                                  },
+                                ),
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded),
+                                tooltip: 'Закрыть',
+                                onPressed: () => selectedMessages.value = [],
+                              ),
+                            ],
                           ),
-                          style: ThemeTextStyles.bodyMedium(isDark: isDark),
-                        ),
-                      ),
-                      Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        decoration: BoxDecoration(
-                          gradient: ThemeColors.primaryGradient,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: ThemeColors.blue.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: IconButton(
-                          onPressed: handleSend,
-                          icon: Icon(
-                            editingMessage.value != null
-                                ? Icons.done_rounded
-                                : Icons.send_rounded,
-                            color: Colors.white,
-                            size: 20,
+                        )
+                      : GlassBox(
+                          key: const ValueKey('input_bar'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          borderRadius: BorderRadius.circular(30),
+                          opacity: isDark ? 0.15 : 0.08,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.add_circle_outline_rounded,
+                                  color: isDark ? Colors.white54 : Colors.black45,
+                                ),
+                                onPressed: () {},
+                              ),
+                              Expanded(
+                                child: TextField(
+                                  controller: controller,
+                                  focusNode: focusNode,
+                                  onSubmitted: (_) => handleSend(),
+                                  decoration: InputDecoration(
+                                    hintText: 'Напишите сообщение...',
+                                    hintStyle: ThemeTextStyles.bodyMedium(
+                                      color:
+                                          isDark ? Colors.white38 : Colors.black38,
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                  ),
+                                  style:
+                                      ThemeTextStyles.bodyMedium(isDark: isDark),
+                                ),
+                              ),
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                decoration: BoxDecoration(
+                                  gradient: ThemeColors.primaryGradient,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: ThemeColors.blue
+                                          .withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: IconButton(
+                                  onPressed: handleSend,
+                                  icon: Icon(
+                                    editingMessage.value != null
+                                        ? Icons.done_rounded
+                                        : Icons.send_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
             ],

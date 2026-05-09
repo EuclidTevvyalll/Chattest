@@ -16,6 +16,8 @@ abstract class ChatRepository {
     String content, {
     RoomType type = RoomType.room,
     String? replyToMessageId,
+    String? forwardedFrom,
+    Map<String, dynamic>? forwardedInfo,
   });
   Future<String?> createRoom(List<String> participantIds);
   Future<String?> createGroup(String name, List<String> participantIds);
@@ -24,6 +26,7 @@ abstract class ChatRepository {
   Future<void> toggleReaction(String messageId, String emoji);
   Future<void> editMessage(String messageId, String newContent);
   Future<void> deleteMessage(String messageId);
+  Future<void> deleteMessages(List<String> messageIds);
   Future<void> reportTarget({
     required String targetId,
     required String targetType,
