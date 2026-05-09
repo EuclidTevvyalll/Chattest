@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -868,7 +869,31 @@ class ChatDetailScreen extends HookConsumerWidget {
                                               isUploading.value = true;
 
                                               // Read bytes from the file path
-                                              final bytes = await File(file.path!).readAsBytes();
+                                              Uint8List bytes = await File(file.path!).readAsBytes();
+
+                                              // Compress if it's an image
+                                              if (file.extension?.toLowerCase() == 'jpg' || 
+                                                  file.extension?.toLowerCase() == 'jpeg' || 
+                                                  file.extension?.toLowerCase() == 'png') {
+                                                try {
+                                                  final image = img.decodeImage(bytes);
+                                                  if (image != null) {
+                                                    // Resize if too large (max 1920px width/height)
+                                                    img.Image resized = image;
+                                                    if (image.width > 1920 || image.height > 1920) {
+                                                      resized = img.copyResize(image, 
+                                                        width: image.width > image.height ? 1920 : null,
+                                                        height: image.height >= image.width ? 1920 : null,
+                                                      );
+                                                    }
+                                                    // Encode to JPG with 80% quality
+                                                    bytes = Uint8List.fromList(img.encodeJpg(resized, quality: 80));
+                                                  }
+                                                } catch (e) {
+                                                  debugPrint('Compression error: $e');
+                                                  // Fallback to original bytes if compression fails
+                                                }
+                                              }
 
                                               // Increased delay to prevent Windows network contention
                                               await Future.delayed(
@@ -877,8 +902,7 @@ class ChatDetailScreen extends HookConsumerWidget {
 
                                               if (!context.mounted) return;
 
-                                              final extension = file.extension ?? 'jpg';
-                                              final mimeType = 'image/$extension';
+                                              final mimeType = 'image/jpeg';
 
                                               await ref
                                                   .read(
