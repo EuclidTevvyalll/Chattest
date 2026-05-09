@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:io';
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
@@ -154,14 +153,13 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<String> uploadMedia(
-      String roomId, String filePath, String fileName) async {
-    final file = File(filePath);
+      String roomId, Uint8List bytes, String fileName) async {
     final fileExt = fileName.split('.').last;
     final path = 'messages/$roomId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
 
-    await _client.storage.from('chat-images').upload(
+    await _client.storage.from('chat-images').uploadBinary(
           path,
-          file,
+          bytes,
           fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
         );
 

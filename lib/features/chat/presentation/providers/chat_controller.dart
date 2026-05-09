@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
@@ -93,7 +94,7 @@ class ChatController extends Notifier<ChatControllerState> {
   Future<void> sendMediaMessage(
     String roomId,
     String currentUserId,
-    String filePath,
+    Uint8List bytes,
     String fileName,
     String mediaType,
   ) async {
@@ -101,7 +102,7 @@ class ChatController extends Notifier<ChatControllerState> {
       // 1. Upload the file
       final mediaUrl = await ref
           .read(chatRepositoryProvider)
-          .uploadMedia(roomId, filePath, fileName);
+          .uploadMedia(roomId, bytes, fileName);
 
       // 2. Send the message with the media URL
       // Content can be empty or the filename for media messages

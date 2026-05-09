@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
 import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
@@ -23,7 +24,7 @@ abstract class ChatRepository {
     String? mediaName,
   });
 
-  Future<String> uploadMedia(String roomId, String filePath, String fileName);
+  Future<String> uploadMedia(String roomId, Uint8List bytes, String fileName);
   Future<String?> createRoom(List<String> participantIds);
   Future<String?> createGroup(String name, List<String> participantIds);
   Future<String?> createChannel(String name, String? description);

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -866,6 +867,9 @@ class ChatDetailScreen extends HookConsumerWidget {
                                               final file = result.files.single;
                                               isUploading.value = true;
 
+                                              // Read bytes from the file path
+                                              final bytes = await File(file.path!).readAsBytes();
+
                                               // Increased delay to prevent Windows network contention (SocketException 10054)
                                               await Future.delayed(
                                                   const Duration(
@@ -879,7 +883,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                                                   .sendMediaMessage(
                                                     roomId,
                                                     currentUserId!,
-                                                    file.path!,
+                                                    bytes,
                                                     file.name,
                                                     'image/${file.extension ?? 'jpg'}',
                                                   );
