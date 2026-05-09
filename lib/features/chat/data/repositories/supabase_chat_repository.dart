@@ -159,14 +159,14 @@ class SupabaseChatRepository implements ChatRepository {
     final fileExt = fileName.split('.').last;
     final path = 'messages/$roomId/${DateTime.now().millisecondsSinceEpoch}.$fileExt';
 
-    await _client.storage.from('chat_media').upload(
+    await _client.storage.from('chat-images').upload(
           path,
           file,
           fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
         );
 
     final String publicUrl =
-        _client.storage.from('chat_media').getPublicUrl(path);
+        _client.storage.from('chat-images').getPublicUrl(path);
     return publicUrl;
   }
 
