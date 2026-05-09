@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:rickandmorty/main.dart';
+import 'package:forgelink/main.dart';
 
 class ThemeNotifier extends Notifier<ThemeMode> {
   @override

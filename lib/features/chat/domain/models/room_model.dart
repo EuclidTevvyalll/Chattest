@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 
 part 'room_model.freezed.dart';
 part 'room_model.g.dart';

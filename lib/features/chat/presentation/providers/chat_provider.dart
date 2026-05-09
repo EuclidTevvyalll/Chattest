@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:rickandmorty/features/chat/presentation/providers/chat_repository_provider.dart';
-import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
-import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
-import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
-import 'package:rickandmorty/features/chat/presentation/providers/chat_controller.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
+import 'package:forgelink/features/chat/domain/models/message_model.dart';
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/chat/domain/models/room_model.dart';
+import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_controller.dart';
 
 final roomsProvider = StreamProvider<List<RoomModel>>((ref) {
   final repo = ref.watch(chatRepositoryProvider);

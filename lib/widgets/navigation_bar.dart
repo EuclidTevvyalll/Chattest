@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:rickandmorty/theme/text_theme.dart';
-import 'package:rickandmorty/theme/theme_colors.dart';
-import 'package:rickandmorty/widgets/liquidglass_container.dart';
+import 'package:forgelink/theme/text_theme.dart';
+import 'package:forgelink/theme/theme_colors.dart';
+import 'package:forgelink/widgets/liquidglass_container.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;

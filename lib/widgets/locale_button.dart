@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:rickandmorty/core/providers/locale/locale_provider.dart';
+import 'package:forgelink/core/providers/locale/locale_provider.dart';
 
 class LocaleButton extends ConsumerWidget {
   final bool isDark;

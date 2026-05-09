@@ -7,21 +7,21 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:rickandmorty/features/chat/presentation/providers/chat_provider.dart';
-import 'package:rickandmorty/features/chat/presentation/providers/chat_repository_provider.dart';
-import 'package:rickandmorty/features/chat/presentation/widgets/chat_bubble.dart';
-import 'package:rickandmorty/theme/text_theme.dart';
-import 'package:rickandmorty/theme/theme_colors.dart';
-import 'package:rickandmorty/widgets/liquidglass_container.dart';
-import 'package:rickandmorty/features/chat/presentation/widgets/forward_dialog.dart';
-import 'package:rickandmorty/features/chat/presentation/widgets/report_dialog.dart';
-import 'package:rickandmorty/features/chat/presentation/providers/chat_controller.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
+import 'package:forgelink/features/chat/presentation/widgets/chat_bubble.dart';
+import 'package:forgelink/theme/text_theme.dart';
+import 'package:forgelink/theme/theme_colors.dart';
+import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/features/chat/presentation/widgets/forward_dialog.dart';
+import 'package:forgelink/features/chat/presentation/widgets/report_dialog.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
-import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
-import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
-import 'package:rickandmorty/features/profile/presentation/providers/profile_provider.dart';
+import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
+import 'package:forgelink/features/chat/domain/models/room_model.dart';
+import 'package:forgelink/features/chat/domain/models/message_model.dart';
+import 'package:forgelink/features/profile/presentation/providers/profile_provider.dart';
 import 'dart:typed_data';
 
 class ChatDetailScreen extends HookConsumerWidget {

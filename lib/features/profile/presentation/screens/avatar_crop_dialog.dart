@@ -2,8 +2,8 @@ import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
-import 'package:rickandmorty/theme/theme_colors.dart';
-import 'package:rickandmorty/widgets/liquidglass_container.dart';
+import 'package:forgelink/theme/theme_colors.dart';
+import 'package:forgelink/widgets/liquidglass_container.dart';
 
 class AvatarCropDialog extends StatefulWidget {
   final Uint8List image;

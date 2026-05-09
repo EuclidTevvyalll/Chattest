@@ -3,20 +3,20 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:rickandmorty/core/router/routes.dart';
-import 'package:rickandmorty/features/main_layout/presentation/screens/main_screen.dart';
-import 'package:rickandmorty/widgets/navigation_bar.dart';
-import 'package:rickandmorty/features/chat/presentation/screens/chat_list_screen.dart';
-import 'package:rickandmorty/features/chat/presentation/screens/chat_detail_screen.dart';
+import 'package:forgelink/core/router/routes.dart';
+import 'package:forgelink/features/main_layout/presentation/screens/main_screen.dart';
+import 'package:forgelink/widgets/navigation_bar.dart';
+import 'package:forgelink/features/chat/presentation/screens/chat_list_screen.dart';
+import 'package:forgelink/features/chat/presentation/screens/chat_detail_screen.dart';
 
 import 'dart:async';
-import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
-import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
+import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
+import 'package:forgelink/features/chat/domain/models/room_model.dart';
 
-import 'package:rickandmorty/features/chat/presentation/screens/create_chat_screen.dart';
-import 'package:rickandmorty/features/auth/presentation/screens/auth_screen.dart';
-import 'package:rickandmorty/features/profile/presentation/screens/profile_screen.dart';
-import 'package:rickandmorty/features/chat/presentation/screens/chat_info_screen.dart';
+import 'package:forgelink/features/chat/presentation/screens/create_chat_screen.dart';
+import 'package:forgelink/features/auth/presentation/screens/auth_screen.dart';
+import 'package:forgelink/features/profile/presentation/screens/profile_screen.dart';
+import 'package:forgelink/features/chat/presentation/screens/chat_info_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 

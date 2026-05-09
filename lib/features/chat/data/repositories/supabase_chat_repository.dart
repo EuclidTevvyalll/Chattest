@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
-import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
-import 'package:rickandmorty/features/chat/domain/repositories/chat_repository.dart';
+import 'package:forgelink/features/chat/domain/models/message_model.dart';
+import 'package:forgelink/features/chat/domain/models/room_model.dart';
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/chat/domain/repositories/chat_repository.dart';
 
 class SupabaseChatRepository implements ChatRepository {
   final SupabaseClient _client;

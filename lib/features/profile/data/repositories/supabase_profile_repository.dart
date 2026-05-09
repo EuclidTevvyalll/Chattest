@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
-import 'package:rickandmorty/features/profile/domain/repositories/profile_repository.dart';
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/profile/domain/repositories/profile_repository.dart';
 
 class SupabaseProfileRepository implements ProfileRepository {
   final SupabaseClient _client;

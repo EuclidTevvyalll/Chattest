@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 
 abstract class ProfileRepository {
   Future<ProfileModel?> getProfile(String id);

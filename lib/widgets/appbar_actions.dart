@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rickandmorty/widgets/locale_button.dart';
-import 'package:rickandmorty/widgets/theme_button.dart';
+import 'package:forgelink/widgets/locale_button.dart';
+import 'package:forgelink/widgets/theme_button.dart';
 
 class AppbarActions extends ConsumerWidget {
   final double padding;

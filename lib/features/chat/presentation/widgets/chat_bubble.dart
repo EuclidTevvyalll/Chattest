@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
-import 'package:rickandmorty/theme/text_theme.dart';
-import 'package:rickandmorty/theme/theme_colors.dart';
-import 'package:rickandmorty/widgets/liquidglass_container.dart';
+import 'package:forgelink/theme/text_theme.dart';
+import 'package:forgelink/theme/theme_colors.dart';
+import 'package:forgelink/widgets/liquidglass_container.dart';
 
 class ChatBubble extends StatelessWidget {
   final String content;

@@ -1,11 +1,11 @@
 {
-    "name": "rickandmorty",
-    "short_name": "rickandmorty",
+    "name": "ForgeLink",
+    "short_name": "ForgeLink",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "ForgeLink - Secure and dynamic chat.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

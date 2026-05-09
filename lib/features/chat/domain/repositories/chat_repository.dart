@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import 'package:rickandmorty/features/chat/domain/models/message_model.dart';
-import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/chat/domain/models/message_model.dart';
+import 'package:forgelink/features/chat/domain/models/room_model.dart';
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 
 abstract class ChatRepository {
   Stream<List<RoomModel>> watchRooms();

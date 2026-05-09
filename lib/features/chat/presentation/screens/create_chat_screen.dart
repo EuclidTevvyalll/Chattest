@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
-import 'package:rickandmorty/features/chat/domain/models/room_model.dart';
+import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
+import 'package:forgelink/features/chat/domain/models/room_model.dart';
 
-import 'package:rickandmorty/features/chat/presentation/providers/chat_provider.dart';
-import 'package:rickandmorty/features/chat/presentation/providers/chat_repository_provider.dart';
-import 'package:rickandmorty/theme/text_theme.dart';
-import 'package:rickandmorty/theme/theme_colors.dart';
-import 'package:rickandmorty/widgets/liquidglass_container.dart';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
+import 'package:forgelink/theme/text_theme.dart';
+import 'package:forgelink/theme/theme_colors.dart';
+import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 
 final profilesProvider = FutureProvider<List<ProfileModel>>((ref) {
   return ref.watch(chatRepositoryProvider).getProfiles();

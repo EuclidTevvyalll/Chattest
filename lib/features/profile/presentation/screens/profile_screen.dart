@@ -4,15 +4,15 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
-import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
-import 'package:rickandmorty/features/profile/presentation/providers/profile_provider.dart';
-import 'package:rickandmorty/theme/text_theme.dart';
-import 'package:rickandmorty/theme/theme_colors.dart';
-import 'package:rickandmorty/widgets/liquidglass_container.dart';
-import 'package:rickandmorty/core/providers/theme_mode/theme_provider.dart';
-import 'package:rickandmorty/features/profile/presentation/screens/avatar_crop_dialog.dart';
-import 'package:rickandmorty/main.dart'; // To access rootScaffoldMessengerKey
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
+import 'package:forgelink/features/profile/presentation/providers/profile_provider.dart';
+import 'package:forgelink/theme/text_theme.dart';
+import 'package:forgelink/theme/theme_colors.dart';
+import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/core/providers/theme_mode/theme_provider.dart';
+import 'package:forgelink/features/profile/presentation/screens/avatar_crop_dialog.dart';
+import 'package:forgelink/main.dart'; // To access rootScaffoldMessengerKey
 import 'package:cached_network_image/cached_network_image.dart';
 
 class ProfileScreen extends HookConsumerWidget {

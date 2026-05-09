@@ -1,7 +1,7 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:rickandmorty/features/auth/data/repositories/supabase_auth_repository.dart';
-import 'package:rickandmorty/features/auth/domain/repositories/auth_repository.dart';
+import 'package:forgelink/features/auth/data/repositories/supabase_auth_repository.dart';
+import 'package:forgelink/features/auth/domain/repositories/auth_repository.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return SupabaseAuthRepository(Supabase.instance.client);

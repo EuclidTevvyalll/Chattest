@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:rickandmorty/features/auth/presentation/providers/auth_provider.dart';
-import 'package:rickandmorty/features/profile/data/repositories/supabase_profile_repository.dart';
-import 'package:rickandmorty/features/chat/domain/models/profile_model.dart';
-import 'package:rickandmorty/features/profile/domain/repositories/profile_repository.dart';
+import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
+import 'package:forgelink/features/profile/data/repositories/supabase_profile_repository.dart';
+import 'package:forgelink/features/chat/domain/models/profile_model.dart';
+import 'package:forgelink/features/profile/domain/repositories/profile_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AvatarPreviewNotifier extends Notifier<Uint8List?> {

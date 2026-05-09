@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:rickandmorty/core/router/router.dart';
-import 'package:rickandmorty/core/providers/locale/locale_provider.dart';
-import 'package:rickandmorty/core/providers/theme_mode/theme_provider.dart';
-import 'package:rickandmorty/l10n/app_localizations.dart';
+import 'package:forgelink/core/router/router.dart';
+import 'package:forgelink/core/providers/locale/locale_provider.dart';
+import 'package:forgelink/core/providers/theme_mode/theme_provider.dart';
+import 'package:forgelink/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

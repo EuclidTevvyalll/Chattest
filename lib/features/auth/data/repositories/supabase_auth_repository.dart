@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:rickandmorty/features/auth/domain/repositories/auth_repository.dart';
+import 'package:forgelink/features/auth/domain/repositories/auth_repository.dart';
 
 class SupabaseAuthRepository implements AuthRepository {
   final SupabaseClient _client;
