@@ -512,12 +512,17 @@ class ChatInfoScreen extends ConsumerWidget {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: GlassBox(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.zero,
                       borderRadius: BorderRadius.circular(16),
                       opacity: isDark ? 0.1 : 0.05,
-                      child: Row(
-                        children: [
-                          Consumer(
+                      child: InkWell(
+                        onTap: () => context.push('/profile/${p.id}'),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Consumer(
                             builder: (context, ref, _) {
                               final avatarAsync = ref.watch(
                                 userAvatarBase64Provider(p.id),
@@ -637,12 +642,14 @@ class ChatInfoScreen extends ConsumerWidget {
                                       );
                               },
                             ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
+            ),
             ],
           ],
         ),

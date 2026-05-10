@@ -14,16 +14,38 @@ import 'package:forgelink/core/providers/theme_mode/theme_provider.dart';
 import 'package:forgelink/features/profile/presentation/screens/avatar_crop_dialog.dart';
 import 'package:forgelink/main.dart'; // To access rootScaffoldMessengerKey
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:go_router/go_router.dart';
 
 class ProfileScreen extends HookConsumerWidget {
-  const ProfileScreen({super.key});
+  final String? userId;
+  const ProfileScreen({super.key, this.userId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(profileControllerProvider);
+    final currentUserId = ref.watch(authUserProvider)?.id;
+    final isMe = userId == null || userId == currentUserId;
+
+    final profileAsync = isMe
+        ? ref.watch(profileControllerProvider)
+        : ref.watch(userProfileProvider(userId!));
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      extendBodyBehindAppBar: !isMe,
+      appBar: !isMe
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                onPressed: () => context.pop(),
+              ),
+            )
+          : null,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -35,6 +57,7 @@ class ProfileScreen extends HookConsumerWidget {
           ),
         ),
         child: SafeArea(
+          top: isMe,
           child: profileAsync.maybeWhen(
             data: (profile) {
               if (profile == null) {
@@ -56,11 +79,14 @@ class ProfileScreen extends HookConsumerWidget {
                   ),
                 );
               }
-              return _ProfileContent(profile: profile);
+              return _ProfileContent(profile: profile, isReadOnly: !isMe);
             },
             loading: () {
               if (profileAsync.hasValue) {
-                return _ProfileContent(profile: profileAsync.value!);
+                return _ProfileContent(
+                  profile: profileAsync.value!,
+                  isReadOnly: !isMe,
+                );
               }
               return const Center(
                 child: CircularProgressIndicator(
@@ -70,7 +96,8 @@ class ProfileScreen extends HookConsumerWidget {
               );
             },
             orElse: () => profileAsync.when(
-              data: (profile) => _ProfileContent(profile: profile!),
+              data: (profile) =>
+                  _ProfileContent(profile: profile!, isReadOnly: !isMe),
               loading: () => const Center(
                 child: CircularProgressIndicator(color: ThemeColors.blue),
               ),
@@ -114,8 +141,9 @@ class ProfileScreen extends HookConsumerWidget {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () =>
-                                ref.invalidate(profileControllerProvider),
+                            onPressed: () => isMe
+                                ? ref.invalidate(profileControllerProvider)
+                                : ref.invalidate(userProfileProvider(userId!)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: ThemeColors.blue,
                               foregroundColor: Colors.white,
@@ -142,8 +170,9 @@ class ProfileScreen extends HookConsumerWidget {
 
 class _ProfileContent extends HookConsumerWidget {
   final ProfileModel profile;
+  final bool isReadOnly;
 
-  const _ProfileContent({required this.profile});
+  const _ProfileContent({required this.profile, this.isReadOnly = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -252,36 +281,39 @@ class _ProfileContent extends HookConsumerWidget {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Профиль', style: ThemeTextStyles.h1(isDark: isDark)),
-              if (isEditing.value)
-                TextButton(
-                  onPressed: () {
-                    ref
-                        .read(profileControllerProvider.notifier)
-                        .updateProfile(
-                          nickname: nicknameController.text,
-                          username: usernameController.text,
-                        );
-                    isEditing.value = false;
-                  },
-                  child: Text(
-                    'Сохранить',
-                    style: ThemeTextStyles.h3(color: ThemeColors.blue),
+          if (!isReadOnly)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Профиль', style: ThemeTextStyles.h1(isDark: isDark)),
+                if (isEditing.value)
+                  TextButton(
+                    onPressed: () {
+                      ref
+                          .read(profileControllerProvider.notifier)
+                          .updateProfile(
+                            nickname: nicknameController.text,
+                            username: usernameController.text,
+                          );
+                      isEditing.value = false;
+                    },
+                    child: Text(
+                      'Сохранить',
+                      style: ThemeTextStyles.h3(color: ThemeColors.blue),
+                    ),
+                  )
+                else
+                  IconButton(
+                    onPressed: () => isEditing.value = true,
+                    icon: Icon(
+                      Icons.edit_rounded,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
                   ),
-                )
-              else
-                IconButton(
-                  onPressed: () => isEditing.value = true,
-                  icon: Icon(
-                    Icons.edit_rounded,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
-            ],
-          ),
+              ],
+            )
+          else
+            const SizedBox(height: 20),
           const SizedBox(height: 40),
           Center(
             child: Stack(
@@ -352,13 +384,32 @@ class _ProfileContent extends HookConsumerWidget {
                                   ),
                                 ),
                               ),
+                            if (isReadOnly && profile.isOnline == true)
+                              Positioned(
+                                bottom: 10,
+                                right: 10,
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: Colors.greenAccent,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isDark
+                                          ? const Color(0xFF16213E)
+                                          : Colors.white,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       );
                     },
                   ),
                 ),
-                if (isEditing.value)
+                if (isEditing.value && !isReadOnly)
                   Positioned(
                     bottom: 0,
                     right: 0,
@@ -412,61 +463,64 @@ class _ProfileContent extends HookConsumerWidget {
             icon: Icons.alternate_email_rounded,
             isDark: isDark,
           ),
-          const SizedBox(height: 40),
-          GlassBox(
-            padding: const EdgeInsets.all(16),
-            borderRadius: BorderRadius.circular(24),
-            opacity: isDark ? 0.1 : 0.05,
-            child: Column(
-              children: [
-                _SettingsTile(
-                  title: 'Темная тема',
-                  subtitle: 'Переключить тему',
-                  icon: Icons.dark_mode_outlined,
-                  trailing: Switch(
-                    value: isDark,
-                    onChanged: (value) {
-                      ref.read(themeProvider.notifier).switchTheme();
-                    },
-                    activeThumbColor: ThemeColors.blue,
-                  ),
-                  isDark: isDark,
-                ),
-                const Divider(height: 32, thickness: 0.5, indent: 40),
-                _SettingsTile(
-                  title: 'Уведомления',
-                  subtitle: 'Включить push-уведомления',
-                  icon: Icons.notifications_none_rounded,
-                  trailing: Switch(
-                    value: true,
-                    onChanged: (value) {},
-                    activeThumbColor: ThemeColors.blue,
-                  ),
-                  isDark: isDark,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 40),
-          GestureDetector(
-            onTap: () => ref.read(authRepositoryProvider).logout(),
-            child: GlassBox(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          if (!isReadOnly) ...[
+            const SizedBox(height: 40),
+            GlassBox(
+              padding: const EdgeInsets.all(16),
               borderRadius: BorderRadius.circular(24),
               opacity: isDark ? 0.1 : 0.05,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Column(
                 children: [
-                  const Icon(Icons.logout_rounded, color: Colors.redAccent),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Выйти',
-                    style: ThemeTextStyles.h3(color: Colors.redAccent),
+                  _SettingsTile(
+                    title: 'Темная тема',
+                    subtitle: 'Переключить тему',
+                    icon: Icons.dark_mode_outlined,
+                    trailing: Switch(
+                      value: isDark,
+                      onChanged: (value) {
+                        ref.read(themeProvider.notifier).switchTheme();
+                      },
+                      activeThumbColor: ThemeColors.blue,
+                    ),
+                    isDark: isDark,
+                  ),
+                  const Divider(height: 32, thickness: 0.5, indent: 40),
+                  _SettingsTile(
+                    title: 'Уведомления',
+                    subtitle: 'Включить push-уведомления',
+                    icon: Icons.notifications_none_rounded,
+                    trailing: Switch(
+                      value: true,
+                      onChanged: (value) {},
+                      activeThumbColor: ThemeColors.blue,
+                    ),
+                    isDark: isDark,
                   ),
                 ],
               ),
             ),
-          ),
+            const SizedBox(height: 40),
+            GestureDetector(
+              onTap: () => ref.read(authRepositoryProvider).logout(),
+              child: GlassBox(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                borderRadius: BorderRadius.circular(24),
+                opacity: isDark ? 0.1 : 0.05,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Выйти',
+                      style: ThemeTextStyles.h3(color: Colors.redAccent),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

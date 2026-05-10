@@ -27,6 +27,12 @@ final currentProfileProvider = Provider<ProfileModel?>((ref) {
   return ref.watch(profileControllerProvider).asData?.value;
 });
 
+final userProfileProvider =
+    FutureProvider.family<ProfileModel?, String>((ref, userId) async {
+  final repo = ref.watch(profileRepositoryProvider);
+  return repo.getProfile(userId);
+});
+
 final currentAvatarBase64Provider = FutureProvider<Uint8List?>((ref) async {
   final user = ref.watch(authUserProvider);
   if (user == null) return null;
