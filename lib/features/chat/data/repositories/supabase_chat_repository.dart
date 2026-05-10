@@ -38,32 +38,10 @@ class SupabaseChatRepository implements ChatRepository {
           // Fetch rooms directly. They are updated by the database trigger on every new message.
           final List roomsData = await _client
               .from('rooms')
-              .select('*')
-              .inFilter('id', roomIds);
+              .select('*, room_participants(role, profiles(*))')
+              .filter('id', 'in', roomIds);
 
-          final results = roomsData.map((roomMap) {
-            final room = Map<String, dynamic>.from(roomMap);
-
-            final lastMessageText = room['last_message']?.toString();
-            final lastMessageTime = room['last_message_at'] != null
-                ? DateTime.tryParse(room['last_message_at'].toString())
-                : null;
-
-            return RoomModel(
-              id: room['id']?.toString() ?? '',
-              type: _parseRoomType(room['type']?.toString()),
-              name: room['name']?.toString(),
-              description: room['description']?.toString(),
-              avatarUrl: room['avatar_url']?.toString(),
-              createdAt:
-                  DateTime.tryParse(room['created_at']?.toString() ?? '') ??
-                  DateTime.now(),
-              lastMessageAt: lastMessageTime,
-              lastMessage: lastMessageText,
-              createdBy: room['created_by']?.toString(),
-              participants: [],
-            );
-          }).toList();
+          final results = roomsData.map((roomMap) => _mapRoomData(roomMap)).toList();
 
           // Sorting: latest activity first
           results.sort((a, b) {
@@ -74,6 +52,53 @@ class SupabaseChatRepository implements ChatRepository {
 
           return results;
         });
+  }
+
+  RoomModel _mapRoomData(dynamic roomMap) {
+    final room = Map<String, dynamic>.from(roomMap);
+
+    final lastMessageText = room['last_message']?.toString();
+    final lastMessageTime = room['last_message_at'] != null
+        ? DateTime.tryParse(room['last_message_at'].toString())
+        : null;
+
+    final participantsData = room['room_participants'] as List? ?? [];
+    final participants = participantsData
+        .map((p) {
+          if (p['profiles'] == null) return null;
+          final profile = ProfileModel.fromJson(p['profiles']);
+          return profile.copyWith(role: p['role']?.toString());
+        })
+        .whereType<ProfileModel>()
+        .toList();
+
+    return RoomModel(
+      id: room['id']?.toString() ?? '',
+      type: _parseRoomType(room['type']?.toString()),
+      name: room['name']?.toString(),
+      description: room['description']?.toString(),
+      avatarUrl: room['avatar_url']?.toString(),
+      createdAt: DateTime.tryParse(room['created_at']?.toString() ?? '') ??
+          DateTime.now(),
+      lastMessageAt: lastMessageTime,
+      lastMessage: lastMessageText,
+      createdBy: room['created_by']?.toString(),
+      participants: participants,
+    );
+  }
+
+  @override
+  Future<List<RoomModel>> searchPublicChannels(String query) async {
+    if (query.trim().isEmpty) return [];
+
+    final List data = await _client
+        .from('rooms')
+        .select('*, room_participants(role, profiles(*))')
+        .eq('type', 'channel')
+        .ilike('name', '%$query%')
+        .limit(20);
+
+    return data.map((roomMap) => _mapRoomData(roomMap)).toList();
   }
 
   RoomType _parseRoomType(String? type) {
@@ -203,22 +228,27 @@ class SupabaseChatRepository implements ChatRepository {
     if (allParticipants.length == 2) {
       final otherId = participantIds.first;
 
-      // Fetch all direct rooms where I am a participant, including all other participants of those rooms
-      final List myDirectRooms = await _client
+      // Manual check for existing direct room
+      final List myRooms = await _client
           .from('room_participants')
-          .select(
-            'room_id, rooms!inner(type), all_participants:room_participants(profile_id)',
-          )
-          .eq('profile_id', myId)
-          .eq('rooms.type', 'direct');
+          .select('room_id')
+          .eq('profile_id', myId);
 
-      for (final room in myDirectRooms) {
-        final participants = room['all_participants'] as List? ?? [];
-        // If any participant in this room matches the otherId, the room already exists
-        final hasOtherUser = participants.any(
-          (p) => p['profile_id'] == otherId,
-        );
-        if (hasOtherUser) return room['room_id']?.toString();
+      final myRoomIds = myRooms.map((r) => r['room_id']).toList();
+
+      if (myRoomIds.isNotEmpty) {
+        final existing = await _client
+            .from('room_participants')
+            .select('room_id, rooms!inner(type)')
+            .filter('room_id', 'in', myRoomIds)
+            .eq('profile_id', otherId)
+            .eq('rooms.type', 'direct')
+            .limit(1)
+            .maybeSingle();
+
+        if (existing != null) {
+          return existing['room_id']?.toString();
+        }
       }
     }
 
@@ -302,6 +332,28 @@ class SupabaseChatRepository implements ChatRepository {
       'role': 'owner',
     });
     return roomId;
+  }
+
+  @override
+  Future<void> joinRoom(String roomId) async {
+    final myId = _client.auth.currentUser?.id;
+    if (myId == null) return;
+
+    // Check if already a participant to avoid unique constraint error
+    final existing = await _client
+        .from('room_participants')
+        .select()
+        .eq('room_id', roomId)
+        .eq('profile_id', myId)
+        .maybeSingle();
+
+    if (existing == null) {
+      await _client.from('room_participants').insert({
+        'room_id': roomId,
+        'profile_id': myId,
+        'role': 'member',
+      });
+    }
   }
 
   @override

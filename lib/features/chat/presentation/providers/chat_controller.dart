@@ -218,8 +218,8 @@ class ChatController extends Notifier<ChatControllerState> {
         forwardedInfo: {
           'sender_name': senderName,
           'sender_id': msg.profileId,
-          'fwd_replied_content': ?replyContent,
-          'fwd_replied_sender': ?replySender,
+          'fwd_replied_content': replyContent,
+          'fwd_replied_sender': replySender,
         },
         mediaUrl: msg.mediaUrl,
         mediaType: msg.mediaType,

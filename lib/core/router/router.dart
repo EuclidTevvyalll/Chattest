@@ -129,7 +129,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/create-chat',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const CreateChatScreen(),
+        builder: (context, state) {
+          final typeStr = state.uri.queryParameters['type'];
+          final type = RoomType.values.firstWhere(
+            (e) => e.name == typeStr,
+            orElse: () => RoomType.room,
+          );
+          return CreateChatScreen(initialType: type);
+        },
       ),
     ],
   );

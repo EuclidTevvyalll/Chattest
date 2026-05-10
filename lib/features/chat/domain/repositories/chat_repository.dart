@@ -11,6 +11,7 @@ abstract class ChatRepository {
   });
   Future<List<ProfileModel>> getProfiles();
   Future<ProfileModel?> getProfileByUsername(String username);
+  Future<List<RoomModel>> searchPublicChannels(String query);
 
   Future<void> sendMessage(
     String roomId,
@@ -29,6 +30,7 @@ abstract class ChatRepository {
   Future<String?> createRoom(List<String> participantIds);
   Future<String?> createGroup(String name, List<String> participantIds);
   Future<String?> createChannel(String name, String? description);
+  Future<void> joinRoom(String roomId);
   Future<List<ProfileModel>> getRoomParticipants(String roomId);
   Future<void> toggleReaction(String messageId, String emoji);
   Future<void> editMessage(String messageId, String newContent);

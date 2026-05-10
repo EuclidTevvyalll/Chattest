@@ -17,17 +17,27 @@ final profilesProvider = FutureProvider<List<ProfileModel>>((ref) {
 });
 
 class CreateChatScreen extends HookConsumerWidget {
-  const CreateChatScreen({super.key});
+  final RoomType initialType;
+
+  const CreateChatScreen({
+    super.key,
+    this.initialType = RoomType.room,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final contactsAsync = ref.watch(contactsProvider);
     final selectedProfiles = useState<Set<String>>({});
-    final chatType = useState<RoomType>(RoomType.room);
+    final chatType = useState<RoomType>(initialType);
     final nameController = useTextEditingController();
     final descriptionController = useTextEditingController();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLoading = useState(false);
+
+    useEffect(() {
+      selectedProfiles.value = {};
+      return null;
+    }, [chatType.value]);
 
     Widget buildTypeButton(
       String label,
@@ -125,7 +135,7 @@ class CreateChatScreen extends HookConsumerWidget {
                   ),
                 ),
               ),
-              // Name/Username Input
+              // Search/Name Input
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: GlassBox(
@@ -136,53 +146,49 @@ class CreateChatScreen extends HookConsumerWidget {
                     controller: nameController,
                     decoration: InputDecoration(
                       hintText: chatType.value == RoomType.room
-                          ? 'Имя пользователя'
-                          : (chatType.value == RoomType.group
-                                ? 'Название группы'
-                                : 'Название канала'),
-
+                          ? 'Имя пользователя...'
+                          : 'Название...',
+                      hintStyle: TextStyle(
+                        color: isDark ? Colors.white38 : Colors.black38,
+                        fontSize: 16,
+                      ),
                       border: InputBorder.none,
-                      prefixIcon: chatType.value == RoomType.room
-                          ? const Icon(Icons.alternate_email, size: 20)
-                          : null,
+                      prefixIcon: Icon(
+                        chatType.value == RoomType.room
+                            ? Icons.person_search_rounded
+                            : Icons.edit_note_rounded,
+                        size: 20,
+                      ),
                     ),
                     style: ThemeTextStyles.bodyLarge(isDark: isDark),
                   ),
                 ),
               ),
 
-              if (chatType.value == RoomType.channel)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: GlassBox(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    borderRadius: BorderRadius.circular(16),
-                    opacity: isDark ? 0.1 : 0.05,
-                    child: TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(
-                        hintText: 'Описание (необязательно)',
-                        border: InputBorder.none,
-                      ),
-                      style: ThemeTextStyles.bodyMedium(isDark: isDark),
-                    ),
-                  ),
-                ),
-              if (chatType.value == RoomType.group)
+              if (chatType.value != RoomType.room)
                 Expanded(
                   child: contactsAsync.when(
                     data: (profiles) {
                       final currentUserId = ref.watch(authUserProvider)?.id;
 
-                      final otherProfiles = profiles
-                          .where((p) => p.id != currentUserId)
-                          .toList();
+                      final filteredProfiles = profiles.where((p) {
+                        return p.id != currentUserId;
+                      }).toList();
+
+                      if (filteredProfiles.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'Пользователи не найдены',
+                            style: ThemeTextStyles.bodyMedium(isDark: isDark),
+                          ),
+                        );
+                      }
 
                       return ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: otherProfiles.length,
+                        itemCount: filteredProfiles.length,
                         itemBuilder: (context, index) {
-                          final profile = otherProfiles[index];
+                          final profile = filteredProfiles[index];
                           final isSelected = selectedProfiles.value.contains(
                             profile.id,
                           );
@@ -193,6 +199,8 @@ class CreateChatScreen extends HookConsumerWidget {
                               onTap: () {
                                 if (chatType.value == RoomType.room) {
                                   selectedProfiles.value = {profile.id};
+                                  nameController.text =
+                                      profile.nickname ?? profile.username;
                                 } else {
                                   if (isSelected) {
                                     selectedProfiles.value = {
@@ -233,7 +241,6 @@ class CreateChatScreen extends HookConsumerWidget {
                                     CircleAvatar(
                                       backgroundColor: ThemeColors.blue
                                           .withValues(alpha: 0.2),
-
                                       child: Text(
                                         (profile.nickname ??
                                                 profile.username)[0]
@@ -241,9 +248,22 @@ class CreateChatScreen extends HookConsumerWidget {
                                       ),
                                     ),
                                     const SizedBox(width: 16),
-                                    Text(
-                                      profile.nickname ?? profile.username,
-                                      style: ThemeTextStyles.h3(isDark: isDark),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          profile.nickname ?? profile.username,
+                                          style: ThemeTextStyles.h3(isDark: isDark),
+                                        ),
+                                        if (profile.nickname != null)
+                                          Text(
+                                            '@${profile.username}',
+                                            style: ThemeTextStyles.caption(
+                                              isDark: isDark,
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                     const Spacer(),
                                     if (isSelected)
@@ -283,9 +303,24 @@ class CreateChatScreen extends HookConsumerWidget {
                       ),
                     ),
                   ),
-                )
-              else
-                const Spacer(),
+                ),
+              if (chatType.value != RoomType.room)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: GlassBox(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    borderRadius: BorderRadius.circular(16),
+                    opacity: isDark ? 0.1 : 0.05,
+                    child: TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        hintText: 'Описание (необязательно)',
+                        border: InputBorder.none,
+                      ),
+                      style: ThemeTextStyles.bodyMedium(isDark: isDark),
+                    ),
+                  ),
+                ),
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: HookBuilder(
@@ -294,8 +329,7 @@ class CreateChatScreen extends HookConsumerWidget {
                     final canCreate =
                         !isLoading.value &&
                         ((chatType.value == RoomType.room &&
-                                (selectedProfiles.value.isNotEmpty ||
-                                    nameController.text.isNotEmpty)) ||
+                                nameController.text.isNotEmpty) ||
                             (chatType.value == RoomType.group &&
                                 nameController.text.isNotEmpty &&
                                 selectedProfiles.value.isNotEmpty) ||
