@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_controller.dart';
 import 'package:go_router/go_router.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
@@ -87,6 +88,7 @@ class ChatInfoScreen extends ConsumerWidget {
                     );
                     return _buildGroupInfo(
                       context,
+                      ref,
                       roomWithParticipants,
                       isDark,
                     );
@@ -289,7 +291,12 @@ class ChatInfoScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildGroupInfo(BuildContext context, RoomModel room, bool isDark) {
+  Widget _buildGroupInfo(
+    BuildContext context,
+    WidgetRef ref,
+    RoomModel room,
+    bool isDark,
+  ) {
     final topPadding = MediaQuery.of(context).padding.top + kToolbarHeight;
 
     return SingleChildScrollView(
@@ -372,6 +379,27 @@ class ChatInfoScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+                      const Spacer(),
+                      if (p.role == 'owner' || p.role == 'admin')
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: ThemeColors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            p.role == 'owner' ? 'Владелец' : 'Админ',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: ThemeColors.blue,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -544,6 +572,33 @@ class ChatInfoScreen extends ConsumerWidget {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
+                            ),
+                          if (myRole == 'owner' && p.id != currentUserId)
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: Icon(
+                                p.role == 'admin'
+                                    ? Icons.admin_panel_settings
+                                    : Icons.admin_panel_settings_outlined,
+                                color: p.role == 'admin'
+                                    ? ThemeColors.blue
+                                    : (isDark
+                                        ? Colors.white24
+                                        : Colors.black26),
+                                size: 24,
+                              ),
+                              onPressed: () async {
+                                final newRole =
+                                    p.role == 'admin' ? 'member' : 'admin';
+                                await ref
+                                    .read(chatControllerProvider.notifier)
+                                    .updateParticipantRole(
+                                      room.id,
+                                      p.id,
+                                      newRole,
+                                    );
+                              },
                             ),
                         ],
                       ),

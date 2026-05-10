@@ -3,10 +3,10 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
-import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
 import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
 import 'package:forgelink/features/profile/presentation/providers/profile_provider.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_controller.dart';
 import 'dart:typed_data';
 
 import 'package:forgelink/theme/text_theme.dart';
@@ -59,7 +59,8 @@ class ChatListScreen extends HookConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                           opacity: isDark ? 0.2 : 0.1,
                           child: IconButton(
-                            onPressed: () => _showCreateChatSheet(context, isDark),
+                            onPressed: () =>
+                                _showCreateChatSheet(context, isDark),
                             icon: Icon(
                               Icons.add_rounded,
                               color: isDark ? Colors.white : Colors.black87,
@@ -99,8 +100,9 @@ class ChatListScreen extends HookConsumerWidget {
                   opacity: isDark ? 0.1 : 0.05,
                   child: TextField(
                     controller: searchController,
-                    onChanged: (value) =>
-                        ref.read(chatSearchQueryProvider.notifier).update(value),
+                    onChanged: (value) => ref
+                        .read(chatSearchQueryProvider.notifier)
+                        .update(value),
                     decoration: InputDecoration(
                       hintText: 'Поиск чатов...',
                       hintStyle: TextStyle(
@@ -279,11 +281,11 @@ class _RoomItem extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 16),
       child: GestureDetector(
         onTap: () async {
-          final isParticipant =
-              room.participants.any((p) => p.id == currentUserId);
+          final isParticipant = room.participants.any(
+            (p) => p.id == currentUserId,
+          );
           if (!isParticipant && room.type == RoomType.channel) {
-            await ref.read(chatRepositoryProvider).joinRoom(room.id);
-            ref.invalidate(roomsProvider);
+            await ref.read(chatControllerProvider.notifier).joinRoom(room.id);
           }
           if (context.mounted) {
             context.pushNamed(
@@ -459,10 +461,7 @@ class _CreateChatBottomSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Создать новое',
-            style: ThemeTextStyles.h2(isDark: isDark),
-          ),
+          Text('Создать новое', style: ThemeTextStyles.h2(isDark: isDark)),
           const SizedBox(height: 32),
           _buildOption(
             context,
@@ -518,12 +517,11 @@ class _CreateChatBottomSheet extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.05)
+              : Colors.black.withValues(alpha: 0.03),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: color.withValues(alpha: 0.2),
-            width: 1,
-          ),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
         ),
         child: Row(
           children: [
@@ -540,16 +538,13 @@ class _CreateChatBottomSheet extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: ThemeTextStyles.h3(isDark: isDark),
-                  ),
+                  Text(title, style: ThemeTextStyles.h3(isDark: isDark)),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: ThemeTextStyles.caption(isDark: isDark).copyWith(
-                      color: isDark ? Colors.white54 : Colors.black54,
-                    ),
+                    style: ThemeTextStyles.caption(
+                      isDark: isDark,
+                    ).copyWith(color: isDark ? Colors.white54 : Colors.black54),
                   ),
                 ],
               ),

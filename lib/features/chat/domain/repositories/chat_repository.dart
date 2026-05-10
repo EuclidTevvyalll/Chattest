@@ -42,4 +42,9 @@ abstract class ChatRepository {
     required String reason,
     String? details,
   });
+  Future<void> updateParticipantRole(
+    String roomId,
+    String profileId,
+    String role,
+  );
 }

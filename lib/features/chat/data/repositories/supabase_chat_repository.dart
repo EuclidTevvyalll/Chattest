@@ -381,15 +381,15 @@ class SupabaseChatRepository implements ChatRepository {
   Future<List<ProfileModel>> getRoomParticipants(String roomId) async {
     final data = await _client
         .from('room_participants')
-        .select('profiles(id, username, nickname, avatar_url, is_online)')
+        .select('role, profiles(id, username, nickname, avatar_url, is_online)')
         .eq('room_id', roomId);
 
     return (data as List)
-        .map(
-          (p) => p['profiles'] != null
-              ? ProfileModel.fromJson(p['profiles'])
-              : null,
-        )
+        .map((p) {
+          if (p['profiles'] == null) return null;
+          final profile = ProfileModel.fromJson(p['profiles']);
+          return profile.copyWith(role: p['role']?.toString());
+        })
         .whereType<ProfileModel>()
         .toList();
   }
@@ -546,5 +546,18 @@ class SupabaseChatRepository implements ChatRepository {
       'reason': reason,
       'details': details,
     });
+  }
+
+  @override
+  Future<void> updateParticipantRole(
+    String roomId,
+    String profileId,
+    String role,
+  ) async {
+    await _client
+        .from('room_participants')
+        .update({'role': role})
+        .eq('room_id', roomId)
+        .eq('profile_id', profileId);
   }
 }

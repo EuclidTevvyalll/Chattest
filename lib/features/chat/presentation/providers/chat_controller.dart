@@ -277,6 +277,7 @@ class ChatController extends Notifier<ChatControllerState> {
       final roomId =
           await ref.read(chatRepositoryProvider).createRoom(participantIds);
       ref.invalidate(roomsProvider);
+      if (roomId != null) ref.invalidate(roomParticipantsProvider(roomId));
       return roomId;
     } catch (e) {
       rethrow;
@@ -289,6 +290,7 @@ class ChatController extends Notifier<ChatControllerState> {
           .read(chatRepositoryProvider)
           .createGroup(name, participantIds);
       ref.invalidate(roomsProvider);
+      if (roomId != null) ref.invalidate(roomParticipantsProvider(roomId));
       return roomId;
     } catch (e) {
       rethrow;
@@ -301,7 +303,35 @@ class ChatController extends Notifier<ChatControllerState> {
           .read(chatRepositoryProvider)
           .createChannel(name, description);
       ref.invalidate(roomsProvider);
+      if (roomId != null) ref.invalidate(roomParticipantsProvider(roomId));
       return roomId;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> joinRoom(String roomId) async {
+    try {
+      await ref.read(chatRepositoryProvider).joinRoom(roomId);
+      ref.invalidate(roomsProvider);
+      ref.invalidate(roomParticipantsProvider(roomId));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateParticipantRole(
+    String roomId,
+    String profileId,
+    String role,
+  ) async {
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .updateParticipantRole(roomId, profileId, role);
+      ref.invalidate(roomParticipantsProvider(roomId));
+      // Also invalidate rooms provider because participants with roles are stored in the room model too
+      ref.invalidate(roomsProvider);
     } catch (e) {
       rethrow;
     }
