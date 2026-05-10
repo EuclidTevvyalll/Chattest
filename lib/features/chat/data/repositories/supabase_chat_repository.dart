@@ -554,10 +554,16 @@ class SupabaseChatRepository implements ChatRepository {
     String profileId,
     String role,
   ) async {
-    await _client
-        .from('room_participants')
-        .update({'role': role})
-        .eq('room_id', roomId)
-        .eq('profile_id', profileId);
+    try {
+      await _client
+          .from('room_participants')
+          .update({'role': role})
+          .eq('room_id', roomId)
+          .eq('profile_id', profileId)
+          .timeout(const Duration(seconds: 10));
+    } catch (e) {
+      debugPrint('Error updating participant role: $e');
+      rethrow;
+    }
   }
 }

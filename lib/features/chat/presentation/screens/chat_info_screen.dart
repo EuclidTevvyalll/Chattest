@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_controller.dart';
 import 'package:go_router/go_router.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
@@ -574,30 +575,66 @@ class ChatInfoScreen extends ConsumerWidget {
                               ),
                             ),
                           if (myRole == 'owner' && p.id != currentUserId)
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              icon: Icon(
-                                p.role == 'admin'
-                                    ? Icons.admin_panel_settings
-                                    : Icons.admin_panel_settings_outlined,
-                                color: p.role == 'admin'
-                                    ? ThemeColors.blue
-                                    : (isDark
-                                        ? Colors.white24
-                                        : Colors.black26),
-                                size: 24,
-                              ),
-                              onPressed: () async {
-                                final newRole =
-                                    p.role == 'admin' ? 'member' : 'admin';
-                                await ref
-                                    .read(chatControllerProvider.notifier)
-                                    .updateParticipantRole(
-                                      room.id,
-                                      p.id,
-                                      newRole,
-                                    );
+                            HookBuilder(
+                              builder: (context) {
+                                final isLoading = useState(false);
+                                return isLoading.value
+                                    ? const Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
+                                      )
+                                    : IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        icon: Icon(
+                                          p.role == 'admin'
+                                              ? Icons.admin_panel_settings
+                                              : Icons.admin_panel_settings_outlined,
+                                          color: p.role == 'admin'
+                                              ? ThemeColors.blue
+                                              : (isDark
+                                                  ? Colors.white24
+                                                  : Colors.black26),
+                                          size: 24,
+                                        ),
+                                        onPressed: () async {
+                                          isLoading.value = true;
+                                          try {
+                                            final newRole = p.role == 'admin'
+                                                ? 'member'
+                                                : 'admin';
+                                            await ref
+                                                .read(chatControllerProvider
+                                                    .notifier)
+                                                .updateParticipantRole(
+                                                  room.id,
+                                                  p.id,
+                                                  newRole,
+                                                );
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      'Ошибка обновления роли: $e'),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
+                                          } finally {
+                                            if (context.mounted) {
+                                              isLoading.value = false;
+                                            }
+                                          }
+                                        },
+                                      );
                               },
                             ),
                         ],
