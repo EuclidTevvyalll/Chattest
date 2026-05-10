@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 import 'package:forgelink/features/chat/domain/models/message_model.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
 
 class ChatControllerState {
@@ -269,5 +270,40 @@ class ChatController extends Notifier<ChatControllerState> {
         roomId: currentPending.where((m) => m.id != messageId).toList(),
       },
     );
+  }
+
+  Future<String?> createRoom(List<String> participantIds) async {
+    try {
+      final roomId =
+          await ref.read(chatRepositoryProvider).createRoom(participantIds);
+      ref.invalidate(roomsProvider);
+      return roomId;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<String?> createGroup(String name, List<String> participantIds) async {
+    try {
+      final roomId = await ref
+          .read(chatRepositoryProvider)
+          .createGroup(name, participantIds);
+      ref.invalidate(roomsProvider);
+      return roomId;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<String?> createChannel(String name, String description) async {
+    try {
+      final roomId = await ref
+          .read(chatRepositoryProvider)
+          .createChannel(name, description);
+      ref.invalidate(roomsProvider);
+      return roomId;
+    } catch (e) {
+      rethrow;
+    }
   }
 }

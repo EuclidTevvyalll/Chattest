@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
 
+import 'package:forgelink/features/chat/presentation/providers/chat_controller.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
 import 'package:forgelink/theme/text_theme.dart';
@@ -47,7 +48,14 @@ class CreateChatScreen extends HookConsumerWidget {
     ) {
       final isSelected = chatType.value == type;
       return GestureDetector(
-        onTap: () => chatType.value = type,
+        onTap: () {
+          if (chatType.value != type) {
+            chatType.value = type;
+            nameController.clear();
+            descriptionController.clear();
+            selectedProfiles.value = {};
+          }
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
@@ -165,7 +173,26 @@ class CreateChatScreen extends HookConsumerWidget {
                 ),
               ),
 
+              // Description (Moved up)
               if (chatType.value != RoomType.room)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: GlassBox(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    borderRadius: BorderRadius.circular(16),
+                    opacity: isDark ? 0.1 : 0.05,
+                    child: TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        hintText: 'Описание (необязательно)',
+                        border: InputBorder.none,
+                      ),
+                      style: ThemeTextStyles.bodyMedium(isDark: isDark),
+                    ),
+                  ),
+                ),
+
+              if (chatType.value == RoomType.group)
                 Expanded(
                   child: contactsAsync.when(
                     data: (profiles) {
@@ -303,24 +330,10 @@ class CreateChatScreen extends HookConsumerWidget {
                       ),
                     ),
                   ),
-                ),
-              if (chatType.value != RoomType.room)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: GlassBox(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    borderRadius: BorderRadius.circular(16),
-                    opacity: isDark ? 0.1 : 0.05,
-                    child: TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(
-                        hintText: 'Описание (необязательно)',
-                        border: InputBorder.none,
-                      ),
-                      style: ThemeTextStyles.bodyMedium(isDark: isDark),
-                    ),
-                  ),
-                ),
+                )
+              else if (chatType.value == RoomType.channel ||
+                  chatType.value == RoomType.room)
+                const Spacer(),
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: HookBuilder(
@@ -339,7 +352,8 @@ class CreateChatScreen extends HookConsumerWidget {
                     return GestureDetector(
                       onTap: canCreate
                           ? () async {
-                              final repo = ref.read(chatRepositoryProvider);
+                              final chatController =
+                                  ref.read(chatControllerProvider.notifier);
                               isLoading.value = true;
                               try {
                                 bool success = false;
@@ -348,58 +362,44 @@ class CreateChatScreen extends HookConsumerWidget {
                                   List<String> ids = selectedProfiles.value
                                       .toList();
 
-                                  // Handle username search
-                                  if (ids.isEmpty &&
-                                      nameController.text.isNotEmpty) {
+                                  if (ids.isEmpty) {
+                                    // Try find by username
                                     final username = nameController.text.trim();
+                                    final repo = ref.read(chatRepositoryProvider);
                                     final profile = await repo
                                         .getProfileByUsername(username);
-
-                                    if (!context.mounted) return;
-
                                     if (profile != null) {
-                                      if (profile.id ==
-                                          ref.read(authUserProvider)?.id) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
+                                      ids = [profile.id];
+                                    } else {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
                                             content: Text(
-                                              'Вы не можете создать чат с самим собой',
+                                              'Пользователь $username не найден',
                                             ),
                                           ),
                                         );
                                         isLoading.value = false;
                                         return;
                                       }
-                                      ids = [profile.id];
-                                    } else {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Пользователь $username не найден',
-                                          ),
-                                        ),
-                                      );
-                                      isLoading.value = false;
-                                      return;
                                     }
                                   }
 
                                   if (ids.isNotEmpty) {
-                                    newRoomId = await repo.createRoom(ids);
+                                    newRoomId = await chatController
+                                        .createRoom(ids);
                                     success = true;
                                   }
                                 } else if (chatType.value == RoomType.group) {
-                                  newRoomId = await repo.createGroup(
+                                  newRoomId = await chatController.createGroup(
                                     nameController.text,
                                     selectedProfiles.value.toList(),
                                   );
                                   success = true;
                                 } else if (chatType.value == RoomType.channel) {
-                                  newRoomId = await repo.createChannel(
+                                  newRoomId =
+                                      await chatController.createChannel(
                                     nameController.text,
                                     descriptionController.text,
                                   );
@@ -407,9 +407,6 @@ class CreateChatScreen extends HookConsumerWidget {
                                 }
 
                                 if (!context.mounted) return;
-
-                                // Invalidate roomsProvider to force an immediate refresh
-                                ref.invalidate(roomsProvider);
 
                                 isLoading.value = false;
 

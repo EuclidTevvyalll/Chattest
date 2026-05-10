@@ -96,6 +96,7 @@ class ChatInfoScreen extends ConsumerWidget {
                     );
                     return _buildChannelInfo(
                       context,
+                      ref,
                       roomWithParticipants,
                       isDark,
                     );
@@ -382,31 +383,177 @@ class ChatInfoScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildChannelInfo(BuildContext context, RoomModel room, bool isDark) {
+  Widget _buildChannelInfo(
+    BuildContext context,
+    WidgetRef ref,
+    RoomModel room,
+    bool isDark,
+  ) {
     final topPadding = MediaQuery.of(context).padding.top + kToolbarHeight;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
+    // Check if current user is admin or owner
+    final authUser = ref.watch(authUserProvider);
+    final currentUserId = authUser?.id;
+    final myParticipant =
+        room.participants.where((p) => p.id == currentUserId).firstOrNull;
+    final myRole = myParticipant?.role;
+    final canSeeSubscribers = myRole == 'owner' || myRole == 'admin';
 
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(left: 24, right: 24, bottom: 40),
-      child: Column(
-        children: [
-          SizedBox(height: topPadding + 20),
-          _buildAvatar(room.avatarUrl, room.name ?? 'Канал', isDark, null),
-          const SizedBox(height: 24),
-          Text(room.name ?? 'Канал', style: ThemeTextStyles.h1(isDark: isDark)),
-          Text(
-            '${room.participants.length} подписчиков',
-            style: ThemeTextStyles.bodyLarge(color: ThemeColors.blue),
-          ),
-          const SizedBox(height: 40),
-          _buildInfoSection(isDark, [
-            _InfoTile(
-              label: 'Описание',
-              value: room.description ?? 'Нет описания',
-              icon: Icons.info_outline,
-              isDark: isDark,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: screenHeight - topPadding - bottomPadding - 40,
+        ),
+        child: Column(
+          children: [
+            SizedBox(height: topPadding + 20),
+            _buildAvatar(room.avatarUrl, room.name ?? 'Канал', isDark, null),
+            const SizedBox(height: 24),
+            Text(room.name ?? 'Канал',
+                style: ThemeTextStyles.h1(isDark: isDark)),
+            Text(
+              '${room.participants.length} подписчиков',
+              style: ThemeTextStyles.bodyLarge(color: ThemeColors.blue),
             ),
-          ]),
-        ],
+            const SizedBox(height: 40),
+            // Prominent Description Section
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: GlassBox(
+                padding: const EdgeInsets.all(20),
+                borderRadius: BorderRadius.circular(24),
+                opacity: isDark ? 0.1 : 0.05,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.description_outlined,
+                          size: 20,
+                          color: ThemeColors.blue.withValues(alpha: 0.7),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'О КАНАЛЕ',
+                          style: ThemeTextStyles.caption(isDark: isDark).copyWith(
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.bold,
+                            color: ThemeColors.blue.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      room.description != null && room.description!.isNotEmpty
+                          ? room.description!
+                          : 'Автор пока не добавил описание для этого канала. Здесь могла быть информация о правилах, целях или контенте.',
+                      style: ThemeTextStyles.bodyLarge(isDark: isDark).copyWith(
+                        height: 1.5,
+                        color: room.description != null &&
+                                room.description!.isNotEmpty
+                            ? (isDark ? Colors.white : Colors.black87)
+                            : (isDark ? Colors.white38 : Colors.black38),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (canSeeSubscribers) ...[
+              const SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Подписчики',
+                    style: ThemeTextStyles.h3(isDark: isDark)),
+              ),
+              const SizedBox(height: 16),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: room.participants.length,
+                itemBuilder: (context, index) {
+                  final p = room.participants[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: GlassBox(
+                      padding: const EdgeInsets.all(12),
+                      borderRadius: BorderRadius.circular(16),
+                      opacity: isDark ? 0.1 : 0.05,
+                      child: Row(
+                        children: [
+                          Consumer(
+                            builder: (context, ref, _) {
+                              final avatarAsync = ref.watch(
+                                userAvatarBase64Provider(p.id),
+                              );
+                              final avatarBase64 = avatarAsync.asData?.value;
+                              return CircleAvatar(
+                                radius: 20,
+                                backgroundColor: ThemeColors.blue.withValues(
+                                  alpha: 0.1,
+                                ),
+                                backgroundImage: p.avatarUrl != null
+                                    ? CachedNetworkImageProvider(p.avatarUrl!)
+                                    : (avatarBase64 != null
+                                        ? MemoryImage(avatarBase64)
+                                        : null),
+                                child:
+                                    (avatarBase64 == null && p.avatarUrl == null)
+                                        ? Text(p.username[0].toUpperCase())
+                                        : null,
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                p.nickname ?? p.username,
+                                style: ThemeTextStyles.h3(isDark: isDark),
+                              ),
+                              Text(
+                                '@${p.username}',
+                                style: ThemeTextStyles.caption(isDark: isDark),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          if (p.role == 'owner' || p.role == 'admin')
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: ThemeColors.blue.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                p.role == 'owner' ? 'Владелец' : 'Админ',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: ThemeColors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -489,7 +636,7 @@ class _InfoTile extends StatelessWidget {
               ],
             ),
           ),
-          ?t,
+          if (t != null) t,
         ],
       ),
     );

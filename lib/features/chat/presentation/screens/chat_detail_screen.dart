@@ -111,11 +111,20 @@ class ChatDetailScreen extends HookConsumerWidget {
 
     final allMessages = useMemoized(() {
       final messages = messagesAsync.value ?? [];
-      
+
       // Filter out messages that are being deleted optimistically
       // (Pending messages are already included in messagesAsync.value by the provider)
-      return messages.where((m) => !chatState.deletingIds.contains(m.id)).toList();
+      return messages
+          .where((m) => !chatState.deletingIds.contains(m.id))
+          .toList();
     }, [messagesAsync.value, chatState.deletingIds]);
+
+    final myParticipant =
+        room?.participants.where((p) => p.id == currentUserId).firstOrNull;
+    final myRole = myParticipant?.role;
+    final canWrite = room?.type != RoomType.channel ||
+        myRole == 'owner' ||
+        myRole == 'admin';
 
     Future<void> handleSend() async {
       if (controller.text.trim().isNotEmpty && currentUserId != null) {
@@ -809,90 +818,105 @@ class ChatDetailScreen extends HookConsumerWidget {
                             ],
                           ),
                         )
-                      : GlassBox(
-                          key: const ValueKey('input_bar'),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          borderRadius: BorderRadius.circular(30),
-                          opacity: isDark ? 0.15 : 0.08,
-                          child: Row(
-                            children: [
-                                IconButton(
-                                  icon: isUploading.value
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: ThemeColors.blue,
+                      : canWrite
+                          ? GlassBox(
+                              key: const ValueKey('input_bar'),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              borderRadius: BorderRadius.circular(30),
+                              opacity: isDark ? 0.15 : 0.08,
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    icon: isUploading.value
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: ThemeColors.blue,
+                                            ),
+                                          )
+                                        : Icon(
+                                            Icons.add_circle_outline_rounded,
+                                            color: isDark
+                                                ? Colors.white54
+                                                : Colors.black45,
                                           ),
-                                        )
-                                      : Icon(
-                                          Icons.add_circle_outline_rounded,
+                                    onPressed: isUploading.value
+                                        ? null
+                                        : () => _showAttachmentMenu(
+                                              context,
+                                              ref,
+                                              roomId,
+                                              currentUserId!,
+                                              isUploading,
+                                            ),
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: controller,
+                                      focusNode: focusNode,
+                                      onSubmitted: (_) => handleSend(),
+                                      decoration: InputDecoration(
+                                        hintText: 'Напишите сообщение...',
+                                        hintStyle: ThemeTextStyles.bodyMedium(
                                           color: isDark
-                                              ? Colors.white54
-                                              : Colors.black45,
+                                              ? Colors.white38
+                                              : Colors.black38,
                                         ),
-                                  onPressed: isUploading.value
-                                      ? null
-                                      : () => _showAttachmentMenu(
-                                            context,
-                                            ref,
-                                            roomId,
-                                            currentUserId!,
-                                            isUploading,
-                                          ),
-                                ),
-                              Expanded(
-                                child: TextField(
-                                  controller: controller,
-                                  focusNode: focusNode,
-                                  onSubmitted: (_) => handleSend(),
-                                  decoration: InputDecoration(
-                                    hintText: 'Напишите сообщение...',
-                                    hintStyle: ThemeTextStyles.bodyMedium(
-                                      color:
-                                          isDark ? Colors.white38 : Colors.black38,
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
+                                        border: InputBorder.none,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                      ),
+                                      style: ThemeTextStyles.bodyMedium(
+                                          isDark: isDark),
                                     ),
                                   ),
-                                  style:
-                                      ThemeTextStyles.bodyMedium(isDark: isDark),
-                                ),
-                              ),
-                              Container(
-                                margin: const EdgeInsets.only(left: 8),
-                                decoration: BoxDecoration(
-                                  gradient: ThemeColors.primaryGradient,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: ThemeColors.blue
-                                          .withValues(alpha: 0.3),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 2),
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 8),
+                                    decoration: BoxDecoration(
+                                      gradient: ThemeColors.primaryGradient,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: ThemeColors.blue
+                                              .withValues(alpha: 0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: IconButton(
-                                  onPressed: handleSend,
-                                  icon: Icon(
-                                    editingMessage.value != null
-                                        ? Icons.done_rounded
-                                        : Icons.send_rounded,
-                                    color: Colors.white,
-                                    size: 20,
+                                    child: IconButton(
+                                      onPressed: handleSend,
+                                      icon: Icon(
+                                        editingMessage.value != null
+                                            ? Icons.done_rounded
+                                            : Icons.send_rounded,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
                                   ),
+                                ],
+                              ),
+                            )
+                          : Container(
+                              key: const ValueKey('readonly_bar'),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Только администраторы могут писать сообщения',
+                                style: ThemeTextStyles.bodySmall(
+                                  isDark: isDark,
+                                  color: isDark ? Colors.white54 : Colors.black54,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
                 ),
               ),
             ],
