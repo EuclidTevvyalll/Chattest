@@ -31,16 +31,26 @@ class ProfileScreen extends HookConsumerWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final canPop = context.canPop();
+
     return Scaffold(
-      extendBodyBehindAppBar: !isMe,
-      appBar: !isMe
+      extendBodyBehindAppBar: true,
+      appBar: canPop
           ? AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                icon: Icon(
-                  Icons.arrow_back_ios_new_rounded,
-                  color: isDark ? Colors.white : Colors.black87,
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black26 : Colors.white24,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    color: isDark ? Colors.white : Colors.black87,
+                    size: 20,
+                  ),
                 ),
                 onPressed: () => context.pop(),
               ),
@@ -57,7 +67,7 @@ class ProfileScreen extends HookConsumerWidget {
           ),
         ),
         child: SafeArea(
-          top: isMe,
+          top: !canPop, // Only use SafeArea top if there's no AppBar/canPop
           child: profileAsync.maybeWhen(
             data: (profile) {
               if (profile == null) {
