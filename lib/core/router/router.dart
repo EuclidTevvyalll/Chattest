@@ -96,14 +96,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: Routes.profile,
             builder: (context, state) => const ProfileScreen(),
           ),
-          GoRoute(
-            path: Routes.userProfile,
-            parentNavigatorKey: _rootNavigatorKey,
-            builder: (context, state) {
-              final userId = state.pathParameters['userId']!;
-              return ProfileScreen(userId: userId);
-            },
-          ),
         ],
       ),
       GoRoute(
@@ -127,6 +119,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = state.pathParameters['roomId']!;
           return ChatInfoScreen(roomId: id);
+        },
+      ),
+      GoRoute(
+        path: Routes.userProfile,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final userId = state.pathParameters['userId']!;
+          return ProfileScreen(userId: userId);
         },
       ),
 
