@@ -15,6 +15,9 @@ import 'package:forgelink/features/profile/presentation/screens/avatar_crop_dial
 import 'package:forgelink/main.dart'; // To access rootScaffoldMessengerKey
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_controller.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
+import 'package:forgelink/features/chat/domain/models/room_model.dart';
 
 class ProfileScreen extends HookConsumerWidget {
   final String? userId;
@@ -67,7 +70,8 @@ class ProfileScreen extends HookConsumerWidget {
           ),
         ),
         child: SafeArea(
-          top: !canPop, // Only use SafeArea top if there's no AppBar/canPop
+          top: false,
+          bottom: false,
           child: profileAsync.maybeWhen(
             data: (profile) {
               if (profile == null) {
@@ -89,25 +93,46 @@ class ProfileScreen extends HookConsumerWidget {
                   ),
                 );
               }
-              return _ProfileContent(profile: profile, isReadOnly: !isMe);
-            },
-            loading: () {
-              if (profileAsync.hasValue) {
-                return _ProfileContent(
-                  profile: profileAsync.value!,
-                  isReadOnly: !isMe,
-                );
-              }
-              return const Center(
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: ThemeColors.blue,
-                ),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: _ProfileContent(
+                        profile: profile,
+                        isReadOnly: !isMe,
+                      ),
+                    ),
+                  );
+                },
               );
             },
+            loading: () => const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: ThemeColors.blue,
+              ),
+            ),
             orElse: () => profileAsync.when(
-              data: (profile) =>
-                  _ProfileContent(profile: profile!, isReadOnly: !isMe),
+              data: (profile) => LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: _ProfileContent(
+                        profile: profile!,
+                        isReadOnly: !isMe,
+                      ),
+                    ),
+                  );
+                },
+              ),
               loading: () => const Center(
                 child: CircularProgressIndicator(color: ThemeColors.blue),
               ),
@@ -287,10 +312,13 @@ class _ProfileContent extends HookConsumerWidget {
       }
     }
 
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Column(
+            children: [
           if (!isReadOnly)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -323,8 +351,8 @@ class _ProfileContent extends HookConsumerWidget {
               ],
             )
           else
-            const SizedBox(height: 20),
-          const SizedBox(height: 40),
+            const SizedBox(height: 10),
+          const SizedBox(height: 30),
           Center(
             child: Stack(
               children: [
@@ -457,81 +485,215 @@ class _ProfileContent extends HookConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(height: 40),
-          _ProfileField(
-            label: 'Никнейм',
-            controller: nicknameController,
-            enabled: isEditing.value,
-            icon: Icons.badge_outlined,
-            isDark: isDark,
-          ),
-          const SizedBox(height: 16),
-          _ProfileField(
-            label: 'Имя пользователя',
-            controller: usernameController,
-            enabled: isEditing.value,
-            icon: Icons.alternate_email_rounded,
-            isDark: isDark,
-          ),
-          if (!isReadOnly) ...[
-            const SizedBox(height: 40),
-            GlassBox(
-              padding: const EdgeInsets.all(16),
-              borderRadius: BorderRadius.circular(24),
-              opacity: isDark ? 0.1 : 0.05,
-              child: Column(
-                children: [
-                  _SettingsTile(
-                    title: 'Темная тема',
-                    subtitle: 'Переключить тему',
-                    icon: Icons.dark_mode_outlined,
-                    trailing: Switch(
-                      value: isDark,
-                      onChanged: (value) {
-                        ref.read(themeProvider.notifier).switchTheme();
-                      },
-                      activeThumbColor: ThemeColors.blue,
-                    ),
-                    isDark: isDark,
-                  ),
-                  const Divider(height: 32, thickness: 0.5, indent: 40),
-                  _SettingsTile(
-                    title: 'Уведомления',
-                    subtitle: 'Включить push-уведомления',
-                    icon: Icons.notifications_none_rounded,
-                    trailing: Switch(
-                      value: true,
-                      onChanged: (value) {},
-                      activeThumbColor: ThemeColors.blue,
-                    ),
-                    isDark: isDark,
-                  ),
-                ],
+          const SizedBox(height: 20),
+          if (isReadOnly) ...[
+            _buildInfoSection(isDark, [
+              _InfoTile(
+                label: 'Никнейм',
+                value: profile.nickname ?? '-',
+                icon: Icons.badge_outlined,
+                isDark: isDark,
               ),
+              _InfoTile(
+                label: 'Имя пользователя',
+                value: '@${profile.username}',
+                icon: Icons.alternate_email_rounded,
+                isDark: isDark,
+              ),
+            ]),
+            const SizedBox(height: 16),
+            _buildInfoSection(isDark, [
+              _InfoTile(
+                label: 'Общие группы',
+                value: '0',
+                icon: Icons.group_outlined,
+                isDark: isDark,
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+              ),
+            ]),
+          ] else ...[
+            _ProfileField(
+              label: 'Никнейм',
+              controller: nicknameController,
+              enabled: isEditing.value,
+              icon: Icons.badge_outlined,
+              isDark: isDark,
+            ),
+            const SizedBox(height: 16),
+            _ProfileField(
+              label: 'Имя пользователя',
+              controller: usernameController,
+              enabled: isEditing.value,
+              icon: Icons.alternate_email_rounded,
+              isDark: isDark,
             ),
             const SizedBox(height: 40),
-            GestureDetector(
-              onTap: () => ref.read(authRepositoryProvider).logout(),
-              child: GlassBox(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                borderRadius: BorderRadius.circular(24),
-                opacity: isDark ? 0.1 : 0.05,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.logout_rounded, color: Colors.redAccent),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Выйти',
-                      style: ThemeTextStyles.h3(color: Colors.redAccent),
-                    ),
-                  ],
+            _buildInfoSection(isDark, [
+              _SettingsTile(
+                title: 'Темная тема',
+                subtitle: 'Переключить тему',
+                icon: Icons.dark_mode_outlined,
+                trailing: Switch(
+                  value: isDark,
+                  onChanged: (value) {
+                    ref.read(themeProvider.notifier).switchTheme();
+                  },
+                  activeThumbColor: ThemeColors.blue,
                 ),
+                isDark: isDark,
               ),
+              const Divider(height: 32, thickness: 0.5, indent: 40),
+              _SettingsTile(
+                title: 'Уведомления',
+                subtitle: 'Включить push-уведомления',
+                icon: Icons.notifications_none_rounded,
+                trailing: Switch(
+                  value: true,
+                  onChanged: (value) {},
+                  activeThumbColor: ThemeColors.blue,
+                ),
+                isDark: isDark,
+              ),
+            ]),
+            const SizedBox(height: 40),
+            _buildActionButton(
+              context,
+              'Выйти',
+              Icons.logout_rounded,
+              Colors.redAccent,
+              isDark,
+              () => ref.read(authRepositoryProvider).logout(),
             ),
           ],
         ],
+      ),
+      if (isReadOnly) ...[
+        Column(
+          children: [
+            const SizedBox(height: 24),
+            HookBuilder(
+              builder: (context) {
+                final isCreating = useState(false);
+                  return _buildActionButton(
+                    context,
+                    'Написать сообщение',
+                    Icons.chat_bubble_outline_rounded,
+                    ThemeColors.blue,
+                    isDark,
+                    isLoading: isCreating.value,
+                    () async {
+                      // Optimization: Check if we already have a direct room with this user locally
+                      final rooms = ref.read(roomsProvider).asData?.value;
+                      if (rooms != null) {
+                        final existingRoom = rooms.where((r) => 
+                          r.type == RoomType.room && 
+                          r.participants.any((p) => p.id == profile.id)
+                        ).firstOrNull;
+                        
+                        if (existingRoom != null) {
+                          if (context.mounted) {
+                            context.pushNamed(
+                              'chat_detail',
+                              pathParameters: {'roomId': existingRoom.id},
+                              queryParameters: {'type': RoomType.room.name},
+                            );
+                          }
+                          return;
+                        }
+                      }
+
+                      isCreating.value = true;
+                      try {
+                        final roomId = await ref
+                            .read(chatControllerProvider.notifier)
+                            .createRoom([profile.id]);
+
+                        if (context.mounted && roomId != null) {
+                          context.pushNamed(
+                            'chat_detail',
+                            pathParameters: {'roomId': roomId},
+                            queryParameters: {'type': RoomType.room.name},
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Ошибка: $e')),
+                          );
+                        }
+                      } finally {
+                        if (context.mounted) {
+                          isCreating.value = false;
+                        }
+                      }
+                    },
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildActionButton(
+              context,
+              'Заблокировать пользователя',
+              Icons.block_flipped,
+              Colors.redAccent,
+              isDark,
+              () {},
+            ),
+          ],
+        ),
+      ],
+    ],
+    ),
+  );
+}
+
+  Widget _buildInfoSection(bool isDark, List<Widget> children) {
+    return GlassBox(
+      padding: const EdgeInsets.all(16),
+      borderRadius: BorderRadius.circular(24),
+      opacity: isDark ? 0.1 : 0.05,
+      child: Column(children: children),
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    Color color,
+    bool isDark,
+    VoidCallback onTap, {
+    bool isLoading = false,
+  }) {
+    return InkWell(
+      onTap: isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: GlassBox(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        borderRadius: BorderRadius.circular(16),
+        opacity: isDark ? 0.1 : 0.05,
+        child: Row(
+          children: [
+            if (isLoading)
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: ThemeColors.blue,
+                ),
+              )
+            else
+              Icon(icon, color: color, size: 22),
+            const SizedBox(width: 16),
+            Text(
+              label,
+              style: ThemeTextStyles.bodyLarge(
+                isDark: isDark,
+              ).copyWith(color: color, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -582,6 +744,46 @@ class _ProfileField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool isDark;
+  final Widget? trailing;
+
+  const _InfoTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.isDark,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Icon(icon, color: ThemeColors.blue, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: ThemeTextStyles.caption(isDark: isDark)),
+                Text(value, style: ThemeTextStyles.bodyLarge(isDark: isDark)),
+              ],
+            ),
+          ),
+          // ignore: use_null_aware_elements
+          if (trailing != null) trailing!,
+        ],
+      ),
     );
   }
 }

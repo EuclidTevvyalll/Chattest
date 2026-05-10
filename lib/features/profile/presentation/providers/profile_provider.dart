@@ -29,8 +29,20 @@ final currentProfileProvider = Provider<ProfileModel?>((ref) {
 
 final userProfileProvider =
     FutureProvider.family<ProfileModel?, String>((ref, userId) async {
+  final keepAlive = ref.keepAlive();
+  
+  // Timer to clean up cache if not used for 5 minutes
+  Timer? timer;
+  ref.onDispose(() => timer?.cancel());
+  ref.onCancel(() {
+    timer = Timer(const Duration(minutes: 5), () {
+      keepAlive.close();
+    });
+  });
+  ref.onResume(() => timer?.cancel());
+
   final repo = ref.watch(profileRepositoryProvider);
-  return repo.getProfile(userId);
+  return repo.getProfile(userId).timeout(const Duration(seconds: 5));
 });
 
 final currentAvatarBase64Provider = FutureProvider<Uint8List?>((ref) async {
@@ -58,6 +70,7 @@ final userAvatarBase64Provider = FutureProvider.family<Uint8List?, String>((
 class ProfileController extends AsyncNotifier<ProfileModel?> {
   @override
   FutureOr<ProfileModel?> build() async {
+    ref.keepAlive();
     final user = ref.watch(authUserProvider);
     if (user == null) return null;
     return ref.read(profileRepositoryProvider).getProfile(user.id);
