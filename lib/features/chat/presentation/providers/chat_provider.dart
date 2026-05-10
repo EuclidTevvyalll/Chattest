@@ -46,21 +46,47 @@ final filteredRoomsProvider = Provider<AsyncValue<List<RoomModel>>>((ref) {
     data: (localRooms) {
       final filteredLocal = localRooms.where((room) {
         // 1. Check room name (for groups/channels)
-        final nameMatches = room.name?.toLowerCase().contains(query) ?? false;
+        final name = (room.name ?? '').trim().toLowerCase();
+        final nameMatches = name.contains(query);
 
         // 2. Check last message
-        final messageMatches =
-            room.lastMessage?.toLowerCase().contains(query) ?? false;
+        final lastMsg = (room.lastMessage ?? '').trim().toLowerCase();
+        final messageMatches = lastMsg.contains(query);
 
-        // 3. Check participant names (only for direct chats)
+        // 3. Check participant names
         final participantMatches =
             room.type == RoomType.room &&
             room.participants.any((p) {
               if (p.id == currentUserId) return false;
-              final usernameMatches = p.username.toLowerCase().contains(query);
-              final nicknameMatches =
-                  p.nickname?.toLowerCase().contains(query) ?? false;
-              return usernameMatches || nicknameMatches;
+              
+              final username = p.username.trim().toLowerCase();
+              final nickname = (p.nickname ?? '').trim().toLowerCase();
+              
+              // Normalize for layout issues (basic a/а, o/о, etc.)
+              String normalize(String s) => s
+                .replaceAll('a', 'а').replaceAll('e', 'е')
+                .replaceAll('o', 'о').replaceAll('p', 'р')
+                .replaceAll('c', 'с').replaceAll('x', 'х');
+              
+              final normQuery = normalize(query);
+              final normUser = normalize(username);
+              final normNick = normalize(nickname);
+              
+              final matches = username.contains(query) || 
+                              nickname.contains(query) ||
+                              normUser.contains(normQuery) ||
+                              normNick.contains(normQuery);
+              
+              if (kDebugMode && query.isNotEmpty) {
+                if (matches) {
+                  debugPrint('SEARCH MATCH: "$query" matches User("$username", "$nickname")');
+                } else if (query.length >= 3) {
+                  // Only log mismatches for longer queries to avoid spam
+                  debugPrint('SEARCH NO MATCH: "$query" vs User("$username", "$nickname")');
+                }
+              }
+              
+              return matches;
             });
 
         return nameMatches || messageMatches || participantMatches;
