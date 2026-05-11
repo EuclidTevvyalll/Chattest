@@ -50,3 +50,5 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get error_oops => 'Oops!';
 }
+
+

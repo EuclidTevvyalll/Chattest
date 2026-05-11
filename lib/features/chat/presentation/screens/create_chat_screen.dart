@@ -80,392 +80,345 @@ class CreateChatScreen extends HookConsumerWidget {
     }
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => context.pop(),
-                      icon: Icon(
-                        Icons.arrow_back_ios_new,
-                        color: isDark ? Colors.white : Colors.black,
-                      ),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => context.pop(),
+                    icon: Icon(
+                      Icons.arrow_back_ios_new,
+                      color: isDark ? Colors.white : Colors.black,
                     ),
-                    Text(
-                      'Новый чат',
-                      style: ThemeTextStyles.h2(isDark: isDark),
-                    ),
-                  ],
-                ),
+                  ),
+                  Text(
+                    'Новый чат',
+                    style: ThemeTextStyles.h2(isDark: isDark),
+                  ),
+                ],
               ),
-              // Type Selector
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: GlassBox(
-                  padding: const EdgeInsets.all(4),
-                  borderRadius: BorderRadius.circular(16),
-                  opacity: isDark ? 0.1 : 0.05,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: buildTypeButton(
-                          'Личный',
-                          RoomType.room,
-                          chatType,
-                          isDark,
+            ),
+
+            // Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Type Selector
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: GlassBox(
+                        padding: const EdgeInsets.all(4),
+                        borderRadius: BorderRadius.circular(16),
+                        opacity: isDark ? 0.1 : 0.05,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: buildTypeButton(
+                                'Личный',
+                                RoomType.room,
+                                chatType,
+                                isDark,
+                              ),
+                            ),
+                            Expanded(
+                              child: buildTypeButton(
+                                'Группа',
+                                RoomType.group,
+                                chatType,
+                                isDark,
+                              ),
+                            ),
+                            Expanded(
+                              child: buildTypeButton(
+                                'Канал',
+                                RoomType.channel,
+                                chatType,
+                                isDark,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Expanded(
-                        child: buildTypeButton(
-                          'Группа',
-                          RoomType.group,
-                          chatType,
-                          isDark,
+                    ),
+
+                    // Search/Name Input
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: GlassBox(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        borderRadius: BorderRadius.circular(16),
+                        opacity: isDark ? 0.1 : 0.05,
+                        child: TextField(
+                          controller: nameController,
+                          decoration: InputDecoration(
+                            hintText: chatType.value == RoomType.room
+                                ? 'Имя пользователя...'
+                                : 'Название...',
+                            hintStyle: TextStyle(
+                              color: isDark ? Colors.white38 : Colors.black38,
+                              fontSize: 16,
+                            ),
+                            border: InputBorder.none,
+                            prefixIcon: Icon(
+                              chatType.value == RoomType.room
+                                  ? Icons.person_search_rounded
+                                  : Icons.edit_note_rounded,
+                              size: 20,
+                            ),
+                          ),
+                          style: ThemeTextStyles.bodyLarge(isDark: isDark),
                         ),
                       ),
-                      Expanded(
-                        child: buildTypeButton(
-                          'Канал',
-                          RoomType.channel,
-                          chatType,
-                          isDark,
+                    ),
+
+                    // Description
+                    if (chatType.value != RoomType.room)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        child: GlassBox(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          borderRadius: BorderRadius.circular(16),
+                          opacity: isDark ? 0.1 : 0.05,
+                          child: TextField(
+                            controller: descriptionController,
+                            decoration: const InputDecoration(
+                              hintText: 'Описание (необязательно)',
+                              border: InputBorder.none,
+                            ),
+                            style: ThemeTextStyles.bodyMedium(isDark: isDark),
+                          ),
+                        ),
+                      ),
+
+                    // Contact List (for groups)
+                    if (chatType.value == RoomType.group) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Text(
+                          'Выберите участников',
+                          style: ThemeTextStyles.h3(isDark: isDark).copyWith(fontSize: 16),
+                        ),
+                      ),
+                      contactsAsync.when(
+                        data: (profiles) {
+                          final currentUserId = ref.watch(authUserProvider)?.id;
+                          final filteredProfiles = profiles.where((p) => p.id != currentUserId).toList();
+
+                          if (filteredProfiles.isEmpty) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(32),
+                                child: Text(
+                                  'Пользователи не найдены',
+                                  style: ThemeTextStyles.bodyMedium(isDark: isDark),
+                                ),
+                              ),
+                            );
+                          }
+
+                          return ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: filteredProfiles.length,
+                            itemBuilder: (context, index) {
+                              final profile = filteredProfiles[index];
+                              final isSelected = selectedProfiles.value.contains(profile.id);
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    if (isSelected) {
+                                      selectedProfiles.value = {...selectedProfiles.value}..remove(profile.id);
+                                    } else {
+                                      selectedProfiles.value = {...selectedProfiles.value, profile.id};
+                                    }
+                                  },
+                                  child: GlassBox(
+                                    padding: const EdgeInsets.all(12),
+                                    borderRadius: BorderRadius.circular(16),
+                                    opacity: isSelected ? 0.15 : (isDark ? 0.08 : 0.03),
+                                    color: isSelected ? ThemeColors.blue : Colors.white,
+                                    border: Border.all(
+                                      color: isSelected 
+                                        ? ThemeColors.blue.withValues(alpha: 0.5)
+                                        : Colors.white.withValues(alpha: 0.05),
+                                      width: 1,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          backgroundColor: ThemeColors.blue.withValues(alpha: 0.2),
+                                          child: Text(
+                                            (profile.nickname ?? profile.username)[0].toUpperCase(),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                profile.nickname ?? profile.username,
+                                                style: ThemeTextStyles.h3(isDark: isDark),
+                                              ),
+                                              if (profile.nickname != null)
+                                                Text(
+                                                  '@${profile.username}',
+                                                  style: ThemeTextStyles.caption(isDark: isDark),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isSelected)
+                                          const Icon(Icons.check_circle_rounded, color: Colors.white),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        loading: () => const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(32),
+                            child: CircularProgressIndicator(strokeWidth: 3, color: ThemeColors.blue),
+                          ),
+                        ),
+                        error: (err, st) => Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Text('Ошибка загрузки', style: ThemeTextStyles.caption(isDark: isDark)),
+                          ),
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
-              // Search/Name Input
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: GlassBox(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  borderRadius: BorderRadius.circular(16),
-                  opacity: isDark ? 0.1 : 0.05,
-                  child: TextField(
-                    controller: nameController,
-                    decoration: InputDecoration(
-                      hintText: chatType.value == RoomType.room
-                          ? 'Имя пользователя...'
-                          : 'Название...',
-                      hintStyle: TextStyle(
-                        color: isDark ? Colors.white38 : Colors.black38,
-                        fontSize: 16,
-                      ),
-                      border: InputBorder.none,
-                      prefixIcon: Icon(
-                        chatType.value == RoomType.room
-                            ? Icons.person_search_rounded
-                            : Icons.edit_note_rounded,
-                        size: 20,
-                      ),
+            ),
+
+            // Sticky Bottom Button
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                boxShadow: [
+                  if (!isDark)
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5),
                     ),
-                    style: ThemeTextStyles.bodyLarge(isDark: isDark),
-                  ),
-                ),
+                ],
               ),
+              child: HookBuilder(
+                builder: (context) {
+                  useListenable(nameController);
+                  final canCreate = !isLoading.value &&
+                      ((chatType.value == RoomType.room && nameController.text.isNotEmpty) ||
+                       (chatType.value == RoomType.group && nameController.text.isNotEmpty && selectedProfiles.value.isNotEmpty) ||
+                       (chatType.value == RoomType.channel && nameController.text.isNotEmpty));
 
-              // Description (Moved up)
-              if (chatType.value != RoomType.room)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: GlassBox(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    borderRadius: BorderRadius.circular(16),
-                    opacity: isDark ? 0.1 : 0.05,
-                    child: TextField(
-                      controller: descriptionController,
-                      decoration: const InputDecoration(
-                        hintText: 'Описание (необязательно)',
-                        border: InputBorder.none,
-                      ),
-                      style: ThemeTextStyles.bodyMedium(isDark: isDark),
-                    ),
-                  ),
-                ),
-
-              if (chatType.value == RoomType.group)
-                Expanded(
-                  child: contactsAsync.when(
-                    data: (profiles) {
-                      final currentUserId = ref.watch(authUserProvider)?.id;
-
-                      final filteredProfiles = profiles.where((p) {
-                        return p.id != currentUserId;
-                      }).toList();
-
-                      if (filteredProfiles.isEmpty) {
-                        return Center(
-                          child: Text(
-                            'Пользователи не найдены',
-                            style: ThemeTextStyles.bodyMedium(isDark: isDark),
-                          ),
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filteredProfiles.length,
-                        itemBuilder: (context, index) {
-                          final profile = filteredProfiles[index];
-                          final isSelected = selectedProfiles.value.contains(
-                            profile.id,
-                          );
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: GestureDetector(
-                              onTap: () {
-                                if (chatType.value == RoomType.room) {
-                                  selectedProfiles.value = {profile.id};
-                                  nameController.text =
-                                      profile.nickname ?? profile.username;
-                                } else {
-                                  if (isSelected) {
-                                    selectedProfiles.value = {
-                                      ...selectedProfiles.value,
-                                    }..remove(profile.id);
-                                  } else {
-                                    selectedProfiles.value = {
-                                      ...selectedProfiles.value,
-                                      profile.id,
-                                    };
-                                  }
-                                }
-                              },
-                              child: GlassBox(
-                                padding: const EdgeInsets.all(12),
-                                borderRadius: BorderRadius.circular(16),
-                                opacity: isSelected
-                                    ? 0.15
-                                    : (isDark ? 0.08 : 0.03),
-                                color: isSelected
-                                    ? ThemeColors.blue
-                                    : Colors.white,
-                                border: isSelected
-                                    ? Border.all(
-                                        color: ThemeColors.blue.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                        width: 1.5,
-                                      )
-                                    : Border.all(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.05,
-                                        ),
-                                        width: 1,
-                                      ),
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor: ThemeColors.blue
-                                          .withValues(alpha: 0.2),
-                                      child: Text(
-                                        (profile.nickname ??
-                                                profile.username)[0]
-                                            .toUpperCase(),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          profile.nickname ?? profile.username,
-                                          style: ThemeTextStyles.h3(isDark: isDark),
-                                        ),
-                                        if (profile.nickname != null)
-                                          Text(
-                                            '@${profile.username}',
-                                            style: ThemeTextStyles.caption(
-                                              isDark: isDark,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const Spacer(),
-                                    if (isSelected)
-                                      const Icon(
-                                        Icons.check_circle_rounded,
-                                        color: Colors.white,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                    loading: () => const Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        color: ThemeColors.blue,
-                      ),
-                    ),
-                    error: (err, st) => Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.error_outline_rounded,
-                            color: Colors.redAccent,
-                            size: 32,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Ошибка загрузки пользователей',
-                            style: ThemeTextStyles.caption(isDark: isDark),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else if (chatType.value == RoomType.channel ||
-                  chatType.value == RoomType.room)
-                const Spacer(),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: HookBuilder(
-                  builder: (context) {
-                    useListenable(nameController);
-                    final canCreate =
-                        !isLoading.value &&
-                        ((chatType.value == RoomType.room &&
-                                nameController.text.isNotEmpty) ||
-                            (chatType.value == RoomType.group &&
-                                nameController.text.isNotEmpty &&
-                                selectedProfiles.value.isNotEmpty) ||
-                            (chatType.value == RoomType.channel &&
-                                nameController.text.isNotEmpty));
-
-                    return GestureDetector(
-                      onTap: canCreate
-                          ? () async {
-                              final chatController =
-                                  ref.read(chatControllerProvider.notifier);
-                              isLoading.value = true;
-                              try {
-                                bool success = false;
-                                String? newRoomId;
-                                if (chatType.value == RoomType.room) {
-                                  List<String> ids = selectedProfiles.value
-                                      .toList();
-
-                                  if (ids.isEmpty) {
-                                    // Try find by username
-                                    final username = nameController.text.trim();
-                                    final repo = ref.read(chatRepositoryProvider);
-                                    final profile = await repo
-                                        .getProfileByUsername(username);
-                                    if (profile != null) {
-                                      ids = [profile.id];
-                                    } else {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Пользователь $username не найден',
-                                            ),
-                                          ),
-                                        );
-                                        isLoading.value = false;
-                                        return;
-                                      }
-                                    }
-                                  }
-
-                                  if (ids.isNotEmpty) {
-                                    newRoomId = await chatController
-                                        .createRoom(ids);
-                                    success = true;
-                                  }
-                                } else if (chatType.value == RoomType.group) {
-                                  newRoomId = await chatController.createGroup(
-                                    nameController.text,
-                                    selectedProfiles.value.toList(),
-                                  );
-                                  success = true;
-                                } else if (chatType.value == RoomType.channel) {
-                                  newRoomId =
-                                      await chatController.createChannel(
-                                    nameController.text,
-                                    descriptionController.text,
-                                  );
-                                  success = true;
-                                }
-
-                                if (!context.mounted) return;
-
+                  return GestureDetector(
+                    onTap: canCreate ? () async {
+                      final chatController = ref.read(chatControllerProvider.notifier);
+                      isLoading.value = true;
+                      try {
+                        bool success = false;
+                        String? newRoomId;
+                        if (chatType.value == RoomType.room) {
+                          List<String> ids = selectedProfiles.value.toList();
+                          if (ids.isEmpty) {
+                            final username = nameController.text.trim();
+                            final repo = ref.read(chatRepositoryProvider);
+                            final profile = await repo.getProfileByUsername(username);
+                            if (profile != null) {
+                              ids = [profile.id];
+                            } else {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Пользователь $username не найден')),
+                                );
                                 isLoading.value = false;
-
-                                if (success && newRoomId != null) {
-                                  context.pushReplacementNamed(
-                                    'chat_detail',
-                                    pathParameters: {'roomId': newRoomId},
-                                    queryParameters: {
-                                      'type': chatType.value.name,
-                                    },
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  isLoading.value = false;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Ошибка: $e')),
-                                  );
-                                }
+                                return;
                               }
                             }
-                          : null,
+                          }
+                          if (ids.isNotEmpty) {
+                            newRoomId = await chatController.createRoom(ids);
+                            success = true;
+                          }
+                        } else if (chatType.value == RoomType.group) {
+                          newRoomId = await chatController.createGroup(
+                            nameController.text,
+                            selectedProfiles.value.toList(),
+                          );
+                          success = true;
+                        } else if (chatType.value == RoomType.channel) {
+                          newRoomId = await chatController.createChannel(
+                            nameController.text,
+                            descriptionController.text,
+                          );
+                          success = true;
+                        }
 
-                      child: Opacity(
-                        opacity: canCreate ? 1.0 : 0.5,
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            gradient: ThemeColors.primaryGradient,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Center(
-                            child: isLoading.value
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Создать',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
+                        if (!context.mounted) return;
+                        isLoading.value = false;
+                        if (success && newRoomId != null) {
+                          context.pushReplacementNamed(
+                            'chat_detail',
+                            pathParameters: {'roomId': newRoomId},
+                            queryParameters: {'type': chatType.value.name},
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          isLoading.value = false;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Ошибка: $e')),
+                          );
+                        }
+                      }
+                    } : null,
+                    child: Opacity(
+                      opacity: canCreate ? 1.0 : 0.5,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          gradient: ThemeColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: isLoading.value
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text(
+                                  'Создать',
+                                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

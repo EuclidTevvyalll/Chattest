@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image/image.dart' as img;
 import 'package:forgelink/features/chat/domain/models/message_model.dart';
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
 import 'package:forgelink/features/chat/domain/models/profile_model.dart';
@@ -17,9 +17,6 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) return Stream.value([]);
 
-    // We listen to room_participants to know which rooms the user is in.
-    // To make it update on new messages, we'll also 'touch' the room_participants
-    // or rely on the rooms table updates if we add a trigger.
     return _client
         .from('room_participants')
         .stream(primaryKey: ['room_id', 'profile_id'])
@@ -35,7 +32,6 @@ class SupabaseChatRepository implements ChatRepository {
 
           if (roomIds.isEmpty) return [];
 
-          // Fetch rooms directly. They are updated by the database trigger on every new message.
           final List roomsData = await _client
               .from('rooms')
               .select('*, room_participants(role, profiles(*))')
@@ -43,7 +39,6 @@ class SupabaseChatRepository implements ChatRepository {
 
           final results = roomsData.map((roomMap) => _mapRoomData(roomMap)).toList();
 
-          // Sorting: latest activity first
           results.sort((a, b) {
             final timeA = a.lastMessageAt ?? a.createdAt;
             final timeB = b.lastMessageAt ?? b.createdAt;
@@ -82,6 +77,9 @@ class SupabaseChatRepository implements ChatRepository {
           DateTime.now(),
       lastMessageAt: lastMessageTime,
       lastMessage: lastMessageText,
+      lastMessageMediaUrl: room['last_message_media_url']?.toString(),
+      lastMessageMediaType: room['last_message_media_type']?.toString(),
+      lastMessageMediaName: room['last_message_media_name']?.toString(),
       createdBy: room['created_by']?.toString(),
       participants: participants,
     );
@@ -112,7 +110,6 @@ class SupabaseChatRepository implements ChatRepository {
     String roomId, {
     RoomType type = RoomType.room,
   }) {
-    debugPrint('SupabaseChatRepository: Watching messages for room $roomId');
     return _client
         .from('messages')
         .stream(primaryKey: ['id'])
@@ -120,20 +117,14 @@ class SupabaseChatRepository implements ChatRepository {
         .order('created_at', ascending: false)
         .limit(50)
         .map((event) {
-          debugPrint(
-            'SupabaseChatRepository: Stream event received with ${event.length} total messages',
-          );
-          for (var m in event) {
-            if (m['is_deleted'] == true) {
-              debugPrint('SupabaseChatRepository: Found deleted message in stream: ${m['id']}');
-            }
-          }
           return event
               .map((json) => MessageModel.fromJson(json))
-              .where((m) => m.isDeleted != true) // Always hide deleted messages
+              .where((m) => m.isDeleted != true)
               .toList()
               .reversed
               .toList();
+        }).handleError((error) {
+          debugPrint('SupabaseChatRepository: ERROR in watchMessages for room $roomId: $error');
         });
   }
 
@@ -167,13 +158,18 @@ class SupabaseChatRepository implements ChatRepository {
           'media_url': mediaUrl,
           'media_type': mediaType,
           'media_name': mediaName,
-        });
+        }).timeout(const Duration(seconds: 15));
+        
         return;
       } catch (e) {
         retryCount++;
-        debugPrint('SupabaseChatRepository: Send attempt $retryCount failed: $e');
+        if (e is PostgrestException && e.code == '42501') {
+          try {
+            await _client.auth.refreshSession();
+          } catch (_) {}
+        }
         if (retryCount >= maxRetries) rethrow;
-        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+        await Future.delayed(Duration(milliseconds: 1000 * retryCount));
       }
     }
   }
@@ -181,40 +177,78 @@ class SupabaseChatRepository implements ChatRepository {
   @override
   Future<String> uploadMedia(String roomId, Uint8List bytes, String fileName,
       String? contentType) async {
-    try {
-      final sizeMb = bytes.length / (1024 * 1024);
-      debugPrint('SupabaseChatRepository: Uploading $fileName (${sizeMb.toStringAsFixed(2)} MB) via Edge Function...');
-      
-      final base64File = base64Encode(bytes);
-      debugPrint('SupabaseChatRepository: Base64 encoding complete, size: ${base64File.length} chars');
-      
-      final response = await _client.functions.invoke(
-        'upload-media',
-        body: {
-          'roomId': roomId,
-          'fileName': fileName,
-          'fileBase64': base64File,
-          'contentType': contentType ?? 'application/octet-stream',
-        },
-      );
-
-      debugPrint('SupabaseChatRepository: Edge Function response status: ${response.status}');
-
-      if (response.status == 200 || response.status == 201) {
-        final data = response.data;
-        if (data is Map && data.containsKey('url')) {
-          debugPrint('SupabaseChatRepository: Upload successful! URL: ${data['url']}');
-          return data['url'];
+    var uploadBytes = bytes;
+    
+    // Compress if it's an image
+    if (contentType?.startsWith('image/') == true || 
+        fileName.toLowerCase().endsWith('.jpg') || 
+        fileName.toLowerCase().endsWith('.jpeg') || 
+        fileName.toLowerCase().endsWith('.png')) {
+      try {
+        final image = img.decodeImage(uploadBytes);
+        if (image != null) {
+          img.Image resized = image;
+          if (image.width > 1200 || image.height > 1200) {
+            resized = img.copyResize(image, width: 1200, height: 1200, interpolation: img.Interpolation.linear);
+          }
+          final compressed = img.encodeJpg(resized, quality: 75);
+          uploadBytes = Uint8List.fromList(compressed);
         }
-        throw Exception('Invalid response from Edge Function: ${response.data}');
-      } else {
-        debugPrint('SupabaseChatRepository: Edge Function failed with status ${response.status}: ${response.data}');
-        throw Exception('Edge Function Error (Status ${response.status}): ${response.data}');
+      } catch (e) {
+        debugPrint('SupabaseChatRepository: Image optimization failed: $e');
       }
-    } catch (e) {
-      debugPrint('SupabaseChatRepository: Upload failed with error: $e');
-      rethrow;
     }
+
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        final session = _client.auth.currentSession;
+        if (session == null) {
+          await _client.auth.refreshSession();
+        }
+        
+        final path = '$roomId/$fileName';
+        
+        // Determine bucket name based on file type
+        String bucket = 'chat-documents';
+        if (contentType?.startsWith('image/') == true || 
+            fileName.toLowerCase().endsWith('.jpg') || 
+            fileName.toLowerCase().endsWith('.jpeg') || 
+            fileName.toLowerCase().endsWith('.png')) {
+          bucket = 'chat-images';
+        } else if (contentType?.startsWith('video/') == true) {
+          bucket = 'chat-videos';
+        } else if (contentType?.startsWith('audio/') == true) {
+          bucket = 'chat-audio';
+        }
+
+        debugPrint('SupabaseChatRepository: Uploading to bucket $bucket: $path');
+
+        // Upload to the appropriate bucket
+        await _client.storage.from(bucket).uploadBinary(
+          path,
+          uploadBytes,
+          fileOptions: FileOptions(
+            contentType: contentType ?? 'application/octet-stream',
+            upsert: true,
+          ),
+        );
+
+        // Get public URL
+        final publicUrl = _client.storage.from(bucket).getPublicUrl(path);
+        debugPrint('SupabaseChatRepository: Direct upload successful! URL: $publicUrl');
+        return publicUrl;
+      } catch (e) {
+        retryCount++;
+        debugPrint('SupabaseChatRepository: Storage upload attempt $retryCount failed: $e');
+        
+        if (retryCount >= maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 2000 * retryCount));
+      }
+    }
+    throw Exception('Upload failed after $maxRetries attempts');
   }
 
   @override
@@ -224,11 +258,8 @@ class SupabaseChatRepository implements ChatRepository {
 
     final allParticipants = {myId, ...participantIds}.toList();
 
-    // Check if a direct room already exists
     if (allParticipants.length == 2) {
       final otherId = participantIds.first;
-
-      // Manual check for existing direct room
       final List myRooms = await _client
           .from('room_participants')
           .select('room_id')
@@ -252,7 +283,6 @@ class SupabaseChatRepository implements ChatRepository {
       }
     }
 
-    // Create room
     final roomData = await _client
         .from('rooms')
         .insert({
@@ -264,7 +294,6 @@ class SupabaseChatRepository implements ChatRepository {
 
     final roomId = roomData['id'].toString();
 
-    // Add participants
     final participantsInsert = allParticipants
         .map(
           (pid) => {
@@ -339,7 +368,6 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) return;
 
-    // Check if already a participant to avoid unique constraint error
     final existing = await _client
         .from('room_participants')
         .select()
@@ -404,7 +432,6 @@ class SupabaseChatRepository implements ChatRepository {
 
     while (retryCount < maxRetries) {
       try {
-        // 1. Fetch current reactions
         final data = await _client
             .from('messages')
             .select('reactions')
@@ -426,21 +453,15 @@ class SupabaseChatRepository implements ChatRepository {
           reactions[emoji] = users;
         }
 
-        // 2. Update reactions
         await _client
             .from('messages')
             .update({'reactions': reactions})
             .eq('id', messageId);
 
-        debugPrint('Supabase: Reaction toggled successfully.');
         return;
       } catch (e) {
         retryCount++;
-        debugPrint('Supabase: Toggle reaction attempt $retryCount failed: $e');
-        if (retryCount >= maxRetries) {
-          rethrow;
-        }
-        // Small delay before next attempt
+        if (retryCount >= maxRetries) rethrow;
         await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }
     }
@@ -464,7 +485,6 @@ class SupabaseChatRepository implements ChatRepository {
         return;
       } catch (e) {
         retryCount++;
-        debugPrint('SupabaseChatRepository: Edit attempt $retryCount failed: $e');
         if (retryCount >= maxRetries) rethrow;
         await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }
@@ -473,14 +493,11 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<void> deleteMessage(String messageId) async {
-    debugPrint('SupabaseChatRepository: Deleting message $messageId');
-
     int retryCount = 0;
     const maxRetries = 3;
 
     while (retryCount < maxRetries) {
       try {
-        // Use soft delete by setting is_deleted = true
         await _client
             .from('messages')
             .update({
@@ -489,11 +506,9 @@ class SupabaseChatRepository implements ChatRepository {
               'deleted_by': _client.auth.currentUser?.id,
             })
             .eq('id', messageId);
-        debugPrint('SupabaseChatRepository: Soft delete successful');
         return;
       } catch (e) {
         retryCount++;
-        debugPrint('SupabaseChatRepository: Delete attempt $retryCount failed: $e');
         if (retryCount >= maxRetries) rethrow;
         await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }
@@ -502,7 +517,6 @@ class SupabaseChatRepository implements ChatRepository {
 
   @override
   Future<void> deleteMessages(List<String> messageIds) async {
-    debugPrint('SupabaseChatRepository: Deleting ${messageIds.length} messages');
     if (messageIds.isEmpty) return;
 
     int retryCount = 0;
@@ -518,11 +532,9 @@ class SupabaseChatRepository implements ChatRepository {
               'deleted_by': _client.auth.currentUser?.id,
             })
             .inFilter('id', messageIds);
-        debugPrint('SupabaseChatRepository: Bulk soft delete successful');
         return;
       } catch (e) {
         retryCount++;
-        debugPrint('SupabaseChatRepository: Bulk delete attempt $retryCount failed: $e');
         if (retryCount >= maxRetries) rethrow;
         await Future.delayed(Duration(milliseconds: 500 * retryCount));
       }
@@ -562,7 +574,6 @@ class SupabaseChatRepository implements ChatRepository {
           .eq('profile_id', profileId)
           .timeout(const Duration(seconds: 10));
     } catch (e) {
-      debugPrint('Error updating participant role: $e');
       rethrow;
     }
   }

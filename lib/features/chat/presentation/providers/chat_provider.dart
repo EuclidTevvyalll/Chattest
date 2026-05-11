@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
@@ -17,7 +18,16 @@ class ChatSearchQuery extends Notifier<String> {
 final chatSearchQueryProvider =
     NotifierProvider<ChatSearchQuery, String>(ChatSearchQuery.new);
 
-final roomsProvider = StreamProvider<List<RoomModel>>((ref) {
+final roomsProvider = StreamProvider.autoDispose<List<RoomModel>>((ref) {
+  final link = ref.keepAlive();
+  Timer? timer;
+  ref.onCancel(() {
+    timer = Timer(const Duration(seconds: 30), () {
+      link.close();
+    });
+  });
+  ref.onDispose(() => timer?.cancel());
+
   final repo = ref.watch(chatRepositoryProvider);
   final user = ref.watch(authUserProvider);
 
@@ -131,10 +141,19 @@ final contactsProvider = Provider<AsyncValue<List<ProfileModel>>>((ref) {
   });
 });
 
-final messagesStreamProvider = StreamProvider.family<List<MessageModel>, String>((
+final messagesStreamProvider = StreamProvider.autoDispose.family<List<MessageModel>, String>((
   ref,
   roomId,
 ) {
+  final link = ref.keepAlive();
+  Timer? timer;
+  ref.onCancel(() {
+    timer = Timer(const Duration(seconds: 30), () {
+      link.close();
+    });
+  });
+  ref.onDispose(() => timer?.cancel());
+
   final user = ref.watch(authUserProvider);
   if (user == null) return Stream.value([]);
   
@@ -191,3 +210,5 @@ final roomParticipantsProvider =
     FutureProvider.family<List<ProfileModel>, String>((ref, roomId) {
       return ref.watch(chatRepositoryProvider).getRoomParticipants(roomId);
     });
+
+

@@ -373,8 +373,7 @@ class ChatInfoScreen extends ConsumerWidget {
                               final avatarBase64 = avatarAsync.asData?.value;
                               return CircleAvatar(
                                 radius: 20,
-                                backgroundColor: ThemeColors.blue.withValues(
-                                  alpha: 0.1,
+                                backgroundColor: ThemeColors.blue.withValues(alpha: 0.1,
                                 ),
                                 backgroundImage: p.avatarUrl != null
                                     ? CachedNetworkImageProvider(p.avatarUrl!)
@@ -521,8 +520,7 @@ class ChatInfoScreen extends ConsumerWidget {
                                 final avatarBase64 = avatarAsync.asData?.value;
                                 return CircleAvatar(
                                   radius: 20,
-                                  backgroundColor: ThemeColors.blue.withValues(
-                                    alpha: 0.1,
+                                  backgroundColor: ThemeColors.blue.withValues(alpha: 0.1,
                                   ),
                                   backgroundImage: p.avatarUrl != null
                                       ? CachedNetworkImageProvider(p.avatarUrl!)
@@ -726,7 +724,6 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = trailing;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -749,3 +746,5 @@ class _InfoTile extends StatelessWidget {
     );
   }
 }
+
+

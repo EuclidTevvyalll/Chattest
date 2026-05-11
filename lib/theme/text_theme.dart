@@ -21,7 +21,7 @@ abstract class ThemeTextStyles {
 
   // headlines
   static TextStyle h1({Color? color, bool? isDark}) =>
-      _base(32, FontWeight.w800, color: color, isDark: isDark);
+      _base(28, FontWeight.w800, color: color, isDark: isDark);
   static TextStyle h2({Color? color, bool? isDark}) =>
       _base(24, FontWeight.w700, color: color, isDark: isDark);
   static TextStyle h3({Color? color, bool? isDark}) =>
@@ -48,3 +48,5 @@ abstract class ThemeTextStyles {
     bool? isDark,
   }) => _base(fontSize, fontWeight, color: color, isDark: isDark);
 }
+
+

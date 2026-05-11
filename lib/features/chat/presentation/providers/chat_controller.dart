@@ -119,35 +119,62 @@ class ChatController extends Notifier<ChatControllerState> {
       },
     );
 
-    try {
-      debugPrint('ChatController: Starting media upload for $fileName');
-      // 1. Upload the file
-      final mediaUrl = await ref
-          .read(chatRepositoryProvider)
-          .uploadMedia(roomId, bytes, fileName, mediaType);
-      
-      debugPrint('ChatController: Media uploaded successfully: $mediaUrl');
+    // Process upload in a managed way
+    _enqueueUpload(() async {
+      try {
+        debugPrint('ChatController: Starting media upload for $fileName');
+        // 1. Upload the file
+        final mediaUrl = await ref
+            .read(chatRepositoryProvider)
+            .uploadMedia(roomId, bytes, fileName, mediaType);
+        
+        debugPrint('ChatController: Media uploaded successfully: $mediaUrl');
 
-      // 2. Send the real message
-      await ref.read(chatRepositoryProvider).sendMessage(
-            roomId,
-            content ?? '',
-            mediaUrl: mediaUrl,
-            mediaType: mediaType,
-            mediaName: fileName,
-          );
-      
-      debugPrint('ChatController: Real message sent successfully');
+        // 2. Send the real message
+        await ref.read(chatRepositoryProvider).sendMessage(
+              roomId,
+              content ?? '',
+              mediaUrl: mediaUrl,
+              mediaType: mediaType,
+              mediaName: fileName,
+            );
+        
+        debugPrint('ChatController: Real message sent successfully');
 
-      // Remove pending after a short delay to allow stream to catch up
-      Future.delayed(const Duration(seconds: 1)).then((_) {
+        // Remove pending after a short delay
+        Future.delayed(const Duration(seconds: 1)).then((_) {
+          _removePending(roomId, temporaryMessage.id);
+        });
+      } catch (e) {
+        debugPrint('ChatController: Error sending media message: $e');
         _removePending(roomId, temporaryMessage.id);
-      });
-    } catch (e) {
-      debugPrint('ChatController: Error sending media message: $e');
-      _removePending(roomId, temporaryMessage.id);
-      rethrow;
+        rethrow;
+      }
+    });
+  }
+
+  final List<Future<void> Function()> _uploadQueue = [];
+  bool _isProcessingQueue = false;
+
+  void _enqueueUpload(Future<void> Function() uploadTask) {
+    _uploadQueue.add(uploadTask);
+    _processQueue();
+  }
+
+  Future<void> _processQueue() async {
+    if (_isProcessingQueue) return;
+    _isProcessingQueue = true;
+
+    while (_uploadQueue.isNotEmpty) {
+      final task = _uploadQueue.removeAt(0);
+      try {
+        await task();
+      } catch (e) {
+        debugPrint('ChatController: Queue task failed: $e');
+      }
     }
+
+    _isProcessingQueue = false;
   }
 
   Future<void> editMessage(
@@ -337,3 +364,5 @@ class ChatController extends Notifier<ChatControllerState> {
     }
   }
 }
+
+

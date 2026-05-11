@@ -21,3 +21,5 @@ class LocaleNotifier extends Notifier<Locale> {
     }
   }
 }
+
+

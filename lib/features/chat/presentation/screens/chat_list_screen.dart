@@ -50,13 +50,13 @@ class ChatListScreen extends HookConsumerWidget {
                   children: [
                     Text(
                       'Мессенджер',
-                      style: ThemeTextStyles.h1(isDark: isDark),
+                      style: ThemeTextStyles.h2(isDark: isDark),
                     ),
                     Row(
                       children: [
                         GlassBox(
-                          padding: const EdgeInsets.all(8),
-                          borderRadius: BorderRadius.circular(12),
+                          padding: const EdgeInsets.all(2),
+                          borderRadius: BorderRadius.circular(6),
                           opacity: isDark ? 0.2 : 0.1,
                           child: IconButton(
                             onPressed: () =>
@@ -64,7 +64,7 @@ class ChatListScreen extends HookConsumerWidget {
                             icon: Icon(
                               Icons.add_rounded,
                               color: isDark ? Colors.white : Colors.black87,
-                              size: 28,
+                              size: 20,
                             ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -72,8 +72,8 @@ class ChatListScreen extends HookConsumerWidget {
                         ),
                         const SizedBox(width: 12),
                         GlassBox(
-                          padding: const EdgeInsets.all(8),
-                          borderRadius: BorderRadius.circular(12),
+                          padding: const EdgeInsets.all(2),
+                          borderRadius: BorderRadius.circular(6),
                           opacity: isDark ? 0.2 : 0.1,
                           child: IconButton(
                             onPressed: () =>
@@ -81,6 +81,7 @@ class ChatListScreen extends HookConsumerWidget {
                             icon: Icon(
                               Icons.logout_rounded,
                               color: isDark ? Colors.white : Colors.black87,
+                              size: 20,
                             ),
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
@@ -100,6 +101,7 @@ class ChatListScreen extends HookConsumerWidget {
                   opacity: isDark ? 0.1 : 0.05,
                   child: TextField(
                     controller: searchController,
+                    textAlignVertical: TextAlignVertical.center,
                     onChanged: (value) => ref
                         .read(chatSearchQueryProvider.notifier)
                         .update(value),
@@ -109,10 +111,12 @@ class ChatListScreen extends HookConsumerWidget {
                         color: isDark ? Colors.white38 : Colors.black38,
                       ),
                       border: InputBorder.none,
-                      icon: Icon(
+                      prefixIcon: Icon(
                         Icons.search_rounded,
                         color: isDark ? Colors.white38 : Colors.black38,
+                        size: 20,
                       ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       suffixIcon: searchQuery.isNotEmpty
                           ? IconButton(
                               onPressed: () {
@@ -324,8 +328,7 @@ class _RoomItem extends ConsumerWidget {
                       ),
                       child: CircleAvatar(
                         radius: 30,
-                        backgroundColor: ThemeColors.blue.withValues(
-                          alpha: 0.05,
+                        backgroundColor: ThemeColors.blue.withValues(alpha: 0.05,
                         ),
                         backgroundImage: avatarUrl != null
                             ? CachedNetworkImageProvider(avatarUrl)
@@ -404,15 +407,7 @@ class _RoomItem extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        room.lastMessage ?? 'Сообщений пока нет',
-                        style: ThemeTextStyles.bodyMedium(
-                          isDark: isDark,
-                          color: isDark ? Colors.white60 : Colors.black54,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      _buildLastMessage(room, isDark),
                     ],
                   ),
                 ),
@@ -425,6 +420,77 @@ class _RoomItem extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLastMessage(RoomModel room, bool isDark) {
+    if (room.lastMessageMediaUrl != null) {
+      final isImage = room.lastMessageMediaType?.startsWith('image/') == true ||
+          room.lastMessageMediaName?.toLowerCase().endsWith('.jpg') == true ||
+          room.lastMessageMediaName?.toLowerCase().endsWith('.jpeg') == true ||
+          room.lastMessageMediaName?.toLowerCase().endsWith('.png') == true;
+      final isVideo = room.lastMessageMediaType?.startsWith('video/') == true;
+
+      return Row(
+        children: [
+          if (isImage)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: CachedNetworkImage(
+                  imageUrl: room.lastMessageMediaUrl!,
+                  width: 20,
+                  height: 20,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey.withValues(alpha: 0.1),
+                  ),
+                  errorWidget: (context, url, error) => const Icon(
+                    Icons.image_not_supported_rounded,
+                    size: 14,
+                  ),
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Icon(
+                isVideo
+                    ? Icons.videocam_rounded
+                    : Icons.insert_drive_file_rounded,
+                size: 16,
+                color: isDark ? Colors.white38 : Colors.black38,
+              ),
+            ),
+          Expanded(
+            child: Text(
+              room.lastMessage != null && room.lastMessage!.isNotEmpty
+                  ? room.lastMessage!
+                  : (isImage
+                      ? 'Фото'
+                      : (isVideo ? 'Видео' : (room.lastMessageMediaName ?? 'Файл'))),
+              style: ThemeTextStyles.bodyMedium(
+                isDark: isDark,
+                color: isDark ? Colors.white60 : Colors.black54,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      room.lastMessage ?? 'Сообщений пока нет',
+      style: ThemeTextStyles.bodyMedium(
+        isDark: isDark,
+        color: isDark ? Colors.white60 : Colors.black54,
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -451,13 +517,16 @@ class _CreateChatBottomSheet extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white24 : Colors.black12,
-              borderRadius: BorderRadius.circular(2),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white24 : Colors.black12,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
           ),
           const SizedBox(height: 24),
@@ -561,3 +630,5 @@ class _CreateChatBottomSheet extends StatelessWidget {
 }
 
 // Delete the old Speed Dial class as it's no longer used
+
+

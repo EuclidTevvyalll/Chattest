@@ -30,6 +30,11 @@ class ChatBubble extends StatelessWidget {
   final String? mediaUrl;
   final String? mediaType;
   final String? mediaName;
+  final String? senderName;
+  final String? senderAvatarUrl;
+  final String? senderAvatarBase64;
+  final String? channelName;
+  final bool showSenderInfo;
 
   const ChatBubble({
     super.key,
@@ -56,6 +61,11 @@ class ChatBubble extends StatelessWidget {
     this.mediaUrl,
     this.mediaType,
     this.mediaName,
+    this.senderName,
+    this.senderAvatarUrl,
+    this.senderAvatarBase64,
+    this.channelName,
+    this.showSenderInfo = false,
   });
 
   void _showReactionPicker(BuildContext context) {
@@ -108,7 +118,8 @@ class ChatBubble extends StatelessWidget {
                     child: Listener(
                       onPointerSignal: (pointerSignal) {
                         if (pointerSignal is PointerScrollEvent) {
-                          final newOffset = scrollController.offset +
+                          final newOffset =
+                              scrollController.offset +
                               pointerSignal.scrollDelta.dy;
                           if (newOffset < 0) {
                             scrollController.jumpTo(0);
@@ -135,13 +146,16 @@ class ChatBubble extends StatelessWidget {
                               Navigator.pop(context);
                             },
                             child: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
                               margin: const EdgeInsets.symmetric(horizontal: 4),
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
-                                color: (reactions[emoji]
-                                            ?.contains(currentUserId) ??
+                                color:
+                                    (reactions[emoji]?.contains(
+                                          currentUserId,
+                                        ) ??
                                         false)
                                     ? ThemeColors.blue.withValues(alpha: 0.2)
                                     : Colors.transparent,
@@ -349,28 +363,84 @@ class ChatBubble extends StatelessWidget {
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final displayRepliedContent = repliedMessageContent ??
+    final displayRepliedContent =
+        repliedMessageContent ??
         forwardedInfo?['fwd_replied_content'] ??
         forwardedInfo?['replied_content'];
-    final displayRepliedSender = repliedMessageSenderName ??
+    final displayRepliedSender =
+        repliedMessageSenderName ??
         forwardedInfo?['fwd_replied_sender'] ??
         forwardedInfo?['replied_sender'];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Align(
         alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.75,
-          ),
-          child: Column(
-            crossAxisAlignment:
-                isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        child: Builder(
+          builder: (context) {
+            final screenWidth = MediaQuery.of(context).size.width;
+            final bubbleMaxWidth = screenWidth * (isSelectionMode ? 0.55 : 0.65);
+            final mediaMaxWidth = screenWidth * (isSelectionMode ? 0.5 : 0.6);
+            
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: bubbleMaxWidth,
+              ),
+              child: Column(
+            crossAxisAlignment: isMine
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
+              if (showSenderInfo && !isMine) ...[
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (channelName == null &&
+                          (senderAvatarUrl != null ||
+                              senderAvatarBase64 != null))
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          child: CircleAvatar(
+                            radius: 12,
+                            backgroundImage: senderAvatarUrl != null
+                                ? CachedNetworkImageProvider(senderAvatarUrl!)
+                                : (senderAvatarBase64 != null
+                                          ? MemoryImage(
+                                              base64Decode(senderAvatarBase64!),
+                                            )
+                                          : null)
+                                      as ImageProvider?,
+                            child:
+                                (senderAvatarUrl == null &&
+                                    senderAvatarBase64 == null)
+                                ? Text(
+                                    (senderName ?? '?')[0].toUpperCase(),
+                                    style: const TextStyle(fontSize: 10),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      Flexible(
+                        child: Text(
+                          senderName ?? channelName ?? 'Пользователь',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: ThemeColors.blue,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               GestureDetector(
                 onLongPress: isSelectionMode
                     ? onLongPress
@@ -378,8 +448,9 @@ class ChatBubble extends StatelessWidget {
                 onTap: isSelectionMode ? onTap : null,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding:
-                      isSelectionMode ? const EdgeInsets.all(4) : EdgeInsets.zero,
+                  padding: isSelectionMode
+                      ? const EdgeInsets.all(4)
+                      : EdgeInsets.zero,
                   decoration: BoxDecoration(
                     color: isSelected
                         ? ThemeColors.blue.withValues(alpha: 0.1)
@@ -404,21 +475,27 @@ class ChatBubble extends StatelessWidget {
                               border: Border.all(
                                 color: isSelected
                                     ? ThemeColors.blue
-                                    : (isDark ? Colors.white24 : Colors.black26),
+                                    : (isDark
+                                          ? Colors.white24
+                                          : Colors.black26),
                                 width: 2,
                               ),
                             ),
                             child: isSelected
-                                ? const Icon(Icons.check_rounded,
-                                    color: Colors.white, size: 16)
+                                ? const Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  )
                                 : null,
                           ),
                         ),
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.75,
-                        ),
-                        child: Container(
+                      Flexible(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: mediaMaxWidth,
+                          ),
+                          child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(20),
@@ -428,332 +505,403 @@ class ChatBubble extends StatelessWidget {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: (isMine ? ThemeColors.blue : Colors.black)
-                                    .withValues(alpha: 0.05),
+                                color:
+                                    (isMine ? ThemeColors.blue : Colors.black)
+                                        .withValues(alpha: 0.05),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
                             ],
                           ),
                           child: GlassBox(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          color: isMine
-                              ? ThemeColors.blue
-                              : (isDark
-                                  ? Colors.white.withValues(alpha: 0.1)
-                                  : Colors.white),
-                          opacity: isMine
-                              ? (isDark ? 0.3 : 0.6)
-                              : (isDark ? 0.1 : 0.7),
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(20),
-                            topRight: const Radius.circular(20),
-                            bottomLeft: Radius.circular(isMine ? 20 : 4),
-                            bottomRight: Radius.circular(isMine ? 4 : 20),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (forwardedInfo != null) ...[
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 4),
-                                  child: Row(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            color: isMine
+                                ? ThemeColors.blue
+                                : (isDark
+                                      ? Colors.white.withValues(alpha: 0.1)
+                                      : Colors.white),
+                            opacity: isMine
+                                ? (isDark ? 0.3 : 0.6)
+                                : (isDark ? 0.1 : 0.7),
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(20),
+                              topRight: const Radius.circular(20),
+                              bottomLeft: Radius.circular(isMine ? 20 : 4),
+                              bottomRight: Radius.circular(isMine ? 4 : 20),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (forwardedInfo != null) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.forward_rounded,
+                                          size: 12,
+                                          color: isMine
+                                              ? Colors.white70
+                                              : Colors.grey,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Переслано от ${forwardedInfo!['sender_name'] ?? 'Пользователь'}',
+                                          style:
+                                              ThemeTextStyles.caption(
+                                                color: isMine
+                                                    ? Colors.white70
+                                                    : Colors.grey,
+                                              ).copyWith(
+                                                fontStyle: FontStyle.italic,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                if (displayRepliedContent != null) ...[
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDark
+                                          ? Colors.white.withValues(alpha: 0.1)
+                                          : Colors.black.withValues(alpha: 0.05),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border(
+                                        left: BorderSide(
+                                          color: isMine
+                                              ? Colors.white70
+                                              : ThemeColors.blue,
+                                          width: 3,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          displayRepliedSender ??
+                                              'Удаленный пользователь',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: isMine
+                                                ? Colors.white
+                                                : ThemeColors.blue,
+                                          ),
+                                        ),
+                                        Text(
+                                          displayRepliedContent,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isMine
+                                                ? Colors.white70
+                                                : (isDark
+                                                      ? Colors.white60
+                                                      : Colors.black54),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                if (mediaUrl != null || mediaName != null) ...[
+                                  if (mediaType?.startsWith('image') ??
+                                      (mediaUrl == null && mediaName != null))
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: RepaintBoundary(
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: InkWell(
+                                            onTap: () => _showMediaDetail(
+                                                context, isDark),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: mediaUrl == null
+                                            ? Container(
+                                                constraints:
+                                                    BoxConstraints(
+                                                      minHeight: 100,
+                                                      maxWidth: mediaMaxWidth,
+                                                      maxHeight: 200,
+                                                    ),
+
+                                                color: isMine
+                                                    ? Colors.white12
+                                                    : Colors.black12,
+                                                child: const Center(
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: ThemeColors.blue,
+                                                      ),
+                                                ),
+                                              )
+                                            : mediaUrl!.startsWith('data:image')
+                                                ? ConstrainedBox(
+                                                    constraints: BoxConstraints(
+                                                      maxWidth: mediaMaxWidth,
+                                                      maxHeight: 500,
+                                                    ),
+                                                    child: Image.memory(
+                                                      base64Decode(
+                                                        mediaUrl!.split(',').last,
+                                                      ),
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder:
+                                                          (context, error,
+                                                                  stackTrace) =>
+                                                              const SizedBox(
+                                                        height: 200,
+                                                        child: Center(
+                                                          child: Icon(
+                                                              Icons.broken_image,
+                                                              color: Colors
+                                                                  .redAccent),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  )
+                                            : ConstrainedBox(
+                                                constraints: BoxConstraints(
+                                                  maxWidth: mediaMaxWidth,
+                                                  maxHeight: 500,
+                                                ),
+                                                child: CachedNetworkImage(
+                                                  imageUrl: mediaUrl!,
+                                                  placeholder: (context, url) =>
+                                                      Container(
+                                                    constraints: BoxConstraints(
+                                                      minHeight: 100,
+                                                      maxWidth: mediaMaxWidth,
+                                                      maxHeight: 200,
+                                                    ),
+                                                    decoration: BoxDecoration(
+                                                      color: isMine
+                                                          ? Colors.white12
+                                                          : (isDark
+                                                              ? Colors.white10
+                                                              : Colors.black.withValues(alpha: 0.1)),
+                                                      borderRadius:
+                                                          BorderRadius.circular(12),
+                                                    ),
+                                                    child: const Center(
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: ThemeColors.blue,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  errorWidget:
+                                                      (context, url, error) =>
+                                                          const SizedBox(
+                                                    height: 300,
+                                                    child: Center(
+                                                      child: Icon(
+                                                          Icons.broken_image,
+                                                          color: Colors.redAccent),
+                                                    ),
+                                                  ),
+                                                  fit: BoxFit.contain,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    )
+                                  else
+                                    // For other file types (Videos, Files)
+                                    Padding(
+                                      padding: const EdgeInsets.only(bottom: 8),
+                                      child: InkWell(
+                                        onTap: () => _showMediaDetail(context, isDark),
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: isMine
+                                                ? Colors.white.withValues(alpha: 0.15)
+                                                : Colors.black.withValues(alpha: 
+                                                    0.05,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: isMine
+                                                  ? Colors.white24
+                                                  : Colors.black12,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (mediaUrl == null &&
+                                                  mediaName != null)
+                                                const SizedBox(
+                                                  width: 32,
+                                                  height: 32,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: Colors.white70,
+                                                      ),
+                                                )
+                                              else
+                                                Icon(
+                                                  (mediaType?.startsWith(
+                                                            'video/',
+                                                          ) ??
+                                                          false)
+                                                      ? Icons
+                                                            .play_circle_fill_rounded
+                                                      : Icons
+                                                            .insert_drive_file_rounded,
+                                                  size: 32,
+                                                  color: isMine
+                                                      ? Colors.white
+                                                      : ThemeColors.blue,
+                                                ),
+                                              const SizedBox(width: 12),
+                                              Flexible(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      mediaName ?? 'Файл',
+                                                      style:
+                                                          ThemeTextStyles.bodyMedium(
+                                                            color: isMine
+                                                                ? Colors.white
+                                                                : (isDark
+                                                                      ? Colors
+                                                                            .white
+                                                                      : Colors
+                                                                            .black87),
+                                                          ).copyWith(
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                    if (mediaType != null)
+                                                      Text(
+                                                        mediaType!
+                                                            .split('/')
+                                                            .last
+                                                            .toUpperCase(),
+                                                        style: ThemeTextStyles.caption(
+                                                          isDark: isDark,
+                                                          color: isMine
+                                                              ? Colors.white70
+                                                              : (isDark
+                                                                    ? Colors
+                                                                          .white54
+                                                                    : Colors
+                                                                          .black54),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                                if (isDeleted ?? false)
+                                  Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Icon(
-                                        Icons.forward_rounded,
-                                        size: 12,
+                                        Icons.delete_outline_rounded,
+                                        size: 14,
                                         color: isMine
-                                            ? Colors.white70
+                                            ? Colors.white60
                                             : Colors.grey,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Переслано от ${forwardedInfo!['sender_name'] ?? 'Пользователь'}',
-                                        style: ThemeTextStyles.caption(
+                                        'Сообщение удалено',
+                                        style: ThemeTextStyles.bodyMedium(
                                           color: isMine
-                                              ? Colors.white70
+                                              ? Colors.white60
                                               : Colors.grey,
                                         ).copyWith(fontStyle: FontStyle.italic),
                                       ),
                                     ],
-                                  ),
-                                ),
-                              ],
-                              if (displayRepliedContent != null) ...[
-                                Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: isDark
-                                        ? Colors.white.withValues(alpha: 0.1)
-                                        : Colors.black.withValues(alpha: 0.05),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border(
-                                      left: BorderSide(
-                                        color: isMine
-                                            ? Colors.white70
-                                            : ThemeColors.blue,
-                                        width: 3,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        displayRepliedSender ??
-                                            'Удаленный пользователь',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: isMine
-                                              ? Colors.white
-                                              : ThemeColors.blue,
-                                        ),
-                                      ),
-                                      Text(
-                                        displayRepliedContent,
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isMine
-                                              ? Colors.white70
-                                              : (isDark
-                                                  ? Colors.white60
-                                                  : Colors.black54),
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              if (mediaUrl != null || mediaName != null) ...[
-                                if (mediaType?.startsWith('image') ?? (mediaUrl == null && mediaName != null))
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: mediaUrl == null 
-                                        ? Container(
-                                            height: 200,
-                                            width: double.infinity,
-                                            color: isMine ? Colors.white12 : Colors.black12,
-                                            child: const Center(
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: ThemeColors.blue,
-                                              ),
-                                            ),
-                                          )
-                                        : mediaUrl!.startsWith('data:image')
-                                          ? Image.memory(
-                                              base64Decode(
-                                                  mediaUrl!.split(',').last),
-                                              fit: BoxFit.cover,
-                                              height: 200,
-                                              errorBuilder: (context, error,
-                                                      stackTrace) =>
-                                                  const SizedBox(
-                                                height: 200,
-                                                child: Center(
-                                                  child: Icon(
-                                                      Icons.broken_image,
-                                                      color:
-                                                          Colors.redAccent),
-                                                ),
-                                              ),
-                                            )
-                                          : CachedNetworkImage(
-                                              imageUrl: mediaUrl!,
-                                        placeholder: (context, url) =>
-                                            Container(
-                                          height: 200,
-                                          decoration: BoxDecoration(
-                                            color: isMine
-                                                ? Colors.white12
-                                                : (isDark
-                                                    ? Colors.white10
-                                                    : Colors.black.withValues(
-                                                        alpha: 0.1)),
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: const Center(
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: ThemeColors.blue,
-                                            ),
-                                          ),
-                                        ),
-                                        errorWidget: (context, url, error) =>
-                                            const SizedBox(
-                                          height: 200,
-                                          child: Center(
-                                            child: Icon(Icons.broken_image,
-                                                color: Colors.redAccent),
-                                          ),
-                                        ),
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
                                   )
                                 else
-                                  // For other file types (Videos, Files)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: InkWell(
-                                      onTap: () {
-                                        // Open media URL in browser or viewer
-                                        if (mediaUrl != null) {
-                                          // TODO: Implement media viewer or launcher
-                                          debugPrint('Opening media: $mediaUrl');
-                                        }
-                                      },
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          color: isMine
-                                              ? Colors.white.withValues(alpha: 0.15)
-                                              : Colors.black.withValues(alpha: 0.05),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: isMine 
-                                              ? Colors.white24 
-                                              : Colors.black12,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (mediaUrl == null && mediaName != null)
-                                              const SizedBox(
-                                                width: 32,
-                                                height: 32,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Colors.white70,
-                                                ),
-                                              )
-                                            else
-                                              Icon(
-                                                (mediaType?.startsWith('video/') ?? false)
-                                                    ? Icons.play_circle_fill_rounded
-                                                    : Icons.insert_drive_file_rounded,
-                                                size: 32,
-                                                color: isMine ? Colors.white : ThemeColors.blue,
-                                              ),
-                                            const SizedBox(width: 12),
-                                            Flexible(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    mediaName ?? 'Файл',
-                                                    style: ThemeTextStyles.bodyMedium(
-                                                      color: isMine ? Colors.white : (isDark ? Colors.white : Colors.black87),
-                                                    ).copyWith(fontWeight: FontWeight.w600),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                  if (mediaType != null)
-                                                    Text(
-                                                      mediaType!.split('/').last.toUpperCase(),
-                                                      style: ThemeTextStyles.caption(
-                                                        isDark: isDark,
-                                                        color: isMine ? Colors.white70 : (isDark ? Colors.white54 : Colors.black54),
-                                                      ),
-                                                    ),
-                                                ],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                  Text(
+                                    content,
+                                    style: ThemeTextStyles.bodyMedium(
+                                      color: isMine
+                                          ? Colors.white
+                                          : (isDark
+                                                ? Colors.white.withValues(alpha: 0.9)
+                                                : Colors.black87),
                                     ),
                                   ),
-                              ],
-                              if (isDeleted ?? false)
+                                const SizedBox(height: 4),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(
-                                      Icons.delete_outline_rounded,
-                                      size: 14,
-                                      color: isMine ? Colors.white60 : Colors.grey,
-                                    ),
-                                    const SizedBox(width: 4),
                                     Text(
-                                      'Сообщение удалено',
-                                      style: ThemeTextStyles.bodyMedium(
-                                        color: isMine
-                                            ? Colors.white60
-                                            : Colors.grey,
-                                      ).copyWith(
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              else
-                                Text(
-                                  content,
-                                  style: ThemeTextStyles.bodyMedium(
-                                    color: isMine
-                                        ? Colors.white
-                                        : (isDark
-                                            ? Colors.white.withValues(alpha: 0.9)
-                                            : Colors.black87),
-                                  ),
-                                ),
-                              const SizedBox(height: 4),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    timestamp,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: isMine
-                                          ? Colors.white70
-                                          : (isDark
-                                              ? Colors.white38
-                                              : Colors.black38),
-                                    ),
-                                  ),
-                                  if (isEdited ?? false) ...[
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'изменено',
+                                      timestamp,
                                       style: TextStyle(
                                         fontSize: 10,
-                                        fontStyle: FontStyle.italic,
                                         color: isMine
                                             ? Colors.white70
                                             : (isDark
-                                                ? Colors.white38
-                                                : Colors.black38),
+                                                  ? Colors.white38
+                                                  : Colors.black38),
                                       ),
                                     ),
+                                    if (isEdited ?? false) ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'изменено',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontStyle: FontStyle.italic,
+                                          color: isMine
+                                              ? Colors.white70
+                                              : (isDark
+                                                    ? Colors.white38
+                                                    : Colors.black38),
+                                        ),
+                                      ),
+                                    ],
                                   ],
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ],
-                  ),
+                ),
                 ),
               ),
               if (reactions.isNotEmpty)
@@ -790,8 +938,8 @@ class ChatBubble extends StatelessWidget {
                                   color: isSelected
                                       ? ThemeColors.blue
                                       : (isDark
-                                          ? Colors.white70
-                                          : Colors.black54),
+                                            ? Colors.white70
+                                            : Colors.black54),
                                 ),
                               ),
                             ],
@@ -801,10 +949,63 @@ class ChatBubble extends StatelessWidget {
                     }).toList(),
                   ),
                 ),
-            ],
-          ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+  void _showMediaDetail(BuildContext context, bool isDark) {
+    if (mediaUrl == null) return;
+
+    showDialog(
+      context: context,
+      useSafeArea: false,
+      builder: (context) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Center(
+                child: mediaUrl!.startsWith('data:image')
+                    ? Image.memory(
+                        base64Decode(mediaUrl!.split(',').last),
+                        fit: BoxFit.contain,
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: mediaUrl!,
+                        placeholder: (context, url) => const Center(
+                          child: CircularProgressIndicator(
+                            color: ThemeColors.blue,
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => const Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                          size: 64,
+                        ),
+                        fit: BoxFit.contain,
+                      ),
+              ),
+            ),
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10,
+              left: 10,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded,
+                    color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+

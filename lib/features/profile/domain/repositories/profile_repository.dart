@@ -7,3 +7,5 @@ abstract class ProfileRepository {
   Future<void> updateProfile(ProfileModel profile);
   Future<String> uploadAvatar(Uint8List bytes, String userId);
 }
+
+

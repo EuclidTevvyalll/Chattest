@@ -8,21 +8,32 @@ import 'package:forgelink/core/providers/theme_mode/theme_provider.dart';
 import 'package:forgelink/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:forgelink/core/config/supabase_config.dart';
 
 late final SharedPreferences shared;
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(
-    url: 'https://qhrcpooazwkdckusqcvx.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFocmNwb29hendrZGNrdXNxY3Z4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwNDQ2MTUsImV4cCI6MjA5MzYyMDYxNX0.8XPliDnwo_-63kqqbMRSvC0oi_M8Biw2Rt4hjLpipx8',
-  );
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    debugPrint('Main: Initializing Supabase...');
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      anonKey: SupabaseConfig.anonKey,
+    );
 
-  shared = await SharedPreferences.getInstance();
-  Intl.defaultLocale = 'ru_RU';
-  runApp(ProviderScope(child: const MainApp()));
+    debugPrint('Main: Initializing SharedPreferences...');
+    shared = await SharedPreferences.getInstance();
+    Intl.defaultLocale = 'ru_RU';
+    
+    debugPrint('Main: Running app...');
+    runApp(ProviderScope(child: const MainApp()));
+  } catch (e, stack) {
+    debugPrint('Main: CRITICAL STARTUP ERROR: $e');
+    debugPrint('Main: STACKTRACE: $stack');
+    // Still try to run the app but show an error screen? 
+    // Or just let it crash but with logs.
+  }
 }
 
 class MainApp extends HookConsumerWidget {
@@ -56,3 +67,5 @@ class MainApp extends HookConsumerWidget {
     );
   }
 }
+
+

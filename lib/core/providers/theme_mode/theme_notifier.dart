@@ -21,3 +21,5 @@ class ThemeNotifier extends Notifier<ThemeMode> {
     }
   }
 }
+
+

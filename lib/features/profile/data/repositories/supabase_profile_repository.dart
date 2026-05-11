@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image/image.dart' as img;
 import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 import 'package:forgelink/features/profile/domain/repositories/profile_repository.dart';
 
@@ -31,15 +32,11 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<String?> getAvatarBase64(String id, {bool priority = false}) async {
-    // avatar_base64 column has been removed from the database.
-    // The application now uses avatar_url for all profile images.
     return null;
   }
 
   @override
   Future<void> updateProfile(ProfileModel profile) async {
-    // Adding an initial delay to let the network connection 'breathe'
-    // after a potentially heavy storage upload.
     await Future.delayed(const Duration(milliseconds: 1500));
 
     int retryCount = 0;
@@ -69,7 +66,6 @@ class SupabaseProfileRepository implements ProfileRepository {
         if (retryCount >= maxRetries) {
           rethrow;
         }
-        // Increasing wait time between retries
         await Future.delayed(Duration(seconds: 1 * retryCount));
       }
     }
@@ -77,34 +73,81 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<String> uploadAvatar(Uint8List bytes, String userId) async {
+    var uploadBytes = bytes;
+    
+    // Aggressively compress avatar
     try {
-      final fileName = 'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      debugPrint('Supabase: Uploading avatar via Edge Function (Base64 JSON): $fileName...');
-      
-      final base64File = base64Encode(bytes);
-      
-      final response = await _client.functions.invoke(
-        'upload-media',
-        body: {
-          'roomId': 'avatars', // Use 'avatars' as a pseudo-room for bucket selection in function
-          'fileName': fileName,
-          'fileBase64': base64File,
-          'contentType': 'image/jpeg',
-        },
-      );
-
-      if (response.status == 200 || response.status == 201) {
-        final data = response.data;
-        if (data is Map && data.containsKey('url')) {
-          return data['url'];
+      final image = img.decodeImage(uploadBytes);
+      if (image != null) {
+        debugPrint('Supabase: Compressing avatar (Original: ${uploadBytes.length} bytes)');
+        // Resize to 512x512 max for avatar
+        img.Image resized = image;
+        if (image.width > 512 || image.height > 512) {
+          resized = img.copyResize(image, width: 512, height: 512, interpolation: img.Interpolation.linear);
         }
-        throw Exception('Invalid response from Edge Function: ${response.data}');
-      } else {
-        throw Exception('Edge Function Error (Status ${response.status}): ${response.data}');
+        final compressed = img.encodeJpg(resized, quality: 70);
+        uploadBytes = Uint8List.fromList(compressed);
+        debugPrint('Supabase: Avatar compression complete (New: ${uploadBytes.length} bytes)');
       }
     } catch (e) {
-      debugPrint('Supabase: Avatar upload failed: $e');
-      rethrow;
+      debugPrint('Supabase: Avatar optimization failed: $e');
     }
+
+    final fileName = 'avatar_${userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    debugPrint('Supabase: Preparing avatar upload for $fileName...');
+    
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        debugPrint('Supabase: Avatar upload attempt ${retryCount + 1} via Edge Function...');
+        
+        final jwt = _client.auth.currentSession?.accessToken;
+        if (jwt == null) {
+          await _client.auth.refreshSession();
+        }
+
+        final response = await _client.functions.invoke(
+          'upload-media',
+          body: {
+            'roomId': 'avatars',
+            'fileName': fileName,
+            'fileBase64': base64Encode(uploadBytes),
+            'contentType': 'image/jpeg',
+          },
+        );
+
+        if (response.status == 200 || response.status == 201) {
+          final data = response.data;
+          if (data is Map && data.containsKey('url')) {
+            debugPrint('Supabase: Avatar upload successful!');
+            return data['url'];
+          }
+          throw Exception('Invalid response from Edge Function: $data');
+        } else {
+          throw Exception('Edge Function Error (Status ${response.status}): ${response.data}');
+        }
+      } catch (e) {
+        retryCount++;
+        debugPrint('Supabase: Avatar upload attempt $retryCount failed: $e');
+        
+        if (e is FunctionException) {
+          if (e.status == 401 || e.status == 403) {
+            try {
+              await _client.auth.refreshSession();
+            } catch (_) {}
+          }
+        }
+
+        if (retryCount >= maxRetries) {
+          rethrow;
+        }
+        await Future.delayed(Duration(seconds: 2 * retryCount));
+      }
+    }
+    throw Exception('Avatar upload failed after $maxRetries attempts');
   }
 }
+
+

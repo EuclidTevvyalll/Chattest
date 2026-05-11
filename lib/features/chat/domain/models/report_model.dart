@@ -18,3 +18,5 @@ abstract class ReportModel with _$ReportModel {
   factory ReportModel.fromJson(Map<String, dynamic> json) =>
       _$ReportModelFromJson(json);
 }
+
+

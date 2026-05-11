@@ -7,3 +7,5 @@ abstract class AuthRepository {
   Future<void> logout();
   User? get currentUser;
 }
+
+

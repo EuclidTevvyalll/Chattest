@@ -1,4 +1,4 @@
-package com.example.rickandmorty
+package com.example.forgelink
 
 import io.flutter.embedding.android.FlutterActivity
 

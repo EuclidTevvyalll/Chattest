@@ -44,3 +44,5 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   User? get currentUser => _client.auth.currentUser;
 }
+
+

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$RoomModel {
 
- String get id; RoomType get type; String? get name; String? get description;@JsonKey(name: 'avatar_url') String? get avatarUrl;@JsonKey(name: 'created_at') DateTime get createdAt;@JsonKey(name: 'last_message_at') DateTime? get lastMessageAt; String? get lastMessage;@JsonKey(name: 'created_by') String? get createdBy; List<ProfileModel> get participants;
+ String get id; RoomType get type; String? get name; String? get description;@JsonKey(name: 'avatar_url') String? get avatarUrl;@JsonKey(name: 'created_at') DateTime get createdAt;@JsonKey(name: 'last_message_at') DateTime? get lastMessageAt; String? get lastMessage;@JsonKey(name: 'last_message_media_url') String? get lastMessageMediaUrl;@JsonKey(name: 'last_message_media_type') String? get lastMessageMediaType;@JsonKey(name: 'last_message_media_name') String? get lastMessageMediaName;@JsonKey(name: 'created_by') String? get createdBy; List<ProfileModel> get participants;
 /// Create a copy of RoomModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $RoomModelCopyWith<RoomModel> get copyWith => _$RoomModelCopyWithImpl<RoomModel>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is RoomModel&&(identical(other.id, id) || other.id == id)&&(identical(other.type, type) || other.type == type)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.lastMessageAt, lastMessageAt) || other.lastMessageAt == lastMessageAt)&&(identical(other.lastMessage, lastMessage) || other.lastMessage == lastMessage)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&const DeepCollectionEquality().equals(other.participants, participants));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is RoomModel&&(identical(other.id, id) || other.id == id)&&(identical(other.type, type) || other.type == type)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.lastMessageAt, lastMessageAt) || other.lastMessageAt == lastMessageAt)&&(identical(other.lastMessage, lastMessage) || other.lastMessage == lastMessage)&&(identical(other.lastMessageMediaUrl, lastMessageMediaUrl) || other.lastMessageMediaUrl == lastMessageMediaUrl)&&(identical(other.lastMessageMediaType, lastMessageMediaType) || other.lastMessageMediaType == lastMessageMediaType)&&(identical(other.lastMessageMediaName, lastMessageMediaName) || other.lastMessageMediaName == lastMessageMediaName)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&const DeepCollectionEquality().equals(other.participants, participants));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,type,name,description,avatarUrl,createdAt,lastMessageAt,lastMessage,createdBy,const DeepCollectionEquality().hash(participants));
+int get hashCode => Object.hash(runtimeType,id,type,name,description,avatarUrl,createdAt,lastMessageAt,lastMessage,lastMessageMediaUrl,lastMessageMediaType,lastMessageMediaName,createdBy,const DeepCollectionEquality().hash(participants));
 
 @override
 String toString() {
-  return 'RoomModel(id: $id, type: $type, name: $name, description: $description, avatarUrl: $avatarUrl, createdAt: $createdAt, lastMessageAt: $lastMessageAt, lastMessage: $lastMessage, createdBy: $createdBy, participants: $participants)';
+  return 'RoomModel(id: $id, type: $type, name: $name, description: $description, avatarUrl: $avatarUrl, createdAt: $createdAt, lastMessageAt: $lastMessageAt, lastMessage: $lastMessage, lastMessageMediaUrl: $lastMessageMediaUrl, lastMessageMediaType: $lastMessageMediaType, lastMessageMediaName: $lastMessageMediaName, createdBy: $createdBy, participants: $participants)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $RoomModelCopyWith<$Res>  {
   factory $RoomModelCopyWith(RoomModel value, $Res Function(RoomModel) _then) = _$RoomModelCopyWithImpl;
 @useResult
 $Res call({
- String id, RoomType type, String? name, String? description,@JsonKey(name: 'avatar_url') String? avatarUrl,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'last_message_at') DateTime? lastMessageAt, String? lastMessage,@JsonKey(name: 'created_by') String? createdBy, List<ProfileModel> participants
+ String id, RoomType type, String? name, String? description,@JsonKey(name: 'avatar_url') String? avatarUrl,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'last_message_at') DateTime? lastMessageAt, String? lastMessage,@JsonKey(name: 'last_message_media_url') String? lastMessageMediaUrl,@JsonKey(name: 'last_message_media_type') String? lastMessageMediaType,@JsonKey(name: 'last_message_media_name') String? lastMessageMediaName,@JsonKey(name: 'created_by') String? createdBy, List<ProfileModel> participants
 });
 
 
@@ -65,7 +65,7 @@ class _$RoomModelCopyWithImpl<$Res>
 
 /// Create a copy of RoomModel
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? type = null,Object? name = freezed,Object? description = freezed,Object? avatarUrl = freezed,Object? createdAt = null,Object? lastMessageAt = freezed,Object? lastMessage = freezed,Object? createdBy = freezed,Object? participants = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? type = null,Object? name = freezed,Object? description = freezed,Object? avatarUrl = freezed,Object? createdAt = null,Object? lastMessageAt = freezed,Object? lastMessage = freezed,Object? lastMessageMediaUrl = freezed,Object? lastMessageMediaType = freezed,Object? lastMessageMediaName = freezed,Object? createdBy = freezed,Object? participants = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
@@ -75,6 +75,9 @@ as String?,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // igno
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,lastMessageAt: freezed == lastMessageAt ? _self.lastMessageAt : lastMessageAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,lastMessage: freezed == lastMessage ? _self.lastMessage : lastMessage // ignore: cast_nullable_to_non_nullable
+as String?,lastMessageMediaUrl: freezed == lastMessageMediaUrl ? _self.lastMessageMediaUrl : lastMessageMediaUrl // ignore: cast_nullable_to_non_nullable
+as String?,lastMessageMediaType: freezed == lastMessageMediaType ? _self.lastMessageMediaType : lastMessageMediaType // ignore: cast_nullable_to_non_nullable
+as String?,lastMessageMediaName: freezed == lastMessageMediaName ? _self.lastMessageMediaName : lastMessageMediaName // ignore: cast_nullable_to_non_nullable
 as String?,createdBy: freezed == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
 as String?,participants: null == participants ? _self.participants : participants // ignore: cast_nullable_to_non_nullable
 as List<ProfileModel>,
@@ -162,10 +165,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  RoomType type,  String? name,  String? description, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'last_message_at')  DateTime? lastMessageAt,  String? lastMessage, @JsonKey(name: 'created_by')  String? createdBy,  List<ProfileModel> participants)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  RoomType type,  String? name,  String? description, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'last_message_at')  DateTime? lastMessageAt,  String? lastMessage, @JsonKey(name: 'last_message_media_url')  String? lastMessageMediaUrl, @JsonKey(name: 'last_message_media_type')  String? lastMessageMediaType, @JsonKey(name: 'last_message_media_name')  String? lastMessageMediaName, @JsonKey(name: 'created_by')  String? createdBy,  List<ProfileModel> participants)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _RoomModel() when $default != null:
-return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl,_that.createdAt,_that.lastMessageAt,_that.lastMessage,_that.createdBy,_that.participants);case _:
+return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl,_that.createdAt,_that.lastMessageAt,_that.lastMessage,_that.lastMessageMediaUrl,_that.lastMessageMediaType,_that.lastMessageMediaName,_that.createdBy,_that.participants);case _:
   return orElse();
 
 }
@@ -183,10 +186,10 @@ return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  RoomType type,  String? name,  String? description, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'last_message_at')  DateTime? lastMessageAt,  String? lastMessage, @JsonKey(name: 'created_by')  String? createdBy,  List<ProfileModel> participants)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  RoomType type,  String? name,  String? description, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'last_message_at')  DateTime? lastMessageAt,  String? lastMessage, @JsonKey(name: 'last_message_media_url')  String? lastMessageMediaUrl, @JsonKey(name: 'last_message_media_type')  String? lastMessageMediaType, @JsonKey(name: 'last_message_media_name')  String? lastMessageMediaName, @JsonKey(name: 'created_by')  String? createdBy,  List<ProfileModel> participants)  $default,) {final _that = this;
 switch (_that) {
 case _RoomModel():
-return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl,_that.createdAt,_that.lastMessageAt,_that.lastMessage,_that.createdBy,_that.participants);case _:
+return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl,_that.createdAt,_that.lastMessageAt,_that.lastMessage,_that.lastMessageMediaUrl,_that.lastMessageMediaType,_that.lastMessageMediaName,_that.createdBy,_that.participants);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +206,10 @@ return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  RoomType type,  String? name,  String? description, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'last_message_at')  DateTime? lastMessageAt,  String? lastMessage, @JsonKey(name: 'created_by')  String? createdBy,  List<ProfileModel> participants)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  RoomType type,  String? name,  String? description, @JsonKey(name: 'avatar_url')  String? avatarUrl, @JsonKey(name: 'created_at')  DateTime createdAt, @JsonKey(name: 'last_message_at')  DateTime? lastMessageAt,  String? lastMessage, @JsonKey(name: 'last_message_media_url')  String? lastMessageMediaUrl, @JsonKey(name: 'last_message_media_type')  String? lastMessageMediaType, @JsonKey(name: 'last_message_media_name')  String? lastMessageMediaName, @JsonKey(name: 'created_by')  String? createdBy,  List<ProfileModel> participants)?  $default,) {final _that = this;
 switch (_that) {
 case _RoomModel() when $default != null:
-return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl,_that.createdAt,_that.lastMessageAt,_that.lastMessage,_that.createdBy,_that.participants);case _:
+return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl,_that.createdAt,_that.lastMessageAt,_that.lastMessage,_that.lastMessageMediaUrl,_that.lastMessageMediaType,_that.lastMessageMediaName,_that.createdBy,_that.participants);case _:
   return null;
 
 }
@@ -218,7 +221,7 @@ return $default(_that.id,_that.type,_that.name,_that.description,_that.avatarUrl
 @JsonSerializable()
 
 class _RoomModel implements RoomModel {
-  const _RoomModel({required this.id, this.type = RoomType.room, this.name, this.description, @JsonKey(name: 'avatar_url') this.avatarUrl, @JsonKey(name: 'created_at') required this.createdAt, @JsonKey(name: 'last_message_at') this.lastMessageAt, this.lastMessage, @JsonKey(name: 'created_by') this.createdBy, final  List<ProfileModel> participants = const []}): _participants = participants;
+  const _RoomModel({required this.id, this.type = RoomType.room, this.name, this.description, @JsonKey(name: 'avatar_url') this.avatarUrl, @JsonKey(name: 'created_at') required this.createdAt, @JsonKey(name: 'last_message_at') this.lastMessageAt, this.lastMessage, @JsonKey(name: 'last_message_media_url') this.lastMessageMediaUrl, @JsonKey(name: 'last_message_media_type') this.lastMessageMediaType, @JsonKey(name: 'last_message_media_name') this.lastMessageMediaName, @JsonKey(name: 'created_by') this.createdBy, final  List<ProfileModel> participants = const []}): _participants = participants;
   factory _RoomModel.fromJson(Map<String, dynamic> json) => _$RoomModelFromJson(json);
 
 @override final  String id;
@@ -229,6 +232,9 @@ class _RoomModel implements RoomModel {
 @override@JsonKey(name: 'created_at') final  DateTime createdAt;
 @override@JsonKey(name: 'last_message_at') final  DateTime? lastMessageAt;
 @override final  String? lastMessage;
+@override@JsonKey(name: 'last_message_media_url') final  String? lastMessageMediaUrl;
+@override@JsonKey(name: 'last_message_media_type') final  String? lastMessageMediaType;
+@override@JsonKey(name: 'last_message_media_name') final  String? lastMessageMediaName;
 @override@JsonKey(name: 'created_by') final  String? createdBy;
  final  List<ProfileModel> _participants;
 @override@JsonKey() List<ProfileModel> get participants {
@@ -251,16 +257,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RoomModel&&(identical(other.id, id) || other.id == id)&&(identical(other.type, type) || other.type == type)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.lastMessageAt, lastMessageAt) || other.lastMessageAt == lastMessageAt)&&(identical(other.lastMessage, lastMessage) || other.lastMessage == lastMessage)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&const DeepCollectionEquality().equals(other._participants, _participants));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _RoomModel&&(identical(other.id, id) || other.id == id)&&(identical(other.type, type) || other.type == type)&&(identical(other.name, name) || other.name == name)&&(identical(other.description, description) || other.description == description)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.lastMessageAt, lastMessageAt) || other.lastMessageAt == lastMessageAt)&&(identical(other.lastMessage, lastMessage) || other.lastMessage == lastMessage)&&(identical(other.lastMessageMediaUrl, lastMessageMediaUrl) || other.lastMessageMediaUrl == lastMessageMediaUrl)&&(identical(other.lastMessageMediaType, lastMessageMediaType) || other.lastMessageMediaType == lastMessageMediaType)&&(identical(other.lastMessageMediaName, lastMessageMediaName) || other.lastMessageMediaName == lastMessageMediaName)&&(identical(other.createdBy, createdBy) || other.createdBy == createdBy)&&const DeepCollectionEquality().equals(other._participants, _participants));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,type,name,description,avatarUrl,createdAt,lastMessageAt,lastMessage,createdBy,const DeepCollectionEquality().hash(_participants));
+int get hashCode => Object.hash(runtimeType,id,type,name,description,avatarUrl,createdAt,lastMessageAt,lastMessage,lastMessageMediaUrl,lastMessageMediaType,lastMessageMediaName,createdBy,const DeepCollectionEquality().hash(_participants));
 
 @override
 String toString() {
-  return 'RoomModel(id: $id, type: $type, name: $name, description: $description, avatarUrl: $avatarUrl, createdAt: $createdAt, lastMessageAt: $lastMessageAt, lastMessage: $lastMessage, createdBy: $createdBy, participants: $participants)';
+  return 'RoomModel(id: $id, type: $type, name: $name, description: $description, avatarUrl: $avatarUrl, createdAt: $createdAt, lastMessageAt: $lastMessageAt, lastMessage: $lastMessage, lastMessageMediaUrl: $lastMessageMediaUrl, lastMessageMediaType: $lastMessageMediaType, lastMessageMediaName: $lastMessageMediaName, createdBy: $createdBy, participants: $participants)';
 }
 
 
@@ -271,7 +277,7 @@ abstract mixin class _$RoomModelCopyWith<$Res> implements $RoomModelCopyWith<$Re
   factory _$RoomModelCopyWith(_RoomModel value, $Res Function(_RoomModel) _then) = __$RoomModelCopyWithImpl;
 @override @useResult
 $Res call({
- String id, RoomType type, String? name, String? description,@JsonKey(name: 'avatar_url') String? avatarUrl,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'last_message_at') DateTime? lastMessageAt, String? lastMessage,@JsonKey(name: 'created_by') String? createdBy, List<ProfileModel> participants
+ String id, RoomType type, String? name, String? description,@JsonKey(name: 'avatar_url') String? avatarUrl,@JsonKey(name: 'created_at') DateTime createdAt,@JsonKey(name: 'last_message_at') DateTime? lastMessageAt, String? lastMessage,@JsonKey(name: 'last_message_media_url') String? lastMessageMediaUrl,@JsonKey(name: 'last_message_media_type') String? lastMessageMediaType,@JsonKey(name: 'last_message_media_name') String? lastMessageMediaName,@JsonKey(name: 'created_by') String? createdBy, List<ProfileModel> participants
 });
 
 
@@ -288,7 +294,7 @@ class __$RoomModelCopyWithImpl<$Res>
 
 /// Create a copy of RoomModel
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? type = null,Object? name = freezed,Object? description = freezed,Object? avatarUrl = freezed,Object? createdAt = null,Object? lastMessageAt = freezed,Object? lastMessage = freezed,Object? createdBy = freezed,Object? participants = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? type = null,Object? name = freezed,Object? description = freezed,Object? avatarUrl = freezed,Object? createdAt = null,Object? lastMessageAt = freezed,Object? lastMessage = freezed,Object? lastMessageMediaUrl = freezed,Object? lastMessageMediaType = freezed,Object? lastMessageMediaName = freezed,Object? createdBy = freezed,Object? participants = null,}) {
   return _then(_RoomModel(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,type: null == type ? _self.type : type // ignore: cast_nullable_to_non_nullable
@@ -298,6 +304,9 @@ as String?,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // igno
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,lastMessageAt: freezed == lastMessageAt ? _self.lastMessageAt : lastMessageAt // ignore: cast_nullable_to_non_nullable
 as DateTime?,lastMessage: freezed == lastMessage ? _self.lastMessage : lastMessage // ignore: cast_nullable_to_non_nullable
+as String?,lastMessageMediaUrl: freezed == lastMessageMediaUrl ? _self.lastMessageMediaUrl : lastMessageMediaUrl // ignore: cast_nullable_to_non_nullable
+as String?,lastMessageMediaType: freezed == lastMessageMediaType ? _self.lastMessageMediaType : lastMessageMediaType // ignore: cast_nullable_to_non_nullable
+as String?,lastMessageMediaName: freezed == lastMessageMediaName ? _self.lastMessageMediaName : lastMessageMediaName // ignore: cast_nullable_to_non_nullable
 as String?,createdBy: freezed == createdBy ? _self.createdBy : createdBy // ignore: cast_nullable_to_non_nullable
 as String?,participants: null == participants ? _self._participants : participants // ignore: cast_nullable_to_non_nullable
 as List<ProfileModel>,

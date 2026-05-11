@@ -7,3 +7,5 @@ final themeProvider = NotifierProvider.autoDispose<ThemeNotifier, ThemeMode>(
     return ThemeNotifier();
   },
 );
+
+

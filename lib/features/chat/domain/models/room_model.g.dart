@@ -17,6 +17,9 @@ _RoomModel _$RoomModelFromJson(Map<String, dynamic> json) => _RoomModel(
       ? null
       : DateTime.parse(json['last_message_at'] as String),
   lastMessage: json['lastMessage'] as String?,
+  lastMessageMediaUrl: json['last_message_media_url'] as String?,
+  lastMessageMediaType: json['last_message_media_type'] as String?,
+  lastMessageMediaName: json['last_message_media_name'] as String?,
   createdBy: json['created_by'] as String?,
   participants:
       (json['participants'] as List<dynamic>?)
@@ -35,6 +38,9 @@ Map<String, dynamic> _$RoomModelToJson(_RoomModel instance) =>
       'created_at': instance.createdAt.toIso8601String(),
       'last_message_at': instance.lastMessageAt?.toIso8601String(),
       'lastMessage': instance.lastMessage,
+      'last_message_media_url': instance.lastMessageMediaUrl,
+      'last_message_media_type': instance.lastMessageMediaType,
+      'last_message_media_name': instance.lastMessageMediaName,
       'created_by': instance.createdBy,
       'participants': instance.participants,
     };

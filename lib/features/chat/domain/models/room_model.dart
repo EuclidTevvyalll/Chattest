@@ -24,6 +24,9 @@ abstract class RoomModel with _$RoomModel {
     @JsonKey(name: 'created_at') required DateTime createdAt,
     @JsonKey(name: 'last_message_at') DateTime? lastMessageAt,
     String? lastMessage,
+    @JsonKey(name: 'last_message_media_url') String? lastMessageMediaUrl,
+    @JsonKey(name: 'last_message_media_type') String? lastMessageMediaType,
+    @JsonKey(name: 'last_message_media_name') String? lastMessageMediaName,
     @JsonKey(name: 'created_by') String? createdBy,
 
     @Default([]) List<ProfileModel> participants,
@@ -32,3 +35,5 @@ abstract class RoomModel with _$RoomModel {
   factory RoomModel.fromJson(Map<String, dynamic> json) =>
       _$RoomModelFromJson(json);
 }
+
+

@@ -176,3 +176,5 @@ Uint8List _processImage(Uint8List input) {
   debugPrint('Avatar size: ${processed.length} bytes (High Quality Mode)');
   return processed;
 }
+
+

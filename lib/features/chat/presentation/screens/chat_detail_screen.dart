@@ -339,6 +339,14 @@ class ChatDetailScreen extends HookConsumerWidget {
                       }
 
                       final isMine = message.profileId == currentUserId;
+                      final participants = participantsAsync.value ?? [];
+                      final sender = participants
+                          .where((p) => p.id == message.profileId)
+                          .firstOrNull;
+
+                      final isGroup = room?.type == RoomType.group;
+                      final isChannel = room?.type == RoomType.channel;
+
                       return ChatBubble(
                         content: message.content,
                         isMine: isMine,
@@ -354,6 +362,10 @@ class ChatDetailScreen extends HookConsumerWidget {
                         mediaUrl: message.mediaUrl,
                         mediaType: message.mediaType,
                         mediaName: message.mediaName,
+                        showSenderInfo: isGroup || isChannel,
+                        senderName: isChannel ? room?.name : (sender?.nickname ?? sender?.username),
+                        senderAvatarUrl: isGroup ? sender?.avatarUrl : null,
+                        channelName: isChannel ? room?.name : null,
                         isSelected: selectedMessages.value
                             .any((m) => m.id == message.id),
                         isSelectionMode: isSelectionMode,
@@ -1247,87 +1259,89 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
         borderRadius: BorderRadius.circular(24),
         opacity: isDark ? 0.3 : 0.1,
         padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: size.height * 0.8,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Отправить медиа',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      'Отправить медиа',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
                 ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: size.height * 0.4,
-              ),
-              child: ClipRRect(
+                const SizedBox(height: 16),
+                ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: _buildPreview(),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _controller,
-              style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: 'Добавьте комментарий...',
-                hintStyle: TextStyle(
-                  color: isDark ? Colors.white54 : Colors.black54,
-                ),
-                filled: true,
-                fillColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              maxLines: 3,
-              minLines: 1,
-              onSubmitted: (_) {
-                Navigator.pop(context, _controller.text);
-              },
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Отмена'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, _controller.text),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _controller,
+                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Добавьте комментарий...',
+                    hintStyle: TextStyle(
+                      color: isDark ? Colors.white54 : Colors.black54,
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    filled: true,
+                    fillColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
-                  child: const Text('Отправить'),
+                  maxLines: 3,
+                  minLines: 1,
+                  onSubmitted: (_) {
+                    Navigator.pop(context, _controller.text);
+                  },
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Отмена'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, _controller.text),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      child: const Text('Отправить'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1337,7 +1351,7 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
     if (widget.type == FileType.image) {
       return Image.memory(
         widget.bytes,
-        fit: BoxFit.contain,
+        fit: BoxFit.fitWidth,
       );
     } else if (widget.type == FileType.video) {
       return Container(
@@ -1375,3 +1389,5 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
     }
   }
 }
+
+
