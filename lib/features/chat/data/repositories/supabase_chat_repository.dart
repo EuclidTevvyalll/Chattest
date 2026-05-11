@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:dio/dio.dart' as dio;
 import 'package:image/image.dart' as img;
+import 'package:forgelink/core/config/supabase_config.dart';
 import 'package:forgelink/features/chat/domain/models/message_model.dart';
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
 import 'package:forgelink/features/chat/domain/models/profile_model.dart';
@@ -9,8 +11,9 @@ import 'package:forgelink/features/chat/domain/repositories/chat_repository.dart
 
 class SupabaseChatRepository implements ChatRepository {
   final SupabaseClient _client;
+  final dio.Dio _dio;
 
-  SupabaseChatRepository(this._client);
+  SupabaseChatRepository(this._client, this._dio);
 
   @override
   Stream<List<RoomModel>> watchRooms() {
@@ -205,44 +208,51 @@ class SupabaseChatRepository implements ChatRepository {
     while (retryCount < maxRetries) {
       try {
         final session = _client.auth.currentSession;
-        if (session == null) {
+        final jwt = session?.accessToken;
+        if (jwt == null) {
           await _client.auth.refreshSession();
         }
         
-        final path = '$roomId/$fileName';
-        
-        // Determine bucket name based on file type
-        String bucket = 'chat-documents';
-        if (contentType?.startsWith('image/') == true || 
-            fileName.toLowerCase().endsWith('.jpg') || 
-            fileName.toLowerCase().endsWith('.jpeg') || 
-            fileName.toLowerCase().endsWith('.png')) {
-          bucket = 'chat-images';
-        } else if (contentType?.startsWith('video/') == true) {
-          bucket = 'chat-videos';
-        } else if (contentType?.startsWith('audio/') == true) {
-          bucket = 'chat-audio';
-        }
+        final anonKey = SupabaseConfig.anonKey;
+        final url = '${SupabaseConfig.url}/functions/v1/upload-media';
 
-        debugPrint('SupabaseChatRepository: Uploading to bucket $bucket: $path');
+        debugPrint('SupabaseChatRepository: Uploading via Dio to $url...');
 
-        // Upload to the appropriate bucket
-        await _client.storage.from(bucket).uploadBinary(
-          path,
-          uploadBytes,
-          fileOptions: FileOptions(
-            contentType: contentType ?? 'application/octet-stream',
-            upsert: true,
+        final formData = dio.FormData.fromMap({
+          'roomId': roomId,
+          'fileName': fileName,
+          'contentType': contentType ?? 'application/octet-stream',
+          'file': dio.MultipartFile.fromBytes(
+            uploadBytes,
+            filename: fileName,
+          ),
+        });
+
+        final response = await _dio.post(
+          url,
+          data: formData,
+          options: dio.Options(
+            headers: {
+              'Authorization': 'Bearer ${_client.auth.currentSession?.accessToken}',
+              'apikey': anonKey,
+            },
           ),
         );
 
-        // Get public URL
-        final publicUrl = _client.storage.from(bucket).getPublicUrl(path);
-        debugPrint('SupabaseChatRepository: Direct upload successful! URL: $publicUrl');
-        return publicUrl;
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final data = response.data;
+          if (data is Map && data.containsKey('url')) {
+            final publicUrl = data['url'].toString();
+            debugPrint('SupabaseChatRepository: Dio upload successful! URL: $publicUrl');
+            return publicUrl;
+          }
+          throw Exception('Invalid response from upload-media: $data');
+        } else {
+          throw Exception('Upload failed with status: ${response.statusCode}');
+        }
       } catch (e) {
         retryCount++;
-        debugPrint('SupabaseChatRepository: Storage upload attempt $retryCount failed: $e');
+        debugPrint('SupabaseChatRepository: Dio upload attempt $retryCount failed: $e');
         
         if (retryCount >= maxRetries) rethrow;
         await Future.delayed(Duration(milliseconds: 2000 * retryCount));

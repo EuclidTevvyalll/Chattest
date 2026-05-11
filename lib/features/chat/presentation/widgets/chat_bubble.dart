@@ -1,10 +1,19 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file_plus/open_file_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:forgelink/core/config/supabase_config.dart';
 import 'package:flutter/gestures.dart';
 import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
 import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/features/chat/presentation/widgets/video_player_bubble.dart';
 
 class ChatBubble extends StatelessWidget {
   final String content;
@@ -727,26 +736,29 @@ class ChatBubble extends StatelessWidget {
                                     // For other file types (Videos, Files)
                                     Padding(
                                       padding: const EdgeInsets.only(bottom: 8),
-                                      child: InkWell(
-                                        onTap: () => _showMediaDetail(context, isDark),
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: isMine
-                                                ? Colors.white.withValues(alpha: 0.15)
-                                                : Colors.black.withValues(alpha: 
-                                                    0.05,
+                                      child: (mediaType?.startsWith('video/') == true)
+                                          ? ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: VideoPlayerBubble(
+                                                videoUrl: mediaUrl!,
+                                                maxWidth: screenWidth * (isSelectionMode ? 0.5 : 0.6),
+                                              ),
+                                            )
+                                          : InkWell(
+                                              onTap: () => _showFileDetail(context, isDark),
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: Container(
+                                                padding: const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: isMine
+                                                      ? Colors.white.withValues(alpha: 0.15)
+                                                      : Colors.black.withValues(alpha: 0.05),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                  border: Border.all(
+                                                    color: isMine ? Colors.white24 : Colors.black12,
                                                   ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            border: Border.all(
-                                              color: isMine
-                                                  ? Colors.white24
-                                                  : Colors.black12,
-                                            ),
-                                          ),
+                                                ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
@@ -964,33 +976,158 @@ class ChatBubble extends StatelessWidget {
     showDialog(
       context: context,
       useSafeArea: false,
+      builder: (context) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black.withValues(alpha: 0.5),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: const [],
+        ),
+        body: InteractiveViewer(
+          minScale: 0.5,
+          maxScale: 4.0,
+          child: Center(
+            child: mediaUrl!.startsWith('data:image')
+                ? Image.memory(
+                    base64Decode(mediaUrl!.split(',').last),
+                    fit: BoxFit.contain,
+                  )
+                : CachedNetworkImage(
+                    imageUrl: mediaUrl!,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(
+                        color: ThemeColors.blue,
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => const Icon(
+                      Icons.broken_image,
+                      color: Colors.white54,
+                      size: 64,
+                    ),
+                    fit: BoxFit.contain,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openFile(BuildContext context) async {
+    if (mediaUrl == null) return;
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Открываем файл...'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      final fileName = mediaName ?? 'file_${DateTime.now().millisecondsSinceEpoch}';
+      final savePath = p.join(tempDir.path, fileName);
+      
+      if (!await File(savePath).exists()) {
+        final client = Supabase.instance.client;
+        final jwt = client.auth.currentSession?.accessToken;
+        
+        await Dio().download(
+          Uri.encodeFull(mediaUrl!), 
+          savePath,
+          options: Options(
+            headers: {
+              if (jwt != null && !mediaUrl!.contains('/public/')) 
+                'Authorization': 'Bearer $jwt',
+              'apikey': SupabaseConfig.anonKey,
+            },
+          ),
+        );
+      }
+      
+      await OpenFile.open(savePath);
+    } catch (e) {
+      if (e is DioException && e.response != null) {
+        debugPrint('Dio error body: ${e.response?.data}');
+      }
+      debugPrint('Error opening file: $e');
+      final uri = Uri.parse(mediaUrl!);
+      await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+    }
+  }
+
+  void _showFileDetail(BuildContext context, bool isDark) {
+    if (mediaUrl == null) return;
+
+    showDialog(
+      context: context,
+      useSafeArea: false,
       builder: (context) => Dialog.fullscreen(
         backgroundColor: Colors.black,
         child: Stack(
           children: [
-            InteractiveViewer(
-              minScale: 0.5,
-              maxScale: 4.0,
-              child: Center(
-                child: mediaUrl!.startsWith('data:image')
-                    ? Image.memory(
-                        base64Decode(mediaUrl!.split(',').last),
-                        fit: BoxFit.contain,
-                      )
-                    : CachedNetworkImage(
-                        imageUrl: mediaUrl!,
-                        placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(
-                            color: ThemeColors.blue,
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => const Icon(
-                          Icons.broken_image,
-                          color: Colors.white54,
-                          size: 64,
-                        ),
-                        fit: BoxFit.contain,
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: ThemeColors.blue.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.insert_drive_file_rounded,
+                      color: ThemeColors.blue,
+                      size: 64,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 40),
+                    child: Text(
+                      mediaName ?? 'Файл',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (mediaType != null)
+                    Text(
+                      mediaType!,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 14,
+                      ),
+                    ),
+                  const SizedBox(height: 48),
+                  ElevatedButton.icon(
+                    onPressed: () => _openFile(context),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Открыть файл'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ThemeColors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Positioned(
