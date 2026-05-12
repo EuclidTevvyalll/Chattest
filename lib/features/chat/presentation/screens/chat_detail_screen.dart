@@ -410,7 +410,17 @@ class ChatDetailScreen extends HookConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: ThemeTextStyles.h3(isDark: isDark)),
-                  if (isOnline)
+                  if (room?.type == RoomType.room)
+                    Text(
+                      isOnline ? 'онлайн' : 'офлайн',
+                      style: ThemeTextStyles.caption(
+                        color: isOnline
+                            ? Colors.green
+                            : (isDark ? Colors.white38 : Colors.black38),
+                        isDark: isDark,
+                      ),
+                    )
+                  else if (isOnline)
                     Text(
                       'в сети',
                       style: ThemeTextStyles.caption(
@@ -510,6 +520,12 @@ class ChatDetailScreen extends HookConsumerWidget {
                       final isGroup = room?.type == RoomType.group;
                       final isChannel = room?.type == RoomType.channel;
 
+                      final otherParticipant = participantsAsync.value
+                          ?.where((p) => p.id != currentUserId)
+                          .firstOrNull;
+                      final isOtherOnline = otherParticipant?.isOnline ?? false;
+                      final isRead = isOtherOnline || index > 0;
+
                       final bubbleWidget = ChatBubble(
                         content: message.content,
                         isMine: isMine,
@@ -517,6 +533,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                             .format(message.createdAt.toLocal()),
                         isEdited: message.isEdited,
                         isDeleted: message.isDeleted,
+                        isRead: isRead,
                         reactions: message.reactions,
                         currentUserId: currentUserId,
                         repliedMessageContent: repliedContent,

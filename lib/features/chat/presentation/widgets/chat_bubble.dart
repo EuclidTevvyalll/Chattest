@@ -33,6 +33,7 @@ class ChatBubble extends StatelessWidget {
   final bool? isDeleted;
   final bool isSelected; // Added
   final bool isSelectionMode; // Added
+  final bool isRead; // Статус прочтения (✓ / ✓✓)
   final String? currentUserId;
   final String? repliedMessageContent;
   final String? repliedMessageSenderName;
@@ -64,6 +65,7 @@ class ChatBubble extends StatelessWidget {
     this.isDeleted,
     this.isSelected = false,
     this.isSelectionMode = false,
+    this.isRead = true,
     this.currentUserId,
     this.repliedMessageContent,
     this.repliedMessageSenderName,
@@ -1002,6 +1004,18 @@ class ChatBubble extends StatelessWidget {
                                                           ? Colors.white38
                                                           : Colors.black38),
                                               ),
+                                            ),
+                                          ],
+                                          if (isMine) ...[
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              isRead
+                                                  ? Icons.done_all_rounded
+                                                  : Icons.check_rounded,
+                                              size: 12,
+                                              color: isRead
+                                                  ? Colors.white
+                                                  : Colors.white70,
                                             ),
                                           ],
                                         ],
