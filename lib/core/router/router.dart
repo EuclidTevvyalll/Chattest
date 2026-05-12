@@ -77,9 +77,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                   context.go(Routes.chat);
                   break;
                 case 1:
-                  // Placeholder for Contacts
-                  break;
-                case 2:
                   context.go(Routes.profile);
                   break;
               }
@@ -152,7 +149,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 int _calculateSelectedIndex(String location) {
   if (location == Routes.chat) return 0;
-  if (location == Routes.profile) return 2;
+  if (location == Routes.profile) return 1;
   return 0;
 }
 

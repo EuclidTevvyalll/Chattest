@@ -104,22 +104,16 @@ class NavBarItem {
 }
 
 List<NavBarItem> navBarItems(BuildContext context) => [
-  NavBarItem(
-    icon: Icons.chat_bubble_outline_rounded,
-    activeIcon: Icons.chat_bubble_rounded,
-    label: 'Chats',
-  ),
-
-  NavBarItem(
-    icon: Icons.people_outline_rounded,
-    activeIcon: Icons.people_rounded,
-    label: 'Contacts',
-  ),
-  NavBarItem(
-    icon: Icons.settings_outlined,
-    activeIcon: Icons.settings_rounded,
-    label: 'Settings',
-  ),
-];
+      NavBarItem(
+        icon: Icons.chat_bubble_outline_rounded,
+        activeIcon: Icons.chat_bubble_rounded,
+        label: 'Чаты',
+      ),
+      NavBarItem(
+        icon: Icons.settings_outlined,
+        activeIcon: Icons.settings_rounded,
+        label: 'Настройки',
+      ),
+    ];
 
 
