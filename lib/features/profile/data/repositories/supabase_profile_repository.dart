@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:image/image.dart' as img;
@@ -101,43 +100,34 @@ class SupabaseProfileRepository implements ProfileRepository {
 
     while (retryCount < maxRetries) {
       try {
-        debugPrint('Supabase: Avatar upload attempt ${retryCount + 1} via Edge Function...');
+        debugPrint('Supabase: Avatar upload attempt ${retryCount + 1} directly to storage...');
         
-        final jwt = _client.auth.currentSession?.accessToken;
-        if (jwt == null) {
-          await _client.auth.refreshSession();
-        }
+        final path = '$userId/$fileName';
+        await _client.storage
+            .from('avatars')
+            .uploadBinary(
+              path,
+              uploadBytes,
+              fileOptions: const FileOptions(
+                contentType: 'image/jpeg',
+                upsert: true,
+              ),
+            );
 
-        final response = await _client.functions.invoke(
-          'upload-media',
-          body: {
-            'roomId': 'avatars',
-            'fileName': fileName,
-            'fileBase64': base64Encode(uploadBytes),
-            'contentType': 'image/jpeg',
-          },
-        );
+        final publicUrl = _client.storage
+            .from('avatars')
+            .getPublicUrl(path);
 
-        if (response.status == 200 || response.status == 201) {
-          final data = response.data;
-          if (data is Map && data.containsKey('url')) {
-            debugPrint('Supabase: Avatar upload successful!');
-            return data['url'];
-          }
-          throw Exception('Invalid response from Edge Function: $data');
-        } else {
-          throw Exception('Edge Function Error (Status ${response.status}): ${response.data}');
-        }
+        debugPrint('Supabase: Avatar upload successful! URL: $publicUrl');
+        return publicUrl;
       } catch (e) {
         retryCount++;
         debugPrint('Supabase: Avatar upload attempt $retryCount failed: $e');
         
-        if (e is FunctionException) {
-          if (e.status == 401 || e.status == 403) {
-            try {
-              await _client.auth.refreshSession();
-            } catch (_) {}
-          }
+        if (e is StorageException && (e.statusCode == '401' || e.statusCode == '403')) {
+          try {
+            await _client.auth.refreshSession();
+          } catch (_) {}
         }
 
         if (retryCount >= maxRetries) {

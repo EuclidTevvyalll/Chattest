@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:dio/dio.dart' as dio;
 import 'package:image/image.dart' as img;
-import 'package:forgelink/core/config/supabase_config.dart';
 import 'package:forgelink/features/chat/domain/models/message_model.dart';
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
 import 'package:forgelink/features/chat/domain/models/profile_model.dart';
@@ -11,6 +10,7 @@ import 'package:forgelink/features/chat/domain/repositories/chat_repository.dart
 
 class SupabaseChatRepository implements ChatRepository {
   final SupabaseClient _client;
+  // ignore: unused_field
   final dio.Dio _dio;
 
   SupabaseChatRepository(this._client, this._dio);
@@ -181,21 +181,38 @@ class SupabaseChatRepository implements ChatRepository {
   Future<String> uploadMedia(String roomId, Uint8List bytes, String fileName,
       String? contentType) async {
     var uploadBytes = bytes;
+    final mimeLower = contentType?.toLowerCase() ?? '';
+    final fileLower = fileName.toLowerCase();
     
+    // Determine target bucket based on file type
+    String bucketName = 'chat-documents';
+    if (mimeLower.startsWith('image/') || 
+        fileLower.endsWith('.jpg') || 
+        fileLower.endsWith('.jpeg') || 
+        fileLower.endsWith('.png') || 
+        fileLower.endsWith('.gif') || 
+        fileLower.endsWith('.webp')) {
+      bucketName = 'chat-images';
+    } else if (mimeLower.startsWith('video/') || 
+               fileLower.endsWith('.mp4') || 
+               fileLower.endsWith('.mov')) {
+      bucketName = 'chat-videos';
+    } else if (mimeLower.startsWith('audio/') || 
+               fileLower.endsWith('.mp3') || 
+               fileLower.endsWith('.wav') || 
+               fileLower.endsWith('.ogg') || 
+               fileLower.endsWith('.m4a')) {
+      bucketName = 'chat-audio';
+    }
+
     // Compress if it's an image
-    if (contentType?.startsWith('image/') == true || 
-        fileName.toLowerCase().endsWith('.jpg') || 
-        fileName.toLowerCase().endsWith('.jpeg') || 
-        fileName.toLowerCase().endsWith('.png')) {
+    if (bucketName == 'chat-images') {
+      debugPrint('SupabaseChatRepository: Original image size: ${bytes.length} bytes');
       try {
-        final image = img.decodeImage(uploadBytes);
-        if (image != null) {
-          img.Image resized = image;
-          if (image.width > 1200 || image.height > 1200) {
-            resized = img.copyResize(image, width: 1200, height: 1200, interpolation: img.Interpolation.linear);
-          }
-          final compressed = img.encodeJpg(resized, quality: 75);
-          uploadBytes = Uint8List.fromList(compressed);
+        final optimizedBytes = await compute(_optimizeImage, uploadBytes);
+        if (optimizedBytes != null) {
+          uploadBytes = optimizedBytes;
+          debugPrint('SupabaseChatRepository: Optimized image size: ${uploadBytes.length} bytes');
         }
       } catch (e) {
         debugPrint('SupabaseChatRepository: Image optimization failed: $e');
@@ -207,53 +224,39 @@ class SupabaseChatRepository implements ChatRepository {
 
     while (retryCount < maxRetries) {
       try {
-        final session = _client.auth.currentSession;
-        final jwt = session?.accessToken;
-        if (jwt == null) {
-          await _client.auth.refreshSession();
-        }
-        
-        final anonKey = SupabaseConfig.anonKey;
-        final url = '${SupabaseConfig.url}/functions/v1/upload-media';
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final safeFileName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9.\-_]'), '_');
+        final path = '$roomId/${timestamp}_$safeFileName';
 
-        debugPrint('SupabaseChatRepository: Uploading via Dio to $url...');
+        debugPrint('SupabaseChatRepository: Uploading directly to storage bucket "$bucketName" at path: $path');
 
-        final formData = dio.FormData.fromMap({
-          'roomId': roomId,
-          'fileName': fileName,
-          'contentType': contentType ?? 'application/octet-stream',
-          'file': dio.MultipartFile.fromBytes(
-            uploadBytes,
-            filename: fileName,
-          ),
-        });
+        await _client.storage
+            .from(bucketName)
+            .uploadBinary(
+              path,
+              uploadBytes,
+              fileOptions: FileOptions(
+                contentType: contentType ?? 'application/octet-stream',
+                upsert: true,
+              ),
+            );
 
-        final response = await _dio.post(
-          url,
-          data: formData,
-          options: dio.Options(
-            headers: {
-              'Authorization': 'Bearer ${_client.auth.currentSession?.accessToken}',
-              'apikey': anonKey,
-            },
-          ),
-        );
+        final publicUrl = _client.storage
+            .from(bucketName)
+            .getPublicUrl(path);
 
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          final data = response.data;
-          if (data is Map && data.containsKey('url')) {
-            final publicUrl = data['url'].toString();
-            debugPrint('SupabaseChatRepository: Dio upload successful! URL: $publicUrl');
-            return publicUrl;
-          }
-          throw Exception('Invalid response from upload-media: $data');
-        } else {
-          throw Exception('Upload failed with status: ${response.statusCode}');
-        }
+        debugPrint('SupabaseChatRepository: Storage upload successful! URL: $publicUrl');
+        return publicUrl;
       } catch (e) {
         retryCount++;
-        debugPrint('SupabaseChatRepository: Dio upload attempt $retryCount failed: $e');
+        debugPrint('SupabaseChatRepository: Storage upload attempt $retryCount failed: $e');
         
+        if (e is StorageException && (e.statusCode == '401' || e.statusCode == '403')) {
+          try {
+            await _client.auth.refreshSession();
+          } catch (_) {}
+        }
+
         if (retryCount >= maxRetries) rethrow;
         await Future.delayed(Duration(milliseconds: 2000 * retryCount));
       }
@@ -586,5 +589,21 @@ class SupabaseChatRepository implements ChatRepository {
     } catch (e) {
       rethrow;
     }
+  }
+
+  static Uint8List? _optimizeImage(Uint8List bytes) {
+    final image = img.decodeImage(bytes);
+    if (image == null) return null;
+
+    img.Image resized = image;
+    if (image.width > 1200 || image.height > 1200) {
+      if (image.width > image.height) {
+        resized = img.copyResize(image, width: 1200, interpolation: img.Interpolation.linear);
+      } else {
+        resized = img.copyResize(image, height: 1200, interpolation: img.Interpolation.linear);
+      }
+    }
+    
+    return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
   }
 }

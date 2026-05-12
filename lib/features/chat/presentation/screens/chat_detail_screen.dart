@@ -22,7 +22,9 @@ import 'package:forgelink/features/auth/presentation/providers/auth_provider.dar
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
 import 'package:forgelink/features/chat/domain/models/message_model.dart';
 import 'package:forgelink/features/profile/presentation/providers/profile_provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
+import 'package:forgelink/core/config/supabase_config.dart';
 
 class ChatDetailScreen extends HookConsumerWidget {
   final String roomId;
@@ -971,6 +973,21 @@ void _showAttachmentMenu(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _AttachmentOption(
+                icon: Icons.camera_alt_rounded,
+                label: 'Камера',
+                color: Colors.pink,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _takePhotoAndUpload(
+                    context,
+                    ref,
+                    roomId,
+                    currentUserId,
+                    isUploading,
+                  );
+                },
+              ),
+              _AttachmentOption(
                 icon: Icons.image_rounded,
                 label: 'Фото',
                 color: Colors.blue,
@@ -1100,6 +1117,19 @@ Future<void> _pickAndUpload(
         context.mounted) {
       final file = result.files.single;
       debugPrint('ChatDetailScreen: File picked: ${file.name}, size: ${file.size}, path: ${file.path}');
+      
+      if (file.size > SupabaseConfig.maxFileSize) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Размер файла превышает допустимый лимит (50 МБ)'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
+
       isUploading.value = true;
 
       try {
@@ -1114,8 +1144,19 @@ Future<void> _pickAndUpload(
         debugPrint('ChatDetailScreen: Read ${bytes.length} bytes');
 
         String contentType = 'application/octet-stream';
+        final ext = file.extension?.toLowerCase();
         if (type == FileType.image) {
           contentType = 'image/jpeg';
+        } else if (type == FileType.video) {
+          contentType = 'video/mp4';
+          if (ext == 'mov') contentType = 'video/quicktime';
+          if (ext == 'avi') contentType = 'video/x-msvideo';
+        } else if (ext != null) {
+          if (ext == 'pdf') contentType = 'application/pdf';
+          if (ext == 'txt') contentType = 'text/plain';
+        }
+
+        if (type == FileType.image) {
           debugPrint('ChatDetailScreen: Processing image...');
           final image = img.decodeImage(bytes);
           if (image != null) {
@@ -1216,6 +1257,81 @@ Future<void> _pickAndUpload(
   }
 }
 
+Future<void> _takePhotoAndUpload(
+  BuildContext context,
+  WidgetRef ref,
+  String roomId,
+  String currentUserId,
+  ValueNotifier<bool> isUploading,
+) async {
+  debugPrint('ChatDetailScreen: _takePhotoAndUpload called');
+  try {
+    final picker = ImagePicker();
+    final XFile? photo = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 80,
+    );
+
+    if (photo == null) {
+      debugPrint('ChatDetailScreen: Camera returned null');
+      return;
+    }
+
+    if (context.mounted) {
+      isUploading.value = true;
+      try {
+        final fileSize = await photo.length();
+        if (fileSize > SupabaseConfig.maxFileSize) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Размер фото превышает лимит (50 МБ)'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+          isUploading.value = false;
+          return;
+        }
+
+        final bytes = await photo.readAsBytes();
+        final fileName = 'camera_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        const contentType = 'image/jpeg';
+
+        if (!context.mounted) return;
+
+        // Show preview
+        final caption = await showDialog<String>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => MediaPreviewDialog(
+            bytes: bytes,
+            fileName: fileName,
+            type: FileType.image,
+          ),
+        );
+
+        if (caption == null) return;
+
+        await ref.read(chatControllerProvider.notifier).sendMediaMessage(
+              roomId,
+              currentUserId,
+              bytes,
+              fileName,
+              contentType,
+              content: caption,
+            );
+      } catch (e) {
+        debugPrint('ChatDetailScreen: Camera Upload Error: $e');
+      } finally {
+        isUploading.value = false;
+      }
+    }
+  } catch (e) {
+    debugPrint('ChatDetailScreen: Camera Outer Error: $e');
+  }
+}
+
 class MediaPreviewDialog extends StatefulWidget {
   final Uint8List bytes;
   final String fileName;
@@ -1293,7 +1409,6 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
                 TextField(
                   controller: _controller,
                   style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                  autofocus: true,
                   decoration: InputDecoration(
                     hintText: 'Добавьте комментарий...',
                     hintStyle: TextStyle(

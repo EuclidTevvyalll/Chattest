@@ -38,7 +38,7 @@ dependencies:
   video_player: ^2.11.1
   chewie: ^1.13.1
   url_launcher: ^6.3.2
-  open_file_plus: ^3.4.1+1
+  open_filex: ^4.7.0
   path: ^1.9.1
   supabase: ^2.10.6
 

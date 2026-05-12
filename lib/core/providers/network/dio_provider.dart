@@ -4,9 +4,9 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 final dioProvider = Provider<Dio>((ref) {
   return Dio(
     BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 60),
       sendTimeout: const Duration(minutes: 5), // Long timeout for uploads
-      receiveTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 60),
     ),
   );
 });
