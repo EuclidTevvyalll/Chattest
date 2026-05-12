@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -25,6 +26,9 @@ import 'package:forgelink/features/profile/presentation/providers/profile_provid
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:forgelink/core/config/supabase_config.dart';
+import 'package:record/record.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class ChatDetailScreen extends HookConsumerWidget {
   final String roomId;
@@ -127,6 +131,106 @@ class ChatDetailScreen extends HookConsumerWidget {
     final canWrite = room?.type != RoomType.channel ||
         myRole == 'owner' ||
         myRole == 'admin';
+
+    // ---- Добавляем переменные и логику для записи аудио ----
+    final isTextEmpty = useState(controller.text.trim().isEmpty);
+    final isRecording = useState(false);
+    final recordingDuration = useState(0);
+    final audioRecorder = useMemoized(() => AudioRecorder(), []);
+
+    useEffect(() {
+      return () => audioRecorder.dispose();
+    }, [audioRecorder]);
+
+    useEffect(() {
+      void listener() {
+        final empty = controller.text.trim().isEmpty;
+        if (isTextEmpty.value != empty) {
+          isTextEmpty.value = empty;
+        }
+      }
+
+      controller.addListener(listener);
+      return () => controller.removeListener(listener);
+    }, [controller]);
+
+    useEffect(() {
+      Timer? timer;
+      if (isRecording.value) {
+        recordingDuration.value = 0;
+        timer = Timer.periodic(const Duration(seconds: 1), (_) {
+          recordingDuration.value++;
+        });
+      }
+      return () => timer?.cancel();
+    }, [isRecording.value]);
+
+    Future<void> startRecording() async {
+      try {
+        if (await audioRecorder.hasPermission()) {
+          final tempDir = await getTemporaryDirectory();
+          final filePath = p.join(
+            tempDir.path,
+            'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
+          );
+
+          await audioRecorder.start(
+            const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000),
+            path: filePath,
+          );
+          isRecording.value = true;
+        }
+      } catch (e) {
+        debugPrint('Ошибка старта записи: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ошибка доступа к микрофону: $e')),
+          );
+        }
+      }
+    }
+
+    Future<void> stopAndSendRecording() async {
+      if (!isRecording.value) return;
+      try {
+        final path = await audioRecorder.stop();
+        isRecording.value = false;
+
+        if (path != null && currentUserId != null) {
+          final file = File(path);
+          if (await file.exists()) {
+            final bytes = await file.readAsBytes();
+            final fileName = p.basename(path);
+
+            isUploading.value = true;
+            try {
+              await ref.read(chatControllerProvider.notifier).sendMediaMessage(
+                roomId,
+                currentUserId,
+                bytes,
+                fileName,
+                'audio/m4a', // Используем корректный MIME для M4A
+                content: '', // пустое описание для голосового
+              );
+            } finally {
+              isUploading.value = false;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Ошибка остановки записи: $e');
+        isRecording.value = false;
+      }
+    }
+
+    Future<void> cancelRecording() async {
+      if (!isRecording.value) return;
+      try {
+        await audioRecorder.stop();
+      } catch (_) {}
+      isRecording.value = false;
+    }
+    // --------------------------------------------------------
 
     Future<void> handleSend() async {
       if (controller.text.trim().isNotEmpty && currentUserId != null) {
@@ -841,83 +945,153 @@ class ChatDetailScreen extends HookConsumerWidget {
                               ),
                               borderRadius: BorderRadius.circular(30),
                               opacity: isDark ? 0.15 : 0.08,
-                              child: Row(
-                                children: [
-                                  IconButton(
-                                    icon: isUploading.value
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: ThemeColors.blue,
-                                            ),
-                                          )
-                                        : Icon(
-                                            Icons.add_circle_outline_rounded,
-                                            color: isDark
-                                                ? Colors.white54
-                                                : Colors.black45,
+                              child: isRecording.value
+                                  ? Row(
+                                      children: [
+                                        IconButton(
+                                          onPressed: cancelRecording,
+                                          tooltip: 'Отменить запись',
+                                          icon: const Icon(
+                                            Icons.delete_outline_rounded,
+                                            color: Colors.redAccent,
                                           ),
-                                    onPressed: isUploading.value
-                                        ? null
-                                        : () => _showAttachmentMenu(
-                                              context,
-                                              ref,
-                                              roomId,
-                                              currentUserId!,
-                                              isUploading,
+                                        ),
+                                        const Spacer(),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 10,
+                                              height: 10,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.redAccent,
+                                                shape: BoxShape.circle,
+                                              ),
                                             ),
-                                  ),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: controller,
-                                      focusNode: focusNode,
-                                      onSubmitted: (_) => handleSend(),
-                                      decoration: InputDecoration(
-                                        hintText: 'Напишите сообщение...',
-                                        hintStyle: ThemeTextStyles.bodyMedium(
-                                          color: isDark
-                                              ? Colors.white38
-                                              : Colors.black38,
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              _formatDuration(
+                                                recordingDuration.value,
+                                              ),
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark
+                                                    ? Colors.white
+                                                    : Colors.black87,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        border: InputBorder.none,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                          horizontal: 12,
+                                        const Spacer(),
+                                        Container(
+                                          margin: const EdgeInsets.only(left: 8),
+                                          decoration: BoxDecoration(
+                                            gradient: ThemeColors.primaryGradient,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: ThemeColors.blue
+                                                    .withValues(alpha: 0.3),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: IconButton(
+                                            onPressed: stopAndSendRecording,
+                                            tooltip: 'Отправить голосовое',
+                                            icon: const Icon(
+                                              Icons.send_rounded,
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      style: ThemeTextStyles.bodyMedium(
-                                          isDark: isDark),
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: const EdgeInsets.only(left: 8),
-                                    decoration: BoxDecoration(
-                                      gradient: ThemeColors.primaryGradient,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: ThemeColors.blue
-                                              .withValues(alpha: 0.3),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
+                                      ],
+                                    )
+                                  : Row(
+                                      children: [
+                                        IconButton(
+                                          icon: isUploading.value
+                                              ? const SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: ThemeColors.blue,
+                                                  ),
+                                                )
+                                              : Icon(
+                                                  Icons.add_circle_outline_rounded,
+                                                  color: isDark
+                                                      ? Colors.white54
+                                                      : Colors.black45,
+                                                ),
+                                          onPressed: isUploading.value
+                                              ? null
+                                              : () => _showAttachmentMenu(
+                                                    context,
+                                                    ref,
+                                                    roomId,
+                                                    currentUserId!,
+                                                    isUploading,
+                                                  ),
+                                        ),
+                                        Expanded(
+                                          child: TextField(
+                                            controller: controller,
+                                            focusNode: focusNode,
+                                            onSubmitted: (_) => handleSend(),
+                                            decoration: InputDecoration(
+                                              hintText: 'Напишите сообщение...',
+                                              hintStyle: ThemeTextStyles.bodyMedium(
+                                                color: isDark
+                                                    ? Colors.white38
+                                                    : Colors.black38,
+                                              ),
+                                              border: InputBorder.none,
+                                              contentPadding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                              ),
+                                            ),
+                                            style: ThemeTextStyles.bodyMedium(
+                                                isDark: isDark),
+                                          ),
+                                        ),
+                                        Container(
+                                          margin: const EdgeInsets.only(left: 8),
+                                          decoration: BoxDecoration(
+                                            gradient: ThemeColors.primaryGradient,
+                                            shape: BoxShape.circle,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: ThemeColors.blue
+                                                    .withValues(alpha: 0.3),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: IconButton(
+                                            onPressed: isTextEmpty.value &&
+                                                    editingMessage.value == null
+                                                ? startRecording
+                                                : handleSend,
+                                            icon: Icon(
+                                              editingMessage.value != null
+                                                  ? Icons.done_rounded
+                                                  : (isTextEmpty.value
+                                                      ? Icons.mic_rounded
+                                                      : Icons.send_rounded),
+                                              color: Colors.white,
+                                              size: 20,
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                    child: IconButton(
-                                      onPressed: handleSend,
-                                      icon: Icon(
-                                        editingMessage.value != null
-                                            ? Icons.done_rounded
-                                            : Icons.send_rounded,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
                             )
                           : Container(
                               key: const ValueKey('readonly_bar'),
@@ -1503,6 +1677,14 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
       );
     }
   }
+}
+
+String _formatDuration(int seconds) {
+  final minutes = seconds ~/ 60;
+  final remainingSeconds = seconds % 60;
+  final minutesStr = minutes.toString().padLeft(2, '0');
+  final secondsStr = remainingSeconds.toString().padLeft(2, '0');
+  return '$minutesStr:$secondsStr';
 }
 
 

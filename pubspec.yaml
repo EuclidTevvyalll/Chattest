@@ -41,6 +41,7 @@ dependencies:
   open_filex: ^4.7.0
   path: ^1.9.1
   supabase: ^2.10.6
+  record: ^6.2.0
 
 
 
