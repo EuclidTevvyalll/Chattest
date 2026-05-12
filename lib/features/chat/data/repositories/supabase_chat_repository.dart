@@ -401,7 +401,7 @@ class SupabaseChatRepository implements ChatRepository {
   Future<List<ProfileModel>> getProfiles() async {
     final data = await _client
         .from('profiles')
-        .select('id, username, nickname, avatar_url, is_online')
+        .select('id, username, nickname, avatar_url, is_online, last_seen')
         .order('username');
     return (data as List).map((json) => ProfileModel.fromJson(json)).toList();
   }
@@ -410,7 +410,7 @@ class SupabaseChatRepository implements ChatRepository {
   Future<ProfileModel?> getProfileByUsername(String username) async {
     final data = await _client
         .from('profiles')
-        .select('id, username, nickname, avatar_url, is_online')
+        .select('id, username, nickname, avatar_url, is_online, last_seen')
         .ilike('username', username)
         .maybeSingle();
 
@@ -422,7 +422,9 @@ class SupabaseChatRepository implements ChatRepository {
   Future<List<ProfileModel>> getRoomParticipants(String roomId) async {
     final data = await _client
         .from('room_participants')
-        .select('role, profiles(id, username, nickname, avatar_url, is_online)')
+        .select(
+          'role, profiles(id, username, nickname, avatar_url, is_online, last_seen)',
+        )
         .eq('room_id', roomId);
 
     return (data as List)

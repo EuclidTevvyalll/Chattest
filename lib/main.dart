@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:forgelink/core/router/router.dart';
@@ -36,11 +37,53 @@ void main() async {
   }
 }
 
+class _LifecycleObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('Lifecycle: Resumed. Setting user online...');
+      Supabase.instance.client.from('profiles').update({
+        'is_online': true,
+        'last_seen': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', userId).catchError((_) {});
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      debugPrint('Lifecycle: Paused/Detached. Setting user offline...');
+      Supabase.instance.client.from('profiles').update({
+        'is_online': false,
+        'last_seen': DateTime.now().toUtc().toIso8601String(),
+      }).eq('id', userId).catchError((_) {});
+    }
+  }
+}
+
 class MainApp extends HookConsumerWidget {
   const MainApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    useEffect(() {
+      final observer = _LifecycleObserver();
+      WidgetsBinding.instance.addObserver(observer);
+
+      // Устанавливаем статус "онлайн" при старте, если пользователь авторизован
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        debugPrint('Startup: Setting user online...');
+        Supabase.instance.client.from('profiles').update({
+          'is_online': true,
+          'last_seen': DateTime.now().toUtc().toIso8601String(),
+        }).eq('id', userId).catchError((_) {});
+      }
+
+      return () {
+        WidgetsBinding.instance.removeObserver(observer);
+      };
+    }, []);
+
     final locale = ref.watch(localeProvider);
     final thememode = ref.watch(themeProvider);
     final router = ref.watch(routerProvider);
@@ -56,7 +99,7 @@ class MainApp extends HookConsumerWidget {
         themeMode: thememode,
         locale: locale,
         routerConfig: router,
-        localizationsDelegates: [
+        localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,

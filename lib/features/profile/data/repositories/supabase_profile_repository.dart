@@ -16,7 +16,9 @@ class SupabaseProfileRepository implements ProfileRepository {
       debugPrint('Supabase: Fetching profile for id: $id...');
       final data = await _client
           .from('profiles')
-          .select('id, username, nickname, avatar_url, is_online, updated_at')
+          .select(
+            'id, username, nickname, avatar_url, is_online, last_seen, updated_at',
+          )
           .eq('id', id)
           .maybeSingle();
 

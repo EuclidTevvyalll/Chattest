@@ -61,6 +61,7 @@ class ChatDetailScreen extends HookConsumerWidget {
     String? avatarUrl;
     Uint8List? avatarBase64;
     bool isOnline = false;
+    DateTime? lastSeen;
 
     if (room != null) {
       if (room.type == RoomType.room) {
@@ -73,6 +74,7 @@ class ChatDetailScreen extends HookConsumerWidget {
             title = other.nickname ?? other.username;
             avatarUrl = other.avatarUrl;
             isOnline = other.isOnline ?? false;
+            lastSeen = other.lastSeen;
 
             avatarBase64 = ref
                 .watch(userAvatarBase64Provider(other.id))
@@ -412,7 +414,11 @@ class ChatDetailScreen extends HookConsumerWidget {
                   Text(title, style: ThemeTextStyles.h3(isDark: isDark)),
                   if (room?.type == RoomType.room)
                     Text(
-                      isOnline ? 'онлайн' : 'офлайн',
+                      isOnline
+                          ? 'онлайн'
+                          : (lastSeen != null
+                              ? _formatLastSeen(lastSeen!)
+                              : 'офлайн'),
                       style: ThemeTextStyles.caption(
                         color: isOnline
                             ? Colors.green
@@ -1775,11 +1781,39 @@ String _formatDuration(int seconds) {
   return '$minutesStr:$secondsStr';
 }
 
-String _formatDateDivider(DateTime date) {
+String _formatLastSeen(DateTime date) {
+  final local = date.toLocal();
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final yesterday = today.subtract(const Duration(days: 1));
-  final target = DateTime(date.year, date.month, date.day);
+  final target = DateTime(local.year, local.month, local.day);
+
+  final timeStr = DateFormat('HH:mm').format(local);
+
+  if (target == today) {
+    return 'был(а) сегодня в $timeStr';
+  } else if (target == yesterday) {
+    return 'был(а) вчера в $timeStr';
+  } else {
+    const months = [
+      'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
+      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+    ];
+    final monthStr = months[local.month - 1];
+    if (local.year == now.year) {
+      return 'был(а) ${local.day} $monthStr в $timeStr';
+    } else {
+      return 'был(а) ${local.day} $monthStr ${local.year} в $timeStr';
+    }
+  }
+}
+
+String _formatDateDivider(DateTime date) {
+  final local = date.toLocal();
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final target = DateTime(local.year, local.month, local.day);
 
   if (target == today) {
     return 'Сегодня';
@@ -1790,11 +1824,11 @@ String _formatDateDivider(DateTime date) {
       'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
       'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
     ];
-    final monthStr = months[date.month - 1];
-    if (date.year == now.year) {
-      return '${date.day} $monthStr';
+    final monthStr = months[local.month - 1];
+    if (local.year == now.year) {
+      return '${local.day} $monthStr';
     } else {
-      return '${date.day} $monthStr ${date.year}';
+      return '${local.day} $monthStr ${local.year}';
     }
   }
 }

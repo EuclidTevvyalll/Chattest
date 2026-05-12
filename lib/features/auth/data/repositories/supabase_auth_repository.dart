@@ -38,6 +38,15 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> logout() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId != null) {
+      try {
+        await _client.from('profiles').update({
+          'is_online': false,
+          'last_seen': DateTime.now().toUtc().toIso8601String(),
+        }).eq('id', userId);
+      } catch (_) {}
+    }
     await _client.auth.signOut();
   }
 
