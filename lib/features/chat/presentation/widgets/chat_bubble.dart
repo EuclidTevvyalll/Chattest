@@ -6,7 +6,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:forgelink/core/config/supabase_config.dart';
 import 'package:flutter/gestures.dart';
@@ -824,13 +823,14 @@ class ChatBubble extends StatelessWidget {
                                                   ),
                                                 );
                                               }
-                                              if (url == null && mediaName == null) {
+                                              if (url == null &&
+                                                  mediaName == null) {
                                                 return const SizedBox.shrink();
                                               }
                                               return InkWell(
                                                 onTap: () {
                                                   if (url != null) {
-                                                    _showFileDetail(context, isDark);
+                                                    _openFile(context);
                                                   }
                                                 },
                                                 borderRadius:
@@ -1136,130 +1136,97 @@ class ChatBubble extends StatelessWidget {
   Future<void> _openFile(BuildContext context) async {
     if (mediaUrl == null) return;
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Открываем файл...'),
-          duration: Duration(seconds: 1),
-        ),
+      final tempDir = await getTemporaryDirectory();
+
+      // Формируем стабильное уникальное имя файла на основе mediaUrl
+      String ext = p.extension(mediaName ?? mediaUrl!);
+      if (ext.contains('?')) {
+        ext = ext.split('?').first;
+      }
+      if (ext.isEmpty) ext = '.file';
+
+      final safeHash = mediaUrl!.hashCode.abs().toString();
+      final baseName = mediaName != null
+          ? p.basenameWithoutExtension(mediaName!)
+          : 'file';
+      final cleanBaseName = baseName.replaceAll(
+        RegExp(r'[^a-zA-Z0-9_\-]'),
+        '_',
       );
 
-      final tempDir = await getTemporaryDirectory();
-      final fileName =
-          mediaName ?? 'file_${DateTime.now().millisecondsSinceEpoch}';
+      final fileName = '${cleanBaseName}_$safeHash$ext';
       final savePath = p.join(tempDir.path, fileName);
 
-      if (!await File(savePath).exists()) {
-        final client = Supabase.instance.client;
-        final jwt = client.auth.currentSession?.accessToken;
+      final fileExists = await File(savePath).exists();
 
-        await Dio().download(
-          Uri.encodeFull(mediaUrl!),
-          savePath,
-          options: Options(
-            headers: {
-              if (jwt != null && !mediaUrl!.contains('/public/'))
-                'Authorization': 'Bearer $jwt',
-              'apikey': SupabaseConfig.anonKey,
-            },
-          ),
-        );
+      if (!fileExists) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Скачивание файла...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+
+        final client = Supabase.instance.client;
+        bool downloadedViaSdk = false;
+
+        if (mediaUrl!.contains('/object/public/')) {
+          try {
+            final uriParts = mediaUrl!.split('/object/public/').last.split('/');
+            if (uriParts.isNotEmpty) {
+              final bucket = uriParts.first;
+              final objectPath = uriParts.sublist(1).join('/');
+              // Нативный SDK автоматически использует токен авторизации текущей сессии
+              final bytes = await client.storage
+                  .from(bucket)
+                  .download(objectPath);
+              await File(savePath).writeAsBytes(bytes);
+              downloadedViaSdk = true;
+            }
+          } catch (sdkError) {
+            debugPrint('SDK download failed, falling back to Dio: $sdkError');
+          }
+        }
+
+        if (!downloadedViaSdk) {
+          final jwt = client.auth.currentSession?.accessToken;
+          await Dio().download(
+            Uri.encodeFull(mediaUrl!),
+            savePath,
+            options: Options(
+              headers: {
+                if (jwt != null) 'Authorization': 'Bearer $jwt',
+                'apikey': SupabaseConfig.anonKey,
+              },
+            ),
+          );
+        }
       }
 
       await OpenFilex.open(savePath);
     } catch (e) {
+      String errorMessage = 'Не удалось скачать файл';
       if (e is DioException && e.response != null) {
         debugPrint('Dio error body: ${e.response?.data}');
+        final data = e.response?.data;
+        if (data is Map && data['error'] != null) {
+          errorMessage = 'Ошибка: ${data['error']}';
+        } else if (e.response?.statusCode == 404) {
+          errorMessage = 'Файл или бакет не найден (404)';
+        }
       }
       debugPrint('Error opening file: $e');
-      final uri = Uri.parse(mediaUrl!);
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
-  }
-
-  void _showFileDetail(BuildContext context, bool isDark) {
-    if (mediaUrl == null) return;
-
-    showDialog(
-      context: context,
-      useSafeArea: false,
-      builder: (context) => Dialog.fullscreen(
-        backgroundColor: Colors.black,
-        child: Stack(
-          children: [
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      color: ThemeColors.blue.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.insert_drive_file_rounded,
-                      color: ThemeColors.blue,
-                      size: 64,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 40),
-                    child: Text(
-                      mediaName ?? 'Файл',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (mediaType != null)
-                    Text(
-                      mediaType!,
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 14,
-                      ),
-                    ),
-                  const SizedBox(height: 48),
-                  ElevatedButton.icon(
-                    onPressed: () => _openFile(context),
-                    icon: const Icon(Icons.open_in_new_rounded),
-                    label: const Text('Открыть файл'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ThemeColors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 10,
-              left: 10,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_rounded,
-                  color: Colors.white,
-                  size: 30,
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
