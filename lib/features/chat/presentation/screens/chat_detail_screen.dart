@@ -27,6 +27,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:forgelink/core/config/supabase_config.dart';
 import 'package:record/record.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -136,11 +137,15 @@ class ChatDetailScreen extends HookConsumerWidget {
     final isTextEmpty = useState(controller.text.trim().isEmpty);
     final isRecording = useState(false);
     final recordingDuration = useState(0);
-    final audioRecorder = useMemoized(() => AudioRecorder(), []);
+    final audioRecorderRef = useRef<AudioRecorder?>(null);
 
+    // Очищаем рекордер при закрытии экрана
     useEffect(() {
-      return () => audioRecorder.dispose();
-    }, [audioRecorder]);
+      return () {
+        audioRecorderRef.value?.dispose();
+        audioRecorderRef.value = null;
+      };
+    }, []);
 
     useEffect(() {
       void listener() {
@@ -167,14 +172,43 @@ class ChatDetailScreen extends HookConsumerWidget {
 
     Future<void> startRecording() async {
       try {
-        if (await audioRecorder.hasPermission()) {
+        // На мобильных платформах сначала безопасно запрашиваем права через permission_handler,
+        // чтобы избежать падений JNI/AudioRecord в плагине record при отсутствии выданного разрешения
+        if (Platform.isAndroid || Platform.isIOS) {
+          final status = await Permission.microphone.request();
+          if (!status.isGranted) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Для записи голосовых сообщений необходим доступ к микрофону'),
+                  backgroundColor: Colors.orangeAccent,
+                ),
+              );
+            }
+            return;
+          }
+        }
+
+        // Ленивая инициализация: создаем объект только после успешного подтверждения прав
+        audioRecorderRef.value ??= AudioRecorder();
+
+        bool hasPerm = false;
+        try {
+          hasPerm = await audioRecorderRef.value!.hasPermission();
+        } catch (permErr) {
+          debugPrint('Ошибка проверки разрешения микрофона в record: $permErr');
+          // Если permission_handler уже выдал разрешение или это десктоп, безопасно идем дальше
+          hasPerm = true;
+        }
+
+        if (hasPerm) {
           final tempDir = await getTemporaryDirectory();
           final filePath = p.join(
             tempDir.path,
-            'audio_${DateTime.now().millisecondsSinceEpoch}.m4a',
+            'audio_${DateTime.now().millisecondsSinceEpoch}.mp3',
           );
 
-          await audioRecorder.start(
+          await audioRecorderRef.value!.start(
             const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 128000),
             path: filePath,
           );
@@ -182,18 +216,25 @@ class ChatDetailScreen extends HookConsumerWidget {
         }
       } catch (e) {
         debugPrint('Ошибка старта записи: $e');
+        audioRecorderRef.value?.dispose();
+        audioRecorderRef.value = null;
+        isRecording.value = false;
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка доступа к микрофону: $e')),
+            const SnackBar(
+              content: Text('Не удалось запустить запись. Проверьте микрофон.'),
+              backgroundColor: Colors.redAccent,
+            ),
           );
         }
       }
     }
 
     Future<void> stopAndSendRecording() async {
-      if (!isRecording.value) return;
+      if (!isRecording.value || audioRecorderRef.value == null) return;
       try {
-        final path = await audioRecorder.stop();
+        final path = await audioRecorderRef.value!.stop();
         isRecording.value = false;
 
         if (path != null && currentUserId != null) {
@@ -209,8 +250,8 @@ class ChatDetailScreen extends HookConsumerWidget {
                 currentUserId,
                 bytes,
                 fileName,
-                'audio/m4a', // Используем корректный MIME для M4A
-                content: '', // пустое описание для голосового
+                'audio/mpeg', // Универсальный MIME-тип для успешного прохождения проверки Supabase Storage
+                content: '',
               );
             } finally {
               isUploading.value = false;
@@ -224,9 +265,9 @@ class ChatDetailScreen extends HookConsumerWidget {
     }
 
     Future<void> cancelRecording() async {
-      if (!isRecording.value) return;
+      if (!isRecording.value || audioRecorderRef.value == null) return;
       try {
-        await audioRecorder.stop();
+        await audioRecorderRef.value!.stop();
       } catch (_) {}
       isRecording.value = false;
     }
@@ -418,6 +459,22 @@ class ChatDetailScreen extends HookConsumerWidget {
                       final message =
                           allMessages[allMessages.length - 1 - index];
 
+                      bool showDateDivider = false;
+                      if (index == allMessages.length - 1) {
+                        showDateDivider = true;
+                      } else {
+                        final previousMessage =
+                            allMessages[allMessages.length - 1 - (index + 1)];
+                        final currentDate = message.createdAt.toLocal();
+                        final previousDate =
+                            previousMessage.createdAt.toLocal();
+                        if (currentDate.year != previousDate.year ||
+                            currentDate.month != previousDate.month ||
+                            currentDate.day != previousDate.day) {
+                          showDateDivider = true;
+                        }
+                      }
+
                       // Find replied message info
                       String? repliedContent;
                       String? repliedSenderName;
@@ -453,7 +510,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                       final isGroup = room?.type == RoomType.group;
                       final isChannel = room?.type == RoomType.channel;
 
-                      return ChatBubble(
+                      final bubbleWidget = ChatBubble(
                         content: message.content,
                         isMine: isMine,
                         timestamp: DateFormat('HH:mm')
@@ -629,6 +686,20 @@ class ChatDetailScreen extends HookConsumerWidget {
                           );
                         },
                       );
+
+                      if (showDateDivider) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _DateDivider(
+                              date: message.createdAt.toLocal(),
+                              isDark: isDark,
+                            ),
+                            bubbleWidget,
+                          ],
+                        );
+                      }
+                      return bubbleWidget;
                     },
                   ),
                   loading: () => const Center(
@@ -1685,6 +1756,64 @@ String _formatDuration(int seconds) {
   final minutesStr = minutes.toString().padLeft(2, '0');
   final secondsStr = remainingSeconds.toString().padLeft(2, '0');
   return '$minutesStr:$secondsStr';
+}
+
+String _formatDateDivider(DateTime date) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final target = DateTime(date.year, date.month, date.day);
+
+  if (target == today) {
+    return 'Сегодня';
+  } else if (target == yesterday) {
+    return 'Вчера';
+  } else {
+    const months = [
+      'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
+      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+    ];
+    final monthStr = months[date.month - 1];
+    if (date.year == now.year) {
+      return '${date.day} $monthStr';
+    } else {
+      return '${date.day} $monthStr ${date.year}';
+    }
+  }
+}
+
+class _DateDivider extends StatelessWidget {
+  final DateTime date;
+  final bool isDark;
+
+  const _DateDivider({required this.date, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    final text = _formatDateDivider(date);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: isDark 
+                ? Colors.black.withValues(alpha: 0.4) 
+                : Colors.black.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 

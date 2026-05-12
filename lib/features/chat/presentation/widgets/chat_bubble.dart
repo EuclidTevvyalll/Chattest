@@ -13,6 +13,7 @@ import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
 import 'package:forgelink/widgets/liquidglass_container.dart';
 import 'package:forgelink/features/chat/presentation/widgets/video_player_bubble.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class ChatBubble extends StatelessWidget {
   final String content;
@@ -805,26 +806,22 @@ class ChatBubble extends StatelessWidget {
                                             ),
                                             child: () {
                                               final url = mediaUrl;
-                                              if (mediaType?.startsWith(
-                                                        'video/',
-                                                      ) ==
-                                                      true &&
-                                                  url != null) {
+                                              if (mediaType?.startsWith('video/') == true && url != null) {
                                                 return ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
+                                                  borderRadius: BorderRadius.circular(12),
                                                   child: VideoPlayerBubble(
                                                     videoUrl: url,
-                                                    maxWidth:
-                                                        screenWidth *
-                                                        (isSelectionMode
-                                                            ? 0.5
-                                                            : 0.6),
+                                                    maxWidth: screenWidth * (isSelectionMode ? 0.5 : 0.6),
                                                   ),
                                                 );
                                               }
-                                              if (url == null &&
-                                                  mediaName == null) {
+                                              if (mediaType?.startsWith('audio/') == true && url != null) {
+                                                return AudioPlayerBubble(
+                                                  audioUrl: url,
+                                                  isMine: isMine,
+                                                );
+                                              }
+                                              if (url == null && mediaName == null) {
                                                 return const SizedBox.shrink();
                                               }
                                               return InkWell(
@@ -877,19 +874,15 @@ class ChatBubble extends StatelessWidget {
                                                         )
                                                       else
                                                         Icon(
-                                                          (mediaType?.startsWith(
-                                                                    'video/',
-                                                                  ) ??
-                                                                  false)
-                                                              ? Icons
-                                                                    .play_circle_fill_rounded
-                                                              : Icons
-                                                                    .insert_drive_file_rounded,
+                                                          (mediaType?.startsWith('video/') ?? false)
+                                                              ? Icons.play_circle_fill_rounded
+                                                              : ((mediaType?.startsWith('audio/') ?? false)
+                                                                  ? Icons.audiotrack_rounded
+                                                                  : Icons.insert_drive_file_rounded),
                                                           size: 32,
                                                           color: isMine
                                                               ? Colors.white
-                                                              : ThemeColors
-                                                                    .blue,
+                                                              : ThemeColors.blue,
                                                         ),
                                                       const SizedBox(width: 12),
                                                       Flexible(
@@ -950,45 +943,38 @@ class ChatBubble extends StatelessWidget {
                                             }(),
                                           ),
                                       ],
-                                      if (isDeleted ?? false)
+                                      if (isDeleted ?? false) ...[
                                         Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Icon(
                                               Icons.delete_outline_rounded,
                                               size: 14,
-                                              color: isMine
-                                                  ? Colors.white60
-                                                  : Colors.grey,
+                                              color: isMine ? Colors.white60 : Colors.grey,
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
                                               'Сообщение удалено',
-                                              style:
-                                                  ThemeTextStyles.bodyMedium(
-                                                    color: isMine
-                                                        ? Colors.white60
-                                                        : Colors.grey,
-                                                  ).copyWith(
-                                                    fontStyle: FontStyle.italic,
-                                                  ),
+                                              style: ThemeTextStyles.bodyMedium(
+                                                color: isMine ? Colors.white60 : Colors.grey,
+                                              ).copyWith(fontStyle: FontStyle.italic),
                                             ),
                                           ],
-                                        )
-                                      else
+                                        ),
+                                        const SizedBox(height: 4),
+                                      ] else if (content.trim().isNotEmpty) ...[
                                         Text(
                                           content,
                                           style: ThemeTextStyles.bodyMedium(
                                             color: isMine
                                                 ? Colors.white
                                                 : (isDark
-                                                      ? Colors.white.withValues(
-                                                          alpha: 0.9,
-                                                        )
+                                                      ? Colors.white.withValues(alpha: 0.9)
                                                       : Colors.black87),
                                           ),
                                         ),
-                                      const SizedBox(height: 4),
+                                        const SizedBox(height: 4),
+                                      ],
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -1228,5 +1214,184 @@ class ChatBubble extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+class AudioPlayerBubble extends StatefulWidget {
+  final String audioUrl;
+  final bool isMine;
+
+  const AudioPlayerBubble({
+    super.key,
+    required this.audioUrl,
+    required this.isMine,
+  });
+
+  @override
+  State<AudioPlayerBubble> createState() => _AudioPlayerBubbleState();
+}
+
+class _AudioPlayerBubbleState extends State<AudioPlayerBubble> {
+  late final AudioPlayer _player;
+  bool _isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
+
+    _player.onPlayerStateChanged.listen((state) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = state == PlayerState.playing;
+        });
+      }
+    });
+
+    _player.onPlayerComplete.listen((_) {
+      if (mounted) {
+        setState(() {
+          _isPlaying = false;
+          _position = Duration.zero;
+        });
+      }
+    });
+
+    _player.onDurationChanged.listen((newDuration) {
+      if (mounted) {
+        setState(() {
+          _duration = newDuration;
+        });
+      }
+    });
+
+    _player.onPositionChanged.listen((newPosition) {
+      if (mounted) {
+        setState(() {
+          _position = newPosition;
+        });
+      }
+    });
+
+    _player.setSource(UrlSource(widget.audioUrl)).catchError((_) {});
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = widget.isMine ? Colors.white : ThemeColors.blue;
+    final secondaryColor = widget.isMine
+        ? Colors.white70
+        : (isDark ? Colors.white54 : Colors.black54);
+    final circleBgColor = widget.isMine
+        ? Colors.white.withValues(alpha: 0.2)
+        : ThemeColors.blue.withValues(alpha: 0.1);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Кнопка Play/Pause
+          GestureDetector(
+            onTap: () async {
+              if (_isPlaying) {
+                await _player.pause();
+              } else {
+                if (_position > Duration.zero && _position < _duration) {
+                  await _player.resume();
+                } else {
+                  await _player.play(UrlSource(widget.audioUrl));
+                }
+              }
+            },
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: circleBgColor,
+              ),
+              child: Center(
+                child: Icon(
+                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  color: primaryColor,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Слайдер и таймер
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 24,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                      activeTrackColor: primaryColor,
+                      inactiveTrackColor: primaryColor.withValues(alpha: 0.3),
+                      thumbColor: primaryColor,
+                      overlayColor: primaryColor.withValues(alpha: 0.1),
+                    ),
+                    child: Slider(
+                      value: _duration.inMilliseconds > 0
+                          ? _position.inMilliseconds.toDouble().clamp(
+                              0.0,
+                              _duration.inMilliseconds.toDouble(),
+                            )
+                          : 0.0,
+                      max: _duration.inMilliseconds > 0
+                          ? _duration.inMilliseconds.toDouble()
+                          : 1.0,
+                      onChanged: (value) async {
+                        final position = Duration(milliseconds: value.toInt());
+                        setState(() {
+                          _position = position;
+                        });
+                        await _player.seek(position);
+                      },
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    _position.inMilliseconds > 0
+                        ? _formatDuration(_position)
+                        : _formatDuration(_duration),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: secondaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
