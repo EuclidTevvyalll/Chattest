@@ -13,6 +13,7 @@ import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
 import 'package:forgelink/widgets/liquidglass_container.dart';
 import 'package:forgelink/features/chat/presentation/widgets/video_player_bubble.dart';
+import 'package:forgelink/features/chat/presentation/widgets/sticker_widget.dart';
 import 'package:audioplayers/audioplayers.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -533,8 +534,13 @@ class ChatBubble extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                child: GlassBox(
-                                  padding: const EdgeInsets.symmetric(
+                                child: mediaType == 'sticker'
+                                    ? Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 8),
+                                        child: StickerWidget(assetPath: content),
+                                      )
+                                    : GlassBox(
+                                        padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
                                     vertical: 8,
                                   ),
@@ -808,22 +814,36 @@ class ChatBubble extends StatelessWidget {
                                             ),
                                             child: () {
                                               final url = mediaUrl;
-                                              if (mediaType?.startsWith('video/') == true && url != null) {
+                                              if (mediaType?.startsWith(
+                                                        'video/',
+                                                      ) ==
+                                                      true &&
+                                                  url != null) {
                                                 return ClipRRect(
-                                                  borderRadius: BorderRadius.circular(12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
                                                   child: VideoPlayerBubble(
                                                     videoUrl: url,
-                                                    maxWidth: screenWidth * (isSelectionMode ? 0.5 : 0.6),
+                                                    maxWidth:
+                                                        screenWidth *
+                                                        (isSelectionMode
+                                                            ? 0.5
+                                                            : 0.6),
                                                   ),
                                                 );
                                               }
-                                              if (mediaType?.startsWith('audio/') == true && url != null) {
+                                              if (mediaType?.startsWith(
+                                                        'audio/',
+                                                      ) ==
+                                                      true &&
+                                                  url != null) {
                                                 return AudioPlayerBubble(
                                                   audioUrl: url,
                                                   isMine: isMine,
                                                 );
                                               }
-                                              if (url == null && mediaName == null) {
+                                              if (url == null &&
+                                                  mediaName == null) {
                                                 return const SizedBox.shrink();
                                               }
                                               return InkWell(
@@ -876,15 +896,25 @@ class ChatBubble extends StatelessWidget {
                                                         )
                                                       else
                                                         Icon(
-                                                          (mediaType?.startsWith('video/') ?? false)
-                                                              ? Icons.play_circle_fill_rounded
-                                                              : ((mediaType?.startsWith('audio/') ?? false)
-                                                                  ? Icons.audiotrack_rounded
-                                                                  : Icons.insert_drive_file_rounded),
+                                                          (mediaType?.startsWith(
+                                                                    'video/',
+                                                                  ) ??
+                                                                  false)
+                                                              ? Icons
+                                                                    .play_circle_fill_rounded
+                                                              : ((mediaType?.startsWith(
+                                                                          'audio/',
+                                                                        ) ??
+                                                                        false)
+                                                                    ? Icons
+                                                                          .audiotrack_rounded
+                                                                    : Icons
+                                                                          .insert_drive_file_rounded),
                                                           size: 32,
                                                           color: isMine
                                                               ? Colors.white
-                                                              : ThemeColors.blue,
+                                                              : ThemeColors
+                                                                    .blue,
                                                         ),
                                                       const SizedBox(width: 12),
                                                       Flexible(
@@ -952,14 +982,21 @@ class ChatBubble extends StatelessWidget {
                                             Icon(
                                               Icons.delete_outline_rounded,
                                               size: 14,
-                                              color: isMine ? Colors.white60 : Colors.grey,
+                                              color: isMine
+                                                  ? Colors.white60
+                                                  : Colors.grey,
                                             ),
                                             const SizedBox(width: 4),
                                             Text(
                                               'Сообщение удалено',
-                                              style: ThemeTextStyles.bodyMedium(
-                                                color: isMine ? Colors.white60 : Colors.grey,
-                                              ).copyWith(fontStyle: FontStyle.italic),
+                                              style:
+                                                  ThemeTextStyles.bodyMedium(
+                                                    color: isMine
+                                                        ? Colors.white60
+                                                        : Colors.grey,
+                                                  ).copyWith(
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -971,7 +1008,9 @@ class ChatBubble extends StatelessWidget {
                                             color: isMine
                                                 ? Colors.white
                                                 : (isDark
-                                                      ? Colors.white.withValues(alpha: 0.9)
+                                                      ? Colors.white.withValues(
+                                                          alpha: 0.9,
+                                                        )
                                                       : Colors.black87),
                                           ),
                                         ),
@@ -1361,8 +1400,12 @@ class _AudioPlayerBubbleState extends State<AudioPlayerBubble> {
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3,
-                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-                      overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 5,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 10,
+                      ),
                       activeTrackColor: primaryColor,
                       inactiveTrackColor: primaryColor.withValues(alpha: 0.3),
                       thumbColor: primaryColor,

@@ -17,7 +17,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       final data = await _client
           .from('profiles')
           .select(
-            'id, username, nickname, avatar_url, is_online, last_seen, updated_at',
+            'id, username, nickname, avatar_url, is_online, last_seen, updated_at, is_banned, banned_until, banned_reason',
           )
           .eq('id', id)
           .maybeSingle();
@@ -29,6 +29,32 @@ class SupabaseProfileRepository implements ProfileRepository {
       debugPrint('Supabase: Error fetching profile: $e');
       rethrow;
     }
+  }
+
+  @override
+  Stream<ProfileModel?> watchProfile(String id) {
+    debugPrint('Realtime: Start watching profile for $id');
+    return _client
+        .from('profiles')
+        .stream(primaryKey: ['id'])
+        .eq('id', id)
+        .map((data) {
+          if (data.isEmpty) {
+            debugPrint('Realtime: No data for profile $id');
+            return null;
+          }
+          final record = data.first;
+          debugPrint('Realtime: Received update for profile $id. is_banned: ${record['is_banned']}');
+          try {
+            return ProfileModel.fromJson(record);
+          } catch (e) {
+            debugPrint('Realtime: Error parsing profile data: $e');
+            return null;
+          }
+        })
+        .handleError((error) {
+          debugPrint('Realtime: Stream error for profile $id: $error');
+        });
   }
 
   @override

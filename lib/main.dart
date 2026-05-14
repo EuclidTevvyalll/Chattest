@@ -10,6 +10,7 @@ import 'package:forgelink/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:forgelink/core/config/supabase_config.dart';
+import 'package:forgelink/features/auth/presentation/screens/banned_guard.dart';
 
 late final SharedPreferences shared;
 final rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -99,6 +100,10 @@ class MainApp extends HookConsumerWidget {
         themeMode: thememode,
         locale: locale,
         routerConfig: router,
+        builder: (context, child) {
+          if (child == null) return const SizedBox.shrink();
+          return BannedGuard(child: child);
+        },
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,

@@ -430,6 +430,7 @@ class _RoomItem extends ConsumerWidget {
           room.lastMessageMediaName?.toLowerCase().endsWith('.jpeg') == true ||
           room.lastMessageMediaName?.toLowerCase().endsWith('.png') == true;
       final isVideo = room.lastMessageMediaType?.startsWith('video/') == true;
+      final isSticker = room.lastMessageMediaType == 'sticker';
 
       return Row(
         children: [
@@ -457,20 +458,26 @@ class _RoomItem extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: Icon(
-                isVideo
-                    ? Icons.videocam_rounded
-                    : Icons.insert_drive_file_rounded,
+                isSticker
+                    ? Icons.sticky_note_2_rounded
+                    : (isVideo
+                        ? Icons.videocam_rounded
+                        : Icons.insert_drive_file_rounded),
                 size: 16,
                 color: isDark ? Colors.white38 : Colors.black38,
               ),
             ),
           Expanded(
             child: Text(
-              room.lastMessage != null && room.lastMessage!.isNotEmpty
-                  ? room.lastMessage!
-                  : (isImage
-                      ? 'Фото'
-                      : (isVideo ? 'Видео' : (room.lastMessageMediaName ?? 'Файл'))),
+              isSticker
+                  ? 'Стикер'
+                  : (room.lastMessage != null && room.lastMessage!.isNotEmpty
+                      ? room.lastMessage!
+                      : (isImage
+                          ? 'Фото'
+                          : (isVideo
+                              ? 'Видео'
+                              : (room.lastMessageMediaName ?? 'Файл')))),
               style: ThemeTextStyles.bodyMedium(
                 isDark: isDark,
                 color: isDark ? Colors.white60 : Colors.black54,

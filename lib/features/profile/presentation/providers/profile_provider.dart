@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
 import 'package:forgelink/features/profile/data/repositories/supabase_profile_repository.dart';
@@ -68,11 +68,31 @@ final userAvatarBase64Provider = FutureProvider.family<Uint8List?, String>((
 });
 
 class ProfileController extends AsyncNotifier<ProfileModel?> {
+  StreamSubscription<ProfileModel?>? _subscription;
+
   @override
   FutureOr<ProfileModel?> build() async {
     ref.keepAlive();
     final user = ref.watch(authUserProvider);
     if (user == null) return null;
+
+    // Подписываемся на изменения в реальном времени
+    _subscription?.cancel();
+    _subscription = ref.read(profileRepositoryProvider).watchProfile(user.id).listen(
+      (profile) {
+        if (profile != null) {
+          debugPrint('ProfileController: UI state updated from realtime (isBanned: ${profile.isBanned})');
+          state = AsyncValue.data(profile);
+        }
+      },
+      onError: (err) => debugPrint('ProfileController: Realtime stream error: $err'),
+    );
+
+    ref.onDispose(() {
+      _subscription?.cancel();
+    });
+
+    // Первоначальная загрузка
     return ref.read(profileRepositoryProvider).getProfile(user.id);
   }
 

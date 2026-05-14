@@ -14,6 +14,11 @@ _ProfileModel _$ProfileModelFromJson(Map<String, dynamic> json) =>
       avatarUrl: json['avatar_url'] as String?,
       avatarBase64: json['avatar_base64'] as String?,
       isOnline: json['is_online'] as bool?,
+      isBanned: json['is_banned'] as bool?,
+      bannedUntil: json['banned_until'] == null
+          ? null
+          : DateTime.parse(json['banned_until'] as String),
+      bannedReason: json['banned_reason'] as String?,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -34,6 +39,9 @@ Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
       'avatar_url': instance.avatarUrl,
       'avatar_base64': instance.avatarBase64,
       'is_online': instance.isOnline,
+      'is_banned': instance.isBanned,
+      'banned_until': instance.bannedUntil?.toIso8601String(),
+      'banned_reason': instance.bannedReason,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
       'last_seen': instance.lastSeen?.toIso8601String(),

@@ -55,160 +55,186 @@ class _ReportDialogState extends State<ReportDialog> {
       child: GlassBox(
         padding: const EdgeInsets.all(24),
         borderRadius: BorderRadius.circular(28),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: size.height * 0.8,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.report_problem_rounded,
-                      color: Colors.redAccent,
-                      size: 28,
-                    ),
-                    const SizedBox(width: 16),
-                    Text('Жалоба', style: ThemeTextStyles.h2(isDark: isDark)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Выберите причину жалобы и при желании добавьте комментарий.',
-                  style: ThemeTextStyles.bodyMedium(
-                    isDark: isDark,
-                    color: isDark ? Colors.white70 : Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ...reasons.map((reason) {
-                  final isSelected = _selectedReason == reason['value'];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: InkWell(
-                      onTap: () => setState(
-                        () => _selectedReason = reason['value'] as String,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? ThemeColors.blue.withValues(alpha: 0.2)
-                              : Colors.white.withValues(alpha: isDark ? 0.05 : 0.1,
-                                ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSelected ? ThemeColors.blue : Colors.white10,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final viewInsets = MediaQuery.of(context).viewInsets;
+            final availableHeight =
+                size.height - viewInsets.bottom - 100; // 100 for safety margin
+
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: availableHeight.clamp(200.0, size.height * 0.8),
+              ),
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.report_problem_rounded,
+                            color: Colors.redAccent,
+                            size: 28,
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              reason['icon'] as IconData,
-                              color: isSelected
-                                  ? ThemeColors.blue
-                                  : (isDark ? Colors.white70 : Colors.black54),
-                              size: 20,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              'Жалоба',
+                              style: ThemeTextStyles.h2(isDark: isDark),
                             ),
-                            const SizedBox(width: 16),
-                            Text(
-                              reason['label'] as String,
-                              style: ThemeTextStyles.bodyLarge(
-                                isDark: isDark,
-                                color: isSelected ? ThemeColors.blue : null,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (isSelected)
-                              const Icon(
-                                Icons.check_circle_rounded,
-                                color: ThemeColors.blue,
-                                size: 20,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _detailsController,
-                  maxLines: 3,
-                  style: ThemeTextStyles.bodyMedium(isDark: isDark),
-                  decoration: InputDecoration(
-                    hintText: 'Комментарий (необязательно)...',
-                    hintStyle: TextStyle(
-                      color: isDark ? Colors.white38 : Colors.black38,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: isDark ? 0.05 : 0.1,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text(
-                          'Отмена',
-                          style: TextStyle(
-                            color: isDark ? Colors.white54 : Colors.black45,
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Выберите причину жалобы и при желании добавьте комментарий.',
+                        style: ThemeTextStyles.bodyMedium(
+                          isDark: isDark,
+                          color: isDark ? Colors.white70 : Colors.black87,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _selectedReason == null
-                            ? null
-                            : () {
-                                Navigator.pop(context);
-                                widget.onReport(
-                                  _selectedReason!,
-                                  _detailsController.text.trim().isEmpty
-                                      ? null
-                                      : _detailsController.text.trim(),
-                                );
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
+                      const SizedBox(height: 24),
+                      ...reasons.map((reason) {
+                        final isSelected = _selectedReason == reason['value'];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: InkWell(
+                            onTap: () => setState(
+                              () => _selectedReason = reason['value'] as String,
+                            ),
                             borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? ThemeColors.blue.withValues(alpha: 0.2)
+                                    : Colors.white.withValues(
+                                        alpha: isDark ? 0.05 : 0.1,
+                                      ),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? ThemeColors.blue
+                                      : Colors.white10,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    reason['icon'] as IconData,
+                                    color: isSelected
+                                        ? ThemeColors.blue
+                                        : (isDark
+                                              ? Colors.white70
+                                              : Colors.black54),
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Text(
+                                      reason['label'] as String,
+                                      style: ThemeTextStyles.bodyLarge(
+                                        isDark: isDark,
+                                        color: isSelected
+                                            ? ThemeColors.blue
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      color: ThemeColors.blue,
+                                      size: 20,
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          disabledBackgroundColor: Colors.white10,
-                        ),
-                        child: const Text(
-                          'Отправить',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                        );
+                      }),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _detailsController,
+                        maxLines: 3,
+                        style: ThemeTextStyles.bodyMedium(isDark: isDark),
+                        decoration: InputDecoration(
+                          hintText: 'Комментарий (необязательно)...',
+                          hintStyle: TextStyle(
+                            color: isDark ? Colors.white38 : Colors.black38,
+                          ),
+                          filled: true,
+                          fillColor: Colors.white.withValues(
+                            alpha: isDark ? 0.05 : 0.1,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 24),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Text(
+                                'Отмена',
+                                style: TextStyle(
+                                  color: isDark
+                                      ? Colors.white54
+                                      : Colors.black45,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _selectedReason == null
+                                  ? null
+                                  : () {
+                                      Navigator.pop(context);
+                                      widget.onReport(
+                                        _selectedReason!,
+                                        _detailsController.text.trim().isEmpty
+                                            ? null
+                                            : _detailsController.text.trim(),
+                                      );
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                disabledBackgroundColor: Colors.white10,
+                              ),
+                              child: const Text(
+                                'Отправить',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 }
-
-
