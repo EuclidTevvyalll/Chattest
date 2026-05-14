@@ -295,13 +295,12 @@ class SupabaseProfileRepository implements ProfileRepository {
         'user_id': userId,
         'amount': amount,
         'duration_months': months,
-        'created_at': DateTime.now().toUtc().toIso8601String(),
+        // created_at обычно заполняется автоматически в БД
       });
       debugPrint('Supabase: Subscription logged successfully.');
     } catch (e) {
       debugPrint('Supabase: Error logging subscription: $e');
-      // We don't rethrow here because the premium upgrade itself succeeded,
-      // logging is secondary but we should definitely log the error.
+      rethrow; // Выбрасываем ошибку, чтобы увидеть её в UI/логах
     }
   }
 }

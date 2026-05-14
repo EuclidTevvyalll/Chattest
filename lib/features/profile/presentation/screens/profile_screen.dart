@@ -79,7 +79,11 @@ class ProfileScreen extends HookConsumerWidget {
                     size: 20,
                   ),
                 ),
-                onPressed: () => context.pop(),
+                onPressed: () {
+                  if (context.canPop()) {
+                    context.pop();
+                  }
+                },
               )
             : null,
         actions: [
