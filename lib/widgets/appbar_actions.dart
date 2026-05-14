@@ -22,5 +22,3 @@ class AppbarActions extends ConsumerWidget {
     );
   }
 }
-
-

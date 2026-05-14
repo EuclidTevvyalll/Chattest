@@ -6,5 +6,3 @@ abstract class Routes {
   static const userProfile = '/profile/:userId';
   static const chatInfo = '/chat/:roomId/info';
 }
-
-

@@ -9,9 +9,11 @@ import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
 import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
-import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/widgets/glass_box.dart';
 import 'package:forgelink/features/profile/presentation/providers/profile_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:forgelink/widgets/custom_dialog.dart';
+import 'package:forgelink/widgets/premium_badge.dart';
 import 'dart:typed_data';
 
 class ChatInfoScreen extends ConsumerWidget {
@@ -155,15 +157,15 @@ class ChatInfoScreen extends ConsumerWidget {
         (p) => p.id != currentUserId,
         orElse: () => participants.first,
       );
-      final avatarBase64 =
-          ref.watch(userAvatarBase64Provider(other.id)).asData?.value;
+      final avatarBase64 = ref
+          .watch(userAvatarBase64Provider(other.id))
+          .asData
+          ?.value;
       return _buildUserProfile(context, other, isDark, avatarBase64);
     } else if (room.type == RoomType.group) {
-      final roomWithParticipants = room.copyWith(participants: participants);
-      return _buildGroupInfo(context, ref, roomWithParticipants, isDark);
+      return _buildGroupInfo(context, ref, room, participants, isDark);
     } else {
-      final roomWithParticipants = room.copyWith(participants: participants);
-      return _buildChannelInfo(context, ref, roomWithParticipants, isDark);
+      return _buildChannelInfo(context, ref, room, participants, isDark);
     }
   }
 
@@ -186,9 +188,15 @@ class ChatInfoScreen extends ConsumerWidget {
               avatarBase64,
             ),
             const SizedBox(height: 24),
-            Text(
-              profile.nickname ?? 'Нет никнейма',
-              style: ThemeTextStyles.h1(isDark: isDark),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  profile.nickname ?? 'Нет никнейма',
+                  style: ThemeTextStyles.h1(isDark: isDark),
+                ),
+                PremiumBadge(isPremium: profile.isPremium, size: 24),
+              ],
             ),
             Text(
               '@${profile.username}',
@@ -312,6 +320,7 @@ class ChatInfoScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     RoomModel room,
+    List<ProfileModel> participants,
     bool isDark,
   ) {
     return Column(
@@ -344,16 +353,18 @@ class ChatInfoScreen extends ConsumerWidget {
             const SizedBox(height: 24),
             Align(
               alignment: Alignment.centerLeft,
-              child:
-                  Text('Участники', style: ThemeTextStyles.h3(isDark: isDark)),
+              child: Text(
+                'Участники',
+                style: ThemeTextStyles.h3(isDark: isDark),
+              ),
             ),
             const SizedBox(height: 16),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: room.participants.length,
+              itemCount: participants.length,
               itemBuilder: (context, index) {
-                final p = room.participants[index];
+                final p = participants[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: InkWell(
@@ -373,14 +384,16 @@ class ChatInfoScreen extends ConsumerWidget {
                               final avatarBase64 = avatarAsync.asData?.value;
                               return CircleAvatar(
                                 radius: 20,
-                                backgroundColor: ThemeColors.blue.withValues(alpha: 0.1,
+                                backgroundColor: ThemeColors.blue.withValues(
+                                  alpha: 0.1,
                                 ),
                                 backgroundImage: p.avatarUrl != null
                                     ? CachedNetworkImageProvider(p.avatarUrl!)
                                     : (avatarBase64 != null
                                           ? MemoryImage(avatarBase64)
                                           : null),
-                                child: (avatarBase64 == null &&
+                                child:
+                                    (avatarBase64 == null &&
                                         p.avatarUrl == null)
                                     ? Text(p.username[0].toUpperCase())
                                     : null,
@@ -391,9 +404,14 @@ class ChatInfoScreen extends ConsumerWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                p.nickname ?? p.username,
-                                style: ThemeTextStyles.h3(isDark: isDark),
+                              Row(
+                                children: [
+                                  Text(
+                                    p.nickname ?? p.username,
+                                    style: ThemeTextStyles.h3(isDark: isDark),
+                                  ),
+                                  PremiumBadge(isPremium: p.isPremium),
+                                ],
                               ),
                               Text(
                                 '@${p.username}',
@@ -452,13 +470,15 @@ class ChatInfoScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     RoomModel room,
+    List<ProfileModel> participants,
     bool isDark,
   ) {
     // Check if current user is admin or owner
     final authUser = ref.watch(authUserProvider);
     final currentUserId = authUser?.id;
-    final myParticipant =
-        room.participants.where((p) => p.id == currentUserId).firstOrNull;
+    final myParticipant = participants
+        .where((p) => p.id == currentUserId)
+        .firstOrNull;
     final myRole = myParticipant?.role;
     final canSeeSubscribers = myRole == 'owner' || myRole == 'admin';
 
@@ -470,10 +490,12 @@ class ChatInfoScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             _buildAvatar(room.avatarUrl, room.name ?? 'Канал', isDark, null),
             const SizedBox(height: 24),
-            Text(room.name ?? 'Канал',
-                style: ThemeTextStyles.h1(isDark: isDark)),
             Text(
-              '${room.participants.length} подписчиков',
+              room.name ?? 'Канал',
+              style: ThemeTextStyles.h1(isDark: isDark),
+            ),
+            Text(
+              '${participants.length} подписчиков',
               style: ThemeTextStyles.bodyLarge(color: ThemeColors.blue),
             ),
             const SizedBox(height: 40),
@@ -491,16 +513,18 @@ class ChatInfoScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Подписчики',
-                    style: ThemeTextStyles.h3(isDark: isDark)),
+                child: Text(
+                  'Подписчики',
+                  style: ThemeTextStyles.h3(isDark: isDark),
+                ),
               ),
               const SizedBox(height: 16),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: room.participants.length,
+                itemCount: participants.length,
                 itemBuilder: (context, index) {
-                  final p = room.participants[index];
+                  final p = participants[index];
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: InkWell(
@@ -520,14 +544,16 @@ class ChatInfoScreen extends ConsumerWidget {
                                 final avatarBase64 = avatarAsync.asData?.value;
                                 return CircleAvatar(
                                   radius: 20,
-                                  backgroundColor: ThemeColors.blue.withValues(alpha: 0.1,
+                                  backgroundColor: ThemeColors.blue.withValues(
+                                    alpha: 0.1,
                                   ),
                                   backgroundImage: p.avatarUrl != null
                                       ? CachedNetworkImageProvider(p.avatarUrl!)
                                       : (avatarBase64 != null
                                             ? MemoryImage(avatarBase64)
                                             : null),
-                                  child: (avatarBase64 == null &&
+                                  child:
+                                      (avatarBase64 == null &&
                                           p.avatarUrl == null)
                                       ? Text(p.username[0].toUpperCase())
                                       : null,
@@ -538,14 +564,20 @@ class ChatInfoScreen extends ConsumerWidget {
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  p.nickname ?? p.username,
-                                  style: ThemeTextStyles.h3(isDark: isDark),
+                                Row(
+                                  children: [
+                                    Text(
+                                      p.nickname ?? p.username,
+                                      style: ThemeTextStyles.h3(isDark: isDark),
+                                    ),
+                                    PremiumBadge(isPremium: p.isPremium),
+                                  ],
                                 ),
                                 Text(
                                   '@${p.username}',
-                                  style:
-                                      ThemeTextStyles.caption(isDark: isDark),
+                                  style: ThemeTextStyles.caption(
+                                    isDark: isDark,
+                                  ),
                                 ),
                               ],
                             ),
@@ -557,7 +589,9 @@ class ChatInfoScreen extends ConsumerWidget {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: ThemeColors.blue.withValues(alpha: 0.1),
+                                  color: ThemeColors.blue.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
@@ -591,12 +625,12 @@ class ChatInfoScreen extends ConsumerWidget {
                                             p.role == 'admin'
                                                 ? Icons.admin_panel_settings
                                                 : Icons
-                                                    .admin_panel_settings_outlined,
+                                                      .admin_panel_settings_outlined,
                                             color: p.role == 'admin'
                                                 ? ThemeColors.blue
                                                 : (isDark
-                                                    ? Colors.white24
-                                                    : Colors.black26),
+                                                      ? Colors.white24
+                                                      : Colors.black26),
                                             size: 24,
                                           ),
                                           onPressed: () async {
@@ -606,8 +640,10 @@ class ChatInfoScreen extends ConsumerWidget {
                                                   ? 'member'
                                                   : 'admin';
                                               await ref
-                                                  .read(chatControllerProvider
-                                                      .notifier)
+                                                  .read(
+                                                    chatControllerProvider
+                                                        .notifier,
+                                                  )
                                                   .updateParticipantRole(
                                                     room.id,
                                                     p.id,
@@ -615,13 +651,12 @@ class ChatInfoScreen extends ConsumerWidget {
                                                   );
                                             } catch (e) {
                                               if (context.mounted) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                        'Ошибка обновления роли: $e'),
-                                                    backgroundColor: Colors.red,
-                                                  ),
+                                                showCustomDialog(
+                                                  context: context,
+                                                  title: 'Ошибка',
+                                                  message:
+                                                      'Ошибка обновления роли: $e',
+                                                  isError: true,
                                                 );
                                               }
                                             } finally {
@@ -746,5 +781,3 @@ class _InfoTile extends StatelessWidget {
     );
   }
 }
-
-

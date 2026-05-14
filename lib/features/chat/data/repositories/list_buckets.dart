@@ -11,5 +11,3 @@ Future<void> listBuckets(SupabaseClient client) async {
     debugPrint('Error listing buckets: $e');
   }
 }
-
-

@@ -7,6 +7,8 @@ import 'package:forgelink/features/chat/domain/models/message_model.dart';
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
 import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 import 'package:forgelink/features/chat/domain/repositories/chat_repository.dart';
+import 'package:forgelink/core/services/transcription_service.dart';
+import 'package:forgelink/core/config/supabase_config.dart';
 
 class SupabaseChatRepository implements ChatRepository {
   final SupabaseClient _client;
@@ -40,7 +42,9 @@ class SupabaseChatRepository implements ChatRepository {
               .select('*, room_participants(role, profiles(*))')
               .filter('id', 'in', roomIds);
 
-          final results = roomsData.map((roomMap) => _mapRoomData(roomMap)).toList();
+          final results = roomsData
+              .map((roomMap) => _mapRoomData(roomMap))
+              .toList();
 
           results.sort((a, b) {
             final timeA = a.lastMessageAt ?? a.createdAt;
@@ -64,7 +68,44 @@ class SupabaseChatRepository implements ChatRepository {
     final participants = participantsData
         .map((p) {
           if (p['profiles'] == null) return null;
-          final profile = ProfileModel.fromJson(p['profiles']);
+          var profile = ProfileModel.fromJson(p['profiles']);
+
+          // Auto-expire check (Premium)
+          if (profile.isPremium &&
+              profile.premiumUntil != null &&
+              profile.premiumUntil!.isBefore(DateTime.now())) {
+            profile = profile.copyWith(isPremium: false, premiumUntil: null);
+            // background update
+            _client
+                .from('profiles')
+                .update({'is_premium': false, 'premium_until': null})
+                .eq('id', profile.id)
+                .then((_) {})
+                .catchError((_) {});
+          }
+
+          // Auto-expire check (Ban)
+          if (profile.isBanned == true &&
+              profile.bannedUntil != null &&
+              profile.bannedUntil!.isBefore(DateTime.now())) {
+            profile = profile.copyWith(
+              isBanned: false,
+              bannedUntil: null,
+              bannedReason: null,
+            );
+            // background update
+            _client
+                .from('profiles')
+                .update({
+                  'is_banned': false,
+                  'banned_until': null,
+                  'banned_reason': null,
+                })
+                .eq('id', profile.id)
+                .then((_) {})
+                .catchError((_) {});
+          }
+
           return profile.copyWith(role: p['role']?.toString());
         })
         .whereType<ProfileModel>()
@@ -76,7 +117,8 @@ class SupabaseChatRepository implements ChatRepository {
       name: room['name']?.toString(),
       description: room['description']?.toString(),
       avatarUrl: room['avatar_url']?.toString(),
-      createdAt: DateTime.tryParse(room['created_at']?.toString() ?? '') ??
+      createdAt:
+          DateTime.tryParse(room['created_at']?.toString() ?? '') ??
           DateTime.now(),
       lastMessageAt: lastMessageTime,
       lastMessage: lastMessageText,
@@ -126,8 +168,11 @@ class SupabaseChatRepository implements ChatRepository {
               .toList()
               .reversed
               .toList();
-        }).handleError((error) {
-          debugPrint('SupabaseChatRepository: ERROR in watchMessages for room $roomId: $error');
+        })
+        .handleError((error) {
+          debugPrint(
+            'SupabaseChatRepository: ERROR in watchMessages for room $roomId: $error',
+          );
         });
   }
 
@@ -151,18 +196,21 @@ class SupabaseChatRepository implements ChatRepository {
 
     while (retryCount < maxRetries) {
       try {
-        await _client.from('messages').insert({
-          'room_id': roomId,
-          'profile_id': myId,
-          'content': content,
-          'reply_to_message_id': replyToMessageId,
-          'forwarded_from': forwardedFrom,
-          'forwarded_info': forwardedInfo,
-          'media_url': mediaUrl,
-          'media_type': mediaType,
-          'media_name': mediaName,
-        }).timeout(const Duration(seconds: 15));
-        
+        await _client
+            .from('messages')
+            .insert({
+              'room_id': roomId,
+              'profile_id': myId,
+              'content': content,
+              'reply_to_message_id': replyToMessageId,
+              'forwarded_from': forwardedFrom,
+              'forwarded_info': forwardedInfo,
+              'media_url': mediaUrl,
+              'media_type': mediaType,
+              'media_name': mediaName,
+            })
+            .timeout(const Duration(seconds: 15));
+
         return;
       } catch (e) {
         retryCount++;
@@ -178,41 +226,49 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
-  Future<String> uploadMedia(String roomId, Uint8List bytes, String fileName,
-      String? contentType) async {
+  Future<String> uploadMedia(
+    String roomId,
+    Uint8List bytes,
+    String fileName,
+    String? contentType,
+  ) async {
     var uploadBytes = bytes;
     final mimeLower = contentType?.toLowerCase() ?? '';
     final fileLower = fileName.toLowerCase();
-    
+
     // Determine target bucket based on file type
     String bucketName = 'chat-documents';
-    if (mimeLower.startsWith('image/') || 
-        fileLower.endsWith('.jpg') || 
-        fileLower.endsWith('.jpeg') || 
-        fileLower.endsWith('.png') || 
-        fileLower.endsWith('.gif') || 
+    if (mimeLower.startsWith('image/') ||
+        fileLower.endsWith('.jpg') ||
+        fileLower.endsWith('.jpeg') ||
+        fileLower.endsWith('.png') ||
+        fileLower.endsWith('.gif') ||
         fileLower.endsWith('.webp')) {
       bucketName = 'chat-images';
-    } else if (mimeLower.startsWith('video/') || 
-               fileLower.endsWith('.mp4') || 
-               fileLower.endsWith('.mov')) {
+    } else if (mimeLower.startsWith('video/') ||
+        fileLower.endsWith('.mp4') ||
+        fileLower.endsWith('.mov')) {
       bucketName = 'chat-videos';
-    } else if (mimeLower.startsWith('audio/') || 
-               fileLower.endsWith('.mp3') || 
-               fileLower.endsWith('.wav') || 
-               fileLower.endsWith('.ogg') || 
-               fileLower.endsWith('.m4a')) {
+    } else if (mimeLower.startsWith('audio/') ||
+        fileLower.endsWith('.mp3') ||
+        fileLower.endsWith('.wav') ||
+        fileLower.endsWith('.ogg') ||
+        fileLower.endsWith('.m4a')) {
       bucketName = 'chat-audio';
     }
 
     // Compress if it's an image
     if (bucketName == 'chat-images') {
-      debugPrint('SupabaseChatRepository: Original image size: ${bytes.length} bytes');
+      debugPrint(
+        'SupabaseChatRepository: Original image size: ${bytes.length} bytes',
+      );
       try {
         final optimizedBytes = await compute(_optimizeImage, uploadBytes);
         if (optimizedBytes != null) {
           uploadBytes = optimizedBytes;
-          debugPrint('SupabaseChatRepository: Optimized image size: ${uploadBytes.length} bytes');
+          debugPrint(
+            'SupabaseChatRepository: Optimized image size: ${uploadBytes.length} bytes',
+          );
         }
       } catch (e) {
         debugPrint('SupabaseChatRepository: Image optimization failed: $e');
@@ -225,10 +281,15 @@ class SupabaseChatRepository implements ChatRepository {
     while (retryCount < maxRetries) {
       try {
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final safeFileName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9.\-_]'), '_');
+        final safeFileName = fileName.replaceAll(
+          RegExp(r'[^a-zA-Z0-9.\-_]'),
+          '_',
+        );
         final path = '$roomId/${timestamp}_$safeFileName';
 
-        debugPrint('SupabaseChatRepository: Uploading directly to storage bucket "$bucketName" at path: $path');
+        debugPrint(
+          'SupabaseChatRepository: Uploading directly to storage bucket "$bucketName" at path: $path',
+        );
 
         await _client.storage
             .from(bucketName)
@@ -241,17 +302,20 @@ class SupabaseChatRepository implements ChatRepository {
               ),
             );
 
-        final publicUrl = _client.storage
-            .from(bucketName)
-            .getPublicUrl(path);
+        final publicUrl = _client.storage.from(bucketName).getPublicUrl(path);
 
-        debugPrint('SupabaseChatRepository: Storage upload successful! URL: $publicUrl');
+        debugPrint(
+          'SupabaseChatRepository: Storage upload successful! URL: $publicUrl',
+        );
         return publicUrl;
       } catch (e) {
         retryCount++;
-        debugPrint('SupabaseChatRepository: Storage upload attempt $retryCount failed: $e');
-        
-        if (e is StorageException && (e.statusCode == '401' || e.statusCode == '403')) {
+        debugPrint(
+          'SupabaseChatRepository: Storage upload attempt $retryCount failed: $e',
+        );
+
+        if (e is StorageException &&
+            (e.statusCode == '401' || e.statusCode == '403')) {
           try {
             await _client.auth.refreshSession();
           } catch (_) {}
@@ -423,14 +487,51 @@ class SupabaseChatRepository implements ChatRepository {
     final data = await _client
         .from('room_participants')
         .select(
-          'role, profiles(id, username, nickname, avatar_url, is_online, last_seen)',
+          'role, profiles(id, username, nickname, avatar_url, is_online, last_seen, is_premium, premium_until, is_banned, banned_until, banned_reason)',
         )
         .eq('room_id', roomId);
 
     return (data as List)
         .map((p) {
           if (p['profiles'] == null) return null;
-          final profile = ProfileModel.fromJson(p['profiles']);
+          var profile = ProfileModel.fromJson(p['profiles']);
+
+          // Auto-expire check (Premium)
+          if (profile.isPremium &&
+              profile.premiumUntil != null &&
+              profile.premiumUntil!.isBefore(DateTime.now())) {
+            profile = profile.copyWith(isPremium: false, premiumUntil: null);
+            // background update
+            _client
+                .from('profiles')
+                .update({'is_premium': false, 'premium_until': null})
+                .eq('id', profile.id)
+                .then((_) {})
+                .catchError((_) {});
+          }
+
+          // Auto-expire check (Ban)
+          if (profile.isBanned == true &&
+              profile.bannedUntil != null &&
+              profile.bannedUntil!.isBefore(DateTime.now())) {
+            profile = profile.copyWith(
+              isBanned: false,
+              bannedUntil: null,
+              bannedReason: null,
+            );
+            // background update
+            _client
+                .from('profiles')
+                .update({
+                  'is_banned': false,
+                  'banned_until': null,
+                  'banned_reason': null,
+                })
+                .eq('id', profile.id)
+                .then((_) {})
+                .catchError((_) {});
+          }
+
           return profile.copyWith(role: p['role']?.toString());
         })
         .whereType<ProfileModel>()
@@ -593,6 +694,29 @@ class SupabaseChatRepository implements ChatRepository {
     }
   }
 
+  @override
+  Future<String?> transcribeVoiceMessage(String messageId, String audioUrl) async {
+    try {
+      debugPrint('SupabaseChatRepository: Transcribing audio $audioUrl');
+      
+      final service = TranscriptionService(SupabaseConfig.deepgramApiKey);
+      final transcription = await service.transcribe(audioUrl);
+      
+      if (transcription == null) return null;
+      
+      // Сохраняем результат в базу данных для кэширования
+      await _client
+          .from('messages')
+          .update({'transcription': transcription})
+          .eq('id', messageId);
+          
+      return transcription;
+    } catch (e) {
+      debugPrint('SupabaseChatRepository: Transcription error: $e');
+      return null;
+    }
+  }
+
   static Uint8List? _optimizeImage(Uint8List bytes) {
     final image = img.decodeImage(bytes);
     if (image == null) return null;
@@ -600,12 +724,20 @@ class SupabaseChatRepository implements ChatRepository {
     img.Image resized = image;
     if (image.width > 1200 || image.height > 1200) {
       if (image.width > image.height) {
-        resized = img.copyResize(image, width: 1200, interpolation: img.Interpolation.linear);
+        resized = img.copyResize(
+          image,
+          width: 1200,
+          interpolation: img.Interpolation.linear,
+        );
       } else {
-        resized = img.copyResize(image, height: 1200, interpolation: img.Interpolation.linear);
+        resized = img.copyResize(
+          image,
+          height: 1200,
+          interpolation: img.Interpolation.linear,
+        );
       }
     }
-    
+
     return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
   }
 }

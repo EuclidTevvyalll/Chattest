@@ -18,5 +18,3 @@ class CacheFailure extends Failure {
 class UnknownFailure extends Failure {
   const UnknownFailure([super.message = 'Неизвестная ошибка']);
 }
-
-

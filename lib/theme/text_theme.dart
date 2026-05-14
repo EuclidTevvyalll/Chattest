@@ -48,5 +48,3 @@ abstract class ThemeTextStyles {
     bool? isDark,
   }) => _base(fontSize, fontWeight, color: color, isDark: isDark);
 }
-
-

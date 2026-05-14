@@ -16,8 +16,9 @@ class BannedGuard extends ConsumerWidget {
       data: (profile) {
         if (profile != null && profile.isBanned == true) {
           // Check if ban is expired
-          if (profile.bannedUntil != null && profile.bannedUntil!.isBefore(DateTime.now().toUtc())) {
-            // Ban expired, show normal app. 
+          if (profile.bannedUntil != null &&
+              profile.bannedUntil!.isBefore(DateTime.now().toUtc())) {
+            // Ban expired, show normal app.
             // The backend/DB should actually update is_banned, but just in case we let them in.
             return child;
           }
@@ -25,12 +26,10 @@ class BannedGuard extends ConsumerWidget {
         }
         return child;
       },
-      loading: () => const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
-      error: (e, st) => child, // If error loading profile, fallback to normal (or an error screen)
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, st) =>
+          child, // If error loading profile, fallback to normal (or an error screen)
     );
   }
 }

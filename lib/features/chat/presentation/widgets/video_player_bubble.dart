@@ -50,44 +50,52 @@ class _VideoPlayerBubbleState extends State<VideoPlayerBubble> {
   void _openFullScreen(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => FullScreenVideoViewer(
-          videoUrl: widget.videoUrl,
-        ),
+        builder: (context) => FullScreenVideoViewer(videoUrl: widget.videoUrl),
       ),
     );
   }
+
+  @override
+  void didUpdateWidget(VideoPlayerBubble oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.videoUrl != widget.videoUrl) {
+      _controller?.dispose();
+      _isInitialized = false;
+      _initializeController();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(
-        maxWidth: widget.maxWidth,
-        maxHeight: 350,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: _isInitialized
-            ? AspectRatio(
-                aspectRatio: _controller!.value.aspectRatio,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    VideoPlayer(_controller!),
-                    _buildPlayOverlay(context),
-                  ],
-                ),
-              )
-            : AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Container(
-                  color: Colors.black12,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: ThemeColors.blue,
+    return RepaintBoundary(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: widget.maxWidth, maxHeight: 350),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: _isInitialized
+              ? AspectRatio(
+                  aspectRatio: _controller!.value.aspectRatio,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      VideoPlayer(_controller!),
+                      _buildPlayOverlay(context),
+                    ],
+                  ),
+                )
+              : AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Container(
+                    color: Colors.black12,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: ThemeColors.blue,
+                      ),
                     ),
                   ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -141,7 +149,9 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
   }
 
   Future<void> _initializePlayer() async {
-    _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+    _videoPlayerController = VideoPlayerController.networkUrl(
+      Uri.parse(widget.videoUrl),
+    );
     await _videoPlayerController.initialize();
 
     _chewieController = ChewieController(
@@ -155,9 +165,7 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
         backgroundColor: Colors.white24,
         bufferedColor: Colors.white38,
       ),
-      placeholder: Container(
-        color: Colors.black,
-      ),
+      placeholder: Container(color: Colors.black),
       autoInitialize: true,
       showOptions: false, // Hide internal options to use our custom AppBar menu
       optionsTranslation: OptionsTranslation(
@@ -210,7 +218,8 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
         ],
       ),
       body: Center(
-        child: _chewieController != null &&
+        child:
+            _chewieController != null &&
                 _chewieController!.videoPlayerController.value.isInitialized
             ? Chewie(controller: _chewieController!)
             : const CircularProgressIndicator(color: ThemeColors.blue),
@@ -242,16 +251,21 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
                 ),
               ),
             ),
-            ...speeds.map((speed) => ListTile(
-                  title: Text('${speed}x', style: const TextStyle(color: Colors.white)),
-                  trailing: _videoPlayerController.value.playbackSpeed == speed
-                      ? const Icon(Icons.check, color: ThemeColors.blue)
-                      : null,
-                  onTap: () {
-                    _videoPlayerController.setPlaybackSpeed(speed);
-                    Navigator.pop(context);
-                  },
-                )),
+            ...speeds.map(
+              (speed) => ListTile(
+                title: Text(
+                  '${speed}x',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                trailing: _videoPlayerController.value.playbackSpeed == speed
+                    ? const Icon(Icons.check, color: ThemeColors.blue)
+                    : null,
+                onTap: () {
+                  _videoPlayerController.setPlaybackSpeed(speed);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
             const SizedBox(height: 20),
           ],
         ),

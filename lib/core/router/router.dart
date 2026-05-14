@@ -152,5 +152,3 @@ int _calculateSelectedIndex(String location) {
   if (location == Routes.profile) return 1;
   return 0;
 }
-
-

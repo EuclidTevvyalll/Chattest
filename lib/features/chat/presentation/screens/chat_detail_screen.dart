@@ -13,16 +13,20 @@ import 'package:forgelink/features/chat/presentation/providers/chat_repository_p
 import 'package:forgelink/features/chat/presentation/widgets/chat_bubble.dart';
 import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
-import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/widgets/glass_box.dart';
 import 'package:forgelink/features/chat/presentation/widgets/forward_dialog.dart';
 import 'package:forgelink/features/chat/presentation/widgets/report_dialog.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_controller.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:forgelink/features/chat/presentation/providers/sticker_cache_manager.dart';
+import 'package:forgelink/widgets/custom_dialog.dart';
+import 'package:forgelink/widgets/premium_badge.dart';
 
 import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
 import 'package:forgelink/features/chat/domain/models/room_model.dart';
 import 'package:forgelink/features/chat/domain/models/message_model.dart';
 import 'package:forgelink/features/profile/presentation/providers/profile_provider.dart';
+import 'package:forgelink/features/chat/presentation/widgets/sticker_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import 'package:forgelink/core/config/supabase_config.dart';
@@ -96,6 +100,16 @@ class ChatDetailScreen extends HookConsumerWidget {
     final editingMessage = useState<MessageModel?>(null);
     final selectedMessages = useState<List<MessageModel>>([]);
     final isUploading = useState(false);
+
+    useEffect(() {
+      // Предварительная загрузка стикеров (кэширование)
+      final stickers = List.generate(
+        8,
+        (index) => 'assets/stickers/pack1/sticker${index + 1}.webm',
+      );
+      StickerCacheManager().precachePack(stickers);
+      return null;
+    }, []);
     final isSelectionMode = selectedMessages.value.isNotEmpty;
 
     void toggleSelection(MessageModel message) {
@@ -128,10 +142,12 @@ class ChatDetailScreen extends HookConsumerWidget {
           .toList();
     }, [messagesAsync.value, chatState.deletingIds]);
 
-    final myParticipant =
-        room?.participants.where((p) => p.id == currentUserId).firstOrNull;
+    final myParticipant = room?.participants
+        .where((p) => p.id == currentUserId)
+        .firstOrNull;
     final myRole = myParticipant?.role;
-    final canWrite = room?.type != RoomType.channel ||
+    final canWrite =
+        room?.type != RoomType.channel ||
         myRole == 'owner' ||
         myRole == 'admin';
 
@@ -180,11 +196,11 @@ class ChatDetailScreen extends HookConsumerWidget {
           final status = await Permission.microphone.request();
           if (!status.isGranted) {
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Для записи голосовых сообщений необходим доступ к микрофону'),
-                  backgroundColor: Colors.orangeAccent,
-                ),
+              showCustomDialog(
+                context: context,
+                title: 'Разрешение',
+                message:
+                    'Для записи голосовых сообщений необходим доступ к микрофону',
               );
             }
             return;
@@ -223,11 +239,11 @@ class ChatDetailScreen extends HookConsumerWidget {
         isRecording.value = false;
 
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Не удалось запустить запись. Проверьте микрофон.'),
-              backgroundColor: Colors.redAccent,
-            ),
+          showCustomDialog(
+            context: context,
+            title: 'Ошибка записи',
+            message: 'Не удалось запустить запись. Проверьте микрофон.',
+            isError: true,
           );
         }
       }
@@ -247,14 +263,16 @@ class ChatDetailScreen extends HookConsumerWidget {
 
             isUploading.value = true;
             try {
-              await ref.read(chatControllerProvider.notifier).sendMediaMessage(
-                roomId,
-                currentUserId,
-                bytes,
-                fileName,
-                'audio/mpeg', // Универсальный MIME-тип для успешного прохождения проверки Supabase Storage
-                content: '',
-              );
+              await ref
+                  .read(chatControllerProvider.notifier)
+                  .sendMediaMessage(
+                    roomId,
+                    currentUserId,
+                    bytes,
+                    fileName,
+                    'audio/mpeg', // Универсальный MIME-тип для успешного прохождения проверки Supabase Storage
+                    content: '',
+                  );
             } finally {
               isUploading.value = false;
             }
@@ -290,8 +308,11 @@ class ChatDetailScreen extends HookConsumerWidget {
                 .editMessage(roomId, messageId, text);
           } catch (e) {
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Ошибка при редактировании: $e')),
+              showCustomDialog(
+                context: context,
+                title: 'Ошибка',
+                message: 'Ошибка при редактировании: $e',
+                isError: true,
               );
             }
           }
@@ -312,9 +333,12 @@ class ChatDetailScreen extends HookConsumerWidget {
               )
               .catchError((e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+                  showCustomDialog(
+                    context: context,
+                    title: 'Ошибка',
+                    message: 'Ошибка: $e',
+                    isError: true,
+                  );
                 }
               });
         }
@@ -411,14 +435,31 @@ class ChatDetailScreen extends HookConsumerWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: ThemeTextStyles.h3(isDark: isDark)),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(title, style: ThemeTextStyles.h3(isDark: isDark)),
+                      if (room?.type == RoomType.room)
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final participants = participantsAsync.value ?? [];
+                            final other = participants
+                                .where((p) => p.id != currentUserId)
+                                .firstOrNull;
+                            return PremiumBadge(
+                              isPremium: other?.isPremium ?? false,
+                            );
+                          },
+                        ),
+                    ],
+                  ),
                   if (room?.type == RoomType.room)
                     Text(
                       isOnline
                           ? 'онлайн'
                           : (lastSeen != null
-                              ? _formatLastSeen(lastSeen!)
-                              : 'офлайн'),
+                                ? _formatLastSeen(lastSeen!)
+                                : 'офлайн'),
                       style: ThemeTextStyles.caption(
                         color: isOnline
                             ? Colors.green
@@ -464,267 +505,285 @@ class ChatDetailScreen extends HookConsumerWidget {
             children: [
               Expanded(
                 child: messagesAsync.when(
-                  data: (_) => ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    reverse: true,
-                    itemCount: allMessages.length,
-                    itemBuilder: (context, index) {
-                      final message =
-                          allMessages[allMessages.length - 1 - index];
+                  data: (_) {
+                    final reversedMessages = allMessages.reversed.toList();
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      cacheExtent: 1000,
+                      reverse: true,
+                      itemCount: reversedMessages.length,
+                      itemBuilder: (context, index) {
+                        final message = reversedMessages[index];
 
-                      bool showDateDivider = false;
-                      if (index == allMessages.length - 1) {
-                        showDateDivider = true;
-                      } else {
-                        final previousMessage =
-                            allMessages[allMessages.length - 1 - (index + 1)];
-                        final currentDate = message.createdAt.toLocal();
-                        final previousDate =
-                            previousMessage.createdAt.toLocal();
-                        if (currentDate.year != previousDate.year ||
-                            currentDate.month != previousDate.month ||
-                            currentDate.day != previousDate.day) {
+                        bool showDateDivider = false;
+                        if (index == allMessages.length - 1) {
                           showDateDivider = true;
-                        }
-                      }
-
-                      // Find replied message info
-                      String? repliedContent;
-                      String? repliedSenderName;
-                      if (message.replyToMessageId != null) {
-                        final repliedMsg = allMessages
-                            .where((m) => m.id == message.replyToMessageId)
-                            .firstOrNull;
-                        if (repliedMsg != null) {
-                          repliedContent = repliedMsg.content;
-                          // Find sender name
-                          final participants = participantsAsync.value ?? [];
-                          final sender = participants
-                              .where((p) => p.id == repliedMsg.profileId)
-                              .firstOrNull;
-                          repliedSenderName = sender?.nickname ??
-                              sender?.username ??
-                              (repliedMsg.profileId == currentUserId
-                                  ? 'Вы'
-                                  : 'Пользователь');
                         } else {
-                          // If parent message is not found, it means it was deleted
-                          repliedContent = 'Сообщение удалено';
-                          repliedSenderName = 'Удаленное сообщение';
+                          final previousMessage =
+                              allMessages[allMessages.length - 1 - (index + 1)];
+                          final currentDate = message.createdAt.toLocal();
+                          final previousDate = previousMessage.createdAt
+                              .toLocal();
+                          if (currentDate.year != previousDate.year ||
+                              currentDate.month != previousDate.month ||
+                              currentDate.day != previousDate.day) {
+                            showDateDivider = true;
+                          }
                         }
-                      }
 
-                      final isMine = message.profileId == currentUserId;
-                      final participants = participantsAsync.value ?? [];
-                      final sender = participants
-                          .where((p) => p.id == message.profileId)
-                          .firstOrNull;
+                        // Find replied message info
+                        String? repliedContent;
+                        String? repliedSenderName;
+                        bool repliedIsPremium = false;
+                        if (message.replyToMessageId != null) {
+                          final repliedMsg = allMessages
+                              .where((m) => m.id == message.replyToMessageId)
+                              .firstOrNull;
+                          if (repliedMsg != null) {
+                            repliedContent = repliedMsg.content;
+                            // Find sender name
+                            final participants = participantsAsync.value ?? [];
+                            final sender = participants
+                                .where((p) => p.id == repliedMsg.profileId)
+                                .firstOrNull;
+                            repliedSenderName =
+                                sender?.nickname ??
+                                sender?.username ??
+                                (repliedMsg.profileId == currentUserId
+                                    ? 'Вы'
+                                    : 'Пользователь');
+                            repliedIsPremium = sender?.isPremium ?? false;
+                          } else {
+                            // If parent message is not found, it means it was deleted
+                            repliedContent = 'Сообщение удалено';
+                            repliedSenderName = 'Удаленное сообщение';
+                          }
+                        }
 
-                      final isGroup = room?.type == RoomType.group;
-                      final isChannel = room?.type == RoomType.channel;
+                        final isMine = message.profileId == currentUserId;
+                        final participants = participantsAsync.value ?? [];
+                        final sender = participants
+                            .where((p) => p.id == message.profileId)
+                            .firstOrNull;
 
-                      final otherParticipant = participantsAsync.value
-                          ?.where((p) => p.id != currentUserId)
-                          .firstOrNull;
-                      final isOtherOnline = otherParticipant?.isOnline ?? false;
-                      final isRead = isOtherOnline || index > 0;
+                        final isGroup = room?.type == RoomType.group;
+                        final isChannel = room?.type == RoomType.channel;
 
-                      final bubbleWidget = ChatBubble(
-                        content: message.content,
-                        isMine: isMine,
-                        timestamp: DateFormat('HH:mm')
-                            .format(message.createdAt.toLocal()),
-                        isEdited: message.isEdited,
-                        isDeleted: message.isDeleted,
-                        isRead: isRead,
-                        reactions: message.reactions,
-                        currentUserId: currentUserId,
-                        repliedMessageContent: repliedContent,
-                        repliedMessageSenderName: repliedSenderName,
-                        forwardedInfo: message.forwardedInfo,
-                        mediaUrl: message.mediaUrl,
-                        mediaType: message.mediaType,
-                        mediaName: message.mediaName,
-                        showSenderInfo: isGroup || isChannel,
-                        senderName: isChannel ? room?.name : (sender?.nickname ?? sender?.username),
-                        senderAvatarUrl: isGroup ? sender?.avatarUrl : null,
-                        channelName: isChannel ? room?.name : null,
-                        isSelected: selectedMessages.value
-                            .any((m) => m.id == message.id),
-                        isSelectionMode: isSelectionMode,
-                        onTap: () => toggleSelection(message),
-                        onLongPress: () => toggleSelection(message),
-                        onReactionToggled: (emoji) {
-                          ref
-                              .read(chatRepositoryProvider)
-                              .toggleReaction(message.id, emoji);
-                        },
-                        onReply: () {
-                          replyMessage.value = message;
-                          focusNode.requestFocus();
-                        },
-                        onEdit: isMine
-                            ? () {
-                                editingMessage.value = message;
-                              }
-                            : null,
-                        onDelete: (isMine || room?.type == RoomType.room)
-                            ? () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Удалить сообщение?'),
-                                    content: const Text(
-                                      'Это действие нельзя отменить.',
+                        final otherParticipant = participantsAsync.value
+                            ?.where((p) => p.id != currentUserId)
+                            .firstOrNull;
+                        final isOtherOnline =
+                            otherParticipant?.isOnline ?? false;
+                        final isRead = isOtherOnline || index > 0;
+
+                        final bubbleWidget = ChatBubble(
+                          key: ValueKey(message.id),
+                          messageId: message.id,
+                          content: message.content,
+                          isMine: isMine,
+                          isPremium: sender?.isPremium ?? false,
+                          repliedMessageIsPremium: repliedIsPremium,
+                          timestamp: DateFormat(
+                            'HH:mm',
+                          ).format(message.createdAt.toLocal()),
+                          isEdited: message.isEdited,
+                          isDeleted: message.isDeleted,
+                          isRead: isRead,
+                          reactions: message.reactions,
+                          currentUserId: currentUserId,
+                          repliedMessageContent: repliedContent,
+                          repliedMessageSenderName: repliedSenderName,
+                          forwardedInfo: message.forwardedInfo,
+                          mediaUrl: message.mediaUrl,
+                          mediaType: message.mediaType,
+                          mediaName: message.mediaName,
+                          transcription: message.transcription,
+                          showSenderInfo: isGroup || isChannel,
+                          senderName: isChannel
+                              ? room?.name
+                              : (sender?.nickname ?? sender?.username),
+                          senderAvatarUrl: isGroup ? sender?.avatarUrl : null,
+                          channelName: isChannel ? room?.name : null,
+                          isSelected: selectedMessages.value.any(
+                            (m) => m.id == message.id,
+                          ),
+                          isSelectionMode: isSelectionMode,
+                          onTap: () => toggleSelection(message),
+                          onLongPress: () => toggleSelection(message),
+                          onReactionToggled: (emoji) {
+                            ref
+                                .read(chatRepositoryProvider)
+                                .toggleReaction(message.id, emoji);
+                          },
+                          onReply: () {
+                            replyMessage.value = message;
+                            focusNode.requestFocus();
+                          },
+                          onEdit: isMine
+                              ? () {
+                                  editingMessage.value = message;
+                                }
+                              : null,
+                          onDelete: (isMine || room?.type == RoomType.room)
+                              ? () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Удалить сообщение?'),
+                                      content: const Text(
+                                        'Это действие нельзя отменить.',
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, false),
+                                          child: const Text('Отмена'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(context, true),
+                                          child: const Text(
+                                            'Удалить',
+                                            style: TextStyle(
+                                              color: Colors.redAccent,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, false),
-                                        child: const Text('Отмена'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(context, true),
-                                        child: const Text(
-                                          'Удалить',
-                                          style: TextStyle(
-                                              color: Colors.redAccent),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
+                                  );
 
-                                if (confirm == true) {
-                                  try {
-                                    await ref
-                                        .read(chatControllerProvider.notifier)
-                                        .deleteMessage(roomId, message.id);
-                                  } catch (e) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                          content:
-                                              Text('Ошибка при удалении: $e'),
-                                        ),
-                                      );
+                                  if (confirm == true) {
+                                    try {
+                                      await ref
+                                          .read(chatControllerProvider.notifier)
+                                          .deleteMessage(roomId, message.id);
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        showCustomDialog(
+                                          context: context,
+                                          title: 'Ошибка',
+                                          message: 'Ошибка при удалении: $e',
+                                          isError: true,
+                                        );
+                                      }
                                     }
                                   }
                                 }
-                              }
-                            : null,
-                        onForward: () {
-                          // Find sender name for forwarding info
-                          final participants = participantsAsync.value ?? [];
-                          final sender = participants
-                              .where((p) => p.id == message.profileId)
-                              .firstOrNull;
-                          final senderName = sender?.nickname ??
-                              sender?.username ??
-                              (message.profileId == currentUserId
-                                  ? 'Вы'
-                                  : 'Пользователь');
+                              : null,
+                          onForward: () {
+                            // Find sender name for forwarding info
+                            final participants = participantsAsync.value ?? [];
+                            final sender = participants
+                                .where((p) => p.id == message.profileId)
+                                .firstOrNull;
+                            final senderName =
+                                sender?.nickname ??
+                                sender?.username ??
+                                (message.profileId == currentUserId
+                                    ? 'Вы'
+                                    : 'Пользователь');
 
-                          showDialog(
-                            context: context,
-                            builder: (context) => ForwardDialog(
-                              content: message.content,
-                              onForward: (targetRoomId) {
-                                ref
-                                    .read(chatControllerProvider.notifier)
-                                    .sendMessage(
-                                      targetRoomId,
-                                      message.content,
-                                      currentUserId!,
-                                      forwardedFrom: message.id,
-                                      forwardedInfo: {
-                                        'sender_name': senderName,
-                                        'sender_id': message.profileId,
-                                      },
-                                    )
-                                    .then((_) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Сообщение переслано'),
-                                      ),
-                                    );
-                                  }
-                                }).catchError((e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Ошибка пересылки: $e'),
-                                      ),
-                                    );
-                                  }
-                                });
-                              },
-                            ),
-                          );
-                        },
-                        onReport: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => ReportDialog(
-                              targetId: message.id,
-                              targetType: 'message',
-                              onReport: (reason, details) async {
-                                try {
-                                  await ref
-                                      .read(chatRepositoryProvider)
-                                      .reportTarget(
-                                        targetId: message.id,
-                                        targetType: 'message',
-                                        reason: reason,
-                                        details: details,
+                            showDialog(
+                              context: context,
+                              builder: (context) => ForwardDialog(
+                                content: message.content,
+                                onForward: (targetRoomId) {
+                                  ref
+                                      .read(chatControllerProvider.notifier)
+                                      .sendMessage(
+                                        targetRoomId,
+                                        message.content,
+                                        currentUserId!,
+                                        forwardedFrom: message.id,
+                                        forwardedInfo: {
+                                          'sender_name': senderName,
+                                          'sender_id': message.profileId,
+                                        },
+                                      )
+                                      .then((_) {
+                                        if (context.mounted) {
+                                          showCustomDialog(
+                                            context: context,
+                                            title: 'Успех',
+                                            message: 'Сообщение переслано',
+                                          );
+                                        }
+                                      })
+                                      .catchError((e) {
+                                        if (context.mounted) {
+                                          showCustomDialog(
+                                            context: context,
+                                            title: 'Ошибка',
+                                            message: 'Ошибка пересылки: $e',
+                                            isError: true,
+                                          );
+                                        }
+                                      });
+                                },
+                              ),
+                            );
+                          },
+                          onReport: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => ReportDialog(
+                                targetId: message.id,
+                                targetType: 'message',
+                                onReport: (reason, details) async {
+                                  try {
+                                    await ref
+                                        .read(chatRepositoryProvider)
+                                        .reportTarget(
+                                          targetId: message.id,
+                                          targetType: 'message',
+                                          reason: reason,
+                                          details: details,
+                                        );
+                                    if (context.mounted) {
+                                      showCustomDialog(
+                                        context: context,
+                                        title: 'Успех',
+                                        message:
+                                            'Жалоба отправлена модераторам',
                                       );
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Жалоба отправлена модераторам',
-                                        ),
-                                      ),
-                                    );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      showCustomDialog(
+                                        context: context,
+                                        title: 'Ошибка',
+                                        message:
+                                            'Ошибка при отправке жалобы: $e',
+                                        isError: true,
+                                      );
+                                    }
                                   }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Ошибка при отправке жалобы: $e',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      );
-
-                      if (showDateDivider) {
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _DateDivider(
-                              date: message.createdAt.toLocal(),
-                              isDark: isDark,
-                            ),
-                            bubbleWidget,
-                          ],
+                                },
+                              ),
+                            );
+                          },
                         );
-                      }
-                      return bubbleWidget;
-                    },
-                  ),
+
+                        if (showDateDivider) {
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _DateDivider(
+                                date: message.createdAt.toLocal(),
+                                isDark: isDark,
+                              ),
+                              bubbleWidget,
+                            ],
+                          );
+                        }
+                        return bubbleWidget;
+                      },
+                    );
+                  },
                   loading: () => const Center(
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
@@ -900,7 +959,9 @@ class ChatDetailScreen extends HookConsumerWidget {
                       ? GlassBox(
                           key: const ValueKey('selection_bar'),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           borderRadius: BorderRadius.circular(30),
                           opacity: isDark ? 0.2 : 0.3,
                           color: ThemeColors.blue.withValues(alpha: 0.1),
@@ -909,19 +970,24 @@ class ChatDetailScreen extends HookConsumerWidget {
                               Text(
                                 '${selectedMessages.value.length}',
                                 style: ThemeTextStyles.h3(
-                                    isDark: isDark, color: ThemeColors.blue),
+                                  isDark: isDark,
+                                  color: ThemeColors.blue,
+                                ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Text(
                                   'Выбрано',
                                   style: ThemeTextStyles.bodyMedium(
-                                      isDark: isDark),
+                                    isDark: isDark,
+                                  ),
                                 ),
                               ),
                               IconButton(
-                                icon: const Icon(Icons.forward_rounded,
-                                    color: ThemeColors.blue),
+                                icon: const Icon(
+                                  Icons.forward_rounded,
+                                  color: ThemeColors.blue,
+                                ),
                                 tooltip: 'Переслать',
                                 onPressed: () {
                                   showDialog(
@@ -930,20 +996,24 @@ class ChatDetailScreen extends HookConsumerWidget {
                                       content:
                                           '${selectedMessages.value.length} сообщения',
                                       onForward: (targetRoomId) async {
-                                        final msgs =
-                                            List<MessageModel>.from(
-                                                selectedMessages.value);
+                                        final msgs = List<MessageModel>.from(
+                                          selectedMessages.value,
+                                        );
                                         selectedMessages.value = [];
 
                                         final profiles =
                                             participantsAsync.value ?? [];
 
-                                        final replyContents = <String, String>{};
+                                        final replyContents =
+                                            <String, String>{};
                                         for (final msg in msgs) {
                                           if (msg.replyToMessageId != null) {
                                             final replied = messagesAsync.value
-                                                ?.where((m) =>
-                                                    m.id == msg.replyToMessageId)
+                                                ?.where(
+                                                  (m) =>
+                                                      m.id ==
+                                                      msg.replyToMessageId,
+                                                )
                                                 .firstOrNull;
                                             if (replied != null) {
                                               replyContents[msg.id] =
@@ -953,8 +1023,9 @@ class ChatDetailScreen extends HookConsumerWidget {
                                         }
 
                                         ref
-                                            .read(chatControllerProvider
-                                                .notifier)
+                                            .read(
+                                              chatControllerProvider.notifier,
+                                            )
                                             .forwardMessages(
                                               targetRoomId,
                                               msgs,
@@ -964,12 +1035,10 @@ class ChatDetailScreen extends HookConsumerWidget {
                                             );
 
                                         if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            const SnackBar(
-                                              content:
-                                                  Text('Сообщения пересланы'),
-                                            ),
+                                          showCustomDialog(
+                                            context: context,
+                                            title: 'Успех',
+                                            message: 'Сообщения пересланы',
                                           );
                                         }
                                       },
@@ -979,10 +1048,13 @@ class ChatDetailScreen extends HookConsumerWidget {
                               ),
                               if (room?.type == RoomType.room ||
                                   selectedMessages.value.every(
-                                      (m) => m.profileId == currentUserId))
+                                    (m) => m.profileId == currentUserId,
+                                  ))
                                 IconButton(
-                                  icon: const Icon(Icons.delete_rounded,
-                                      color: Colors.redAccent),
+                                  icon: const Icon(
+                                    Icons.delete_rounded,
+                                    color: Colors.redAccent,
+                                  ),
                                   tooltip: 'Удалить',
                                   onPressed: () async {
                                     final confirmed = await showDialog<bool>(
@@ -993,7 +1065,8 @@ class ChatDetailScreen extends HookConsumerWidget {
                                             : Colors.white,
                                         title: const Text('Удалить сообщения?'),
                                         content: Text(
-                                            'Вы уверены, что хотите удалить ${selectedMessages.value.length} сообщения?'),
+                                          'Вы уверены, что хотите удалить ${selectedMessages.value.length} сообщения?',
+                                        ),
                                         actions: [
                                           TextButton(
                                             onPressed: () =>
@@ -1004,7 +1077,8 @@ class ChatDetailScreen extends HookConsumerWidget {
                                             onPressed: () =>
                                                 Navigator.pop(context, true),
                                             style: TextButton.styleFrom(
-                                                foregroundColor: Colors.red),
+                                              foregroundColor: Colors.red,
+                                            ),
                                             child: const Text('Удалить'),
                                           ),
                                         ],
@@ -1031,174 +1105,208 @@ class ChatDetailScreen extends HookConsumerWidget {
                           ),
                         )
                       : canWrite
-                          ? GlassBox(
-                              key: const ValueKey('input_bar'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              borderRadius: BorderRadius.circular(30),
-                              opacity: isDark ? 0.15 : 0.08,
-                              child: isRecording.value
-                                  ? Row(
+                      ? GlassBox(
+                          key: const ValueKey('input_bar'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          borderRadius: BorderRadius.circular(30),
+                          opacity: isDark ? 0.15 : 0.08,
+                          child: isRecording.value
+                              ? Row(
+                                  children: [
+                                    IconButton(
+                                      onPressed: cancelRecording,
+                                      tooltip: 'Отменить запись',
+                                      icon: const Icon(
+                                        Icons.delete_outline_rounded,
+                                        color: Colors.redAccent,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        IconButton(
-                                          onPressed: cancelRecording,
-                                          tooltip: 'Отменить запись',
-                                          icon: const Icon(
-                                            Icons.delete_outline_rounded,
+                                        Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: const BoxDecoration(
                                             color: Colors.redAccent,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Container(
-                                              width: 10,
-                                              height: 10,
-                                              decoration: const BoxDecoration(
-                                                color: Colors.redAccent,
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              _formatDuration(
-                                                recordingDuration.value,
-                                              ),
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                                color: isDark
-                                                    ? Colors.white
-                                                    : Colors.black87,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const Spacer(),
-                                        Container(
-                                          margin: const EdgeInsets.only(left: 8),
-                                          decoration: BoxDecoration(
-                                            gradient: ThemeColors.primaryGradient,
                                             shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: ThemeColors.blue
-                                                    .withValues(alpha: 0.3),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: IconButton(
-                                            onPressed: stopAndSendRecording,
-                                            tooltip: 'Отправить голосовое',
-                                            icon: const Icon(
-                                              Icons.send_rounded,
-                                              color: Colors.white,
-                                              size: 20,
-                                            ),
                                           ),
                                         ),
-                                      ],
-                                    )
-                                  : Row(
-                                      children: [
-                                        IconButton(
-                                          icon: isUploading.value
-                                              ? const SizedBox(
-                                                  width: 20,
-                                                  height: 20,
-                                                  child: CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                    color: ThemeColors.blue,
-                                                  ),
-                                                )
-                                              : Icon(
-                                                  Icons.add_circle_outline_rounded,
-                                                  color: isDark
-                                                      ? Colors.white54
-                                                      : Colors.black45,
-                                                ),
-                                          onPressed: isUploading.value
-                                              ? null
-                                              : () => _showAttachmentMenu(
-                                                    context,
-                                                    ref,
-                                                    roomId,
-                                                    currentUserId!,
-                                                    isUploading,
-                                                  ),
-                                        ),
-                                        Expanded(
-                                          child: TextField(
-                                            controller: controller,
-                                            focusNode: focusNode,
-                                            onSubmitted: (_) => handleSend(),
-                                            decoration: InputDecoration(
-                                              hintText: 'Напишите сообщение...',
-                                              hintStyle: ThemeTextStyles.bodyMedium(
-                                                color: isDark
-                                                    ? Colors.white38
-                                                    : Colors.black38,
-                                              ),
-                                              border: InputBorder.none,
-                                              contentPadding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                              ),
-                                            ),
-                                            style: ThemeTextStyles.bodyMedium(
-                                                isDark: isDark),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _formatDuration(
+                                            recordingDuration.value,
                                           ),
-                                        ),
-                                        Container(
-                                          margin: const EdgeInsets.only(left: 8),
-                                          decoration: BoxDecoration(
-                                            gradient: ThemeColors.primaryGradient,
-                                            shape: BoxShape.circle,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: ThemeColors.blue
-                                                    .withValues(alpha: 0.3),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 2),
-                                              ),
-                                            ],
-                                          ),
-                                          child: IconButton(
-                                            onPressed: isTextEmpty.value &&
-                                                    editingMessage.value == null
-                                                ? startRecording
-                                                : handleSend,
-                                            icon: Icon(
-                                              editingMessage.value != null
-                                                  ? Icons.done_rounded
-                                                  : (isTextEmpty.value
-                                                      ? Icons.mic_rounded
-                                                      : Icons.send_rounded),
-                                              color: Colors.white,
-                                              size: 20,
-                                            ),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark
+                                                ? Colors.white
+                                                : Colors.black87,
                                           ),
                                         ),
                                       ],
                                     ),
-                            )
-                          : Container(
-                              key: const ValueKey('readonly_bar'),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              alignment: Alignment.center,
-                              child: Text(
-                                'Только администраторы могут писать сообщения',
-                                style: ThemeTextStyles.bodySmall(
-                                  isDark: isDark,
-                                  color: isDark ? Colors.white54 : Colors.black54,
+                                    const Spacer(),
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 8),
+                                      decoration: BoxDecoration(
+                                        gradient: ThemeColors.primaryGradient,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: ThemeColors.blue.withValues(
+                                              alpha: 0.3,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: IconButton(
+                                        onPressed: stopAndSendRecording,
+                                        tooltip: 'Отправить голосовое',
+                                        icon: const Icon(
+                                          Icons.send_rounded,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    IconButton(
+                                      icon: isUploading.value
+                                          ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: ThemeColors.blue,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.add_circle_outline_rounded,
+                                              color: isDark
+                                                  ? Colors.white54
+                                                  : Colors.black45,
+                                            ),
+                                      onPressed: isUploading.value
+                                          ? null
+                                          : () => _showAttachmentMenu(
+                                              context,
+                                              ref,
+                                              roomId,
+                                              currentUserId!,
+                                              isUploading,
+                                            ),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.emoji_emotions_outlined,
+                                        color: isDark
+                                            ? Colors.white54
+                                            : Colors.black45,
+                                      ),
+                                      onPressed: () {
+                                        showModalBottomSheet(
+                                          context: context,
+                                          backgroundColor: Colors.transparent,
+                                          isScrollControlled: true,
+                                          builder: (context) => StickerPicker(
+                                            onStickerSelected: (stickerPath) {
+                                              ref
+                                                  .read(
+                                                    chatControllerProvider
+                                                        .notifier,
+                                                  )
+                                                  .sendMessage(
+                                                    roomId,
+                                                    stickerPath,
+                                                    currentUserId!,
+                                                    mediaType: 'sticker',
+                                                  );
+                                            },
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: controller,
+                                        focusNode: focusNode,
+                                        onSubmitted: (_) => handleSend(),
+                                        decoration: InputDecoration(
+                                          hintText: 'Напишите сообщение...',
+                                          hintStyle: ThemeTextStyles.bodyMedium(
+                                            color: isDark
+                                                ? Colors.white38
+                                                : Colors.black38,
+                                          ),
+                                          border: InputBorder.none,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                              ),
+                                        ),
+                                        style: ThemeTextStyles.bodyMedium(
+                                          isDark: isDark,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 8),
+                                      decoration: BoxDecoration(
+                                        gradient: ThemeColors.primaryGradient,
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: ThemeColors.blue.withValues(
+                                              alpha: 0.3,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: IconButton(
+                                        onPressed:
+                                            isTextEmpty.value &&
+                                                editingMessage.value == null
+                                            ? startRecording
+                                            : handleSend,
+                                        icon: Icon(
+                                          editingMessage.value != null
+                                              ? Icons.done_rounded
+                                              : (isTextEmpty.value
+                                                    ? Icons.mic_rounded
+                                                    : Icons.send_rounded),
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
+                        )
+                      : Container(
+                          key: const ValueKey('readonly_bar'),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Только администраторы могут писать сообщения',
+                            style: ThemeTextStyles.bodySmall(
+                              isDark: isDark,
+                              color: isDark ? Colors.white54 : Colors.black54,
                             ),
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -1237,8 +1345,10 @@ void _showAttachmentMenu(
             ),
           ),
           const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Wrap(
+            alignment: WrapAlignment.spaceEvenly,
+            spacing: 16,
+            runSpacing: 20,
             children: [
               _AttachmentOption(
                 icon: Icons.camera_alt_rounded,
@@ -1381,18 +1491,21 @@ Future<void> _pickAndUpload(
       return;
     }
 
-    if ((result.files.single.bytes != null || result.files.single.path != null) &&
+    if ((result.files.single.bytes != null ||
+            result.files.single.path != null) &&
         context.mounted) {
       final file = result.files.single;
-      debugPrint('ChatDetailScreen: File picked: ${file.name}, size: ${file.size}, path: ${file.path}');
-      
+      debugPrint(
+        'ChatDetailScreen: File picked: ${file.name}, size: ${file.size}, path: ${file.path}',
+      );
+
       if (file.size > SupabaseConfig.maxFileSize) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Размер файла превышает допустимый лимит (50 МБ)'),
-              backgroundColor: Colors.redAccent,
-            ),
+          showCustomDialog(
+            context: context,
+            title: 'Лимит файла',
+            message: 'Размер файла превышает допустимый лимит (50 МБ)',
+            isError: true,
           );
         }
         return;
@@ -1430,7 +1543,9 @@ Future<void> _pickAndUpload(
           if (image != null) {
             img.Image resized = image;
             if (image.width > 1200 || image.height > 1200) {
-              debugPrint('ChatDetailScreen: Resizing image from ${image.width}x${image.height}');
+              debugPrint(
+                'ChatDetailScreen: Resizing image from ${image.width}x${image.height}',
+              );
               resized = img.copyResize(
                 image,
                 width: image.width > image.height ? 1200 : null,
@@ -1438,7 +1553,9 @@ Future<void> _pickAndUpload(
               );
             }
             bytes = Uint8List.fromList(img.encodeJpg(resized, quality: 80));
-            debugPrint('ChatDetailScreen: Image processed, new size: ${bytes.length}');
+            debugPrint(
+              'ChatDetailScreen: Image processed, new size: ${bytes.length}',
+            );
           } else {
             debugPrint('ChatDetailScreen: Failed to decode image!');
           }
@@ -1490,11 +1607,8 @@ Future<void> _pickAndUpload(
         final caption = await showDialog<String>(
           context: context,
           barrierDismissible: false,
-          builder: (context) => MediaPreviewDialog(
-            bytes: bytes,
-            fileName: file.name,
-            type: type,
-          ),
+          builder: (context) =>
+              MediaPreviewDialog(bytes: bytes, fileName: file.name, type: type),
         );
 
         if (caption == null) {
@@ -1502,8 +1616,12 @@ Future<void> _pickAndUpload(
           return;
         }
 
-        debugPrint('ChatDetailScreen: Calling sendMediaMessage with caption: $caption');
-        await ref.read(chatControllerProvider.notifier).sendMediaMessage(
+        debugPrint(
+          'ChatDetailScreen: Calling sendMediaMessage with caption: $caption',
+        );
+        await ref
+            .read(chatControllerProvider.notifier)
+            .sendMediaMessage(
               roomId,
               currentUserId,
               bytes,
@@ -1518,7 +1636,9 @@ Future<void> _pickAndUpload(
         isUploading.value = false;
       }
     } else {
-      debugPrint('ChatDetailScreen: Invalid file or context not mounted. Path: ${result.files.single.path}, Bytes: ${result.files.single.bytes != null}');
+      debugPrint(
+        'ChatDetailScreen: Invalid file or context not mounted. Path: ${result.files.single.path}, Bytes: ${result.files.single.bytes != null}',
+      );
     }
   } catch (e) {
     debugPrint('ChatDetailScreen: Outer Error: $e');
@@ -1551,11 +1671,11 @@ Future<void> _takePhotoAndUpload(
         final fileSize = await photo.length();
         if (fileSize > SupabaseConfig.maxFileSize) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Размер фото превышает лимит (50 МБ)'),
-                backgroundColor: Colors.redAccent,
-              ),
+            showCustomDialog(
+              context: context,
+              title: 'Лимит фото',
+              message: 'Размер фото превышает лимит (50 МБ)',
+              isError: true,
             );
           }
           isUploading.value = false;
@@ -1581,7 +1701,9 @@ Future<void> _takePhotoAndUpload(
 
         if (caption == null) return;
 
-        await ref.read(chatControllerProvider.notifier).sendMediaMessage(
+        await ref
+            .read(chatControllerProvider.notifier)
+            .sendMediaMessage(
               roomId,
               currentUserId,
               bytes,
@@ -1644,9 +1766,7 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
         opacity: isDark ? 0.3 : 0.1,
         padding: const EdgeInsets.all(16),
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: size.height * 0.8,
-          ),
+          constraints: BoxConstraints(maxHeight: size.height * 0.8),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1670,20 +1790,24 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
                 ),
                 const SizedBox(height: 16),
                 ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: _buildPreview(),
-              ),
+                  borderRadius: BorderRadius.circular(16),
+                  child: _buildPreview(),
+                ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _controller,
-                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Добавьте комментарий...',
                     hintStyle: TextStyle(
                       color: isDark ? Colors.white54 : Colors.black54,
                     ),
                     filled: true,
-                    fillColor: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+                    fillColor: isDark
+                        ? Colors.white10
+                        : Colors.black.withValues(alpha: 0.05),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
@@ -1716,7 +1840,10 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
                       ),
                       child: const Text('Отправить'),
                     ),
@@ -1732,10 +1859,7 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
 
   Widget _buildPreview() {
     if (widget.type == FileType.image) {
-      return Image.memory(
-        widget.bytes,
-        fit: BoxFit.fitWidth,
-      );
+      return Image.memory(widget.bytes, fit: BoxFit.fitWidth);
     } else if (widget.type == FileType.video) {
       return Container(
         padding: const EdgeInsets.all(32),
@@ -1747,7 +1871,10 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
             SizedBox(height: 12),
             Text(
               'Видео',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -1759,7 +1886,11 @@ class _MediaPreviewDialogState extends State<MediaPreviewDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.insert_drive_file_rounded, size: 64, color: Colors.blue),
+            const Icon(
+              Icons.insert_drive_file_rounded,
+              size: 64,
+              color: Colors.blue,
+            ),
             const SizedBox(height: 12),
             Text(
               widget.fileName,
@@ -1796,8 +1927,18 @@ String _formatLastSeen(DateTime date) {
     return 'был(а) вчера в $timeStr';
   } else {
     const months = [
-      'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
-      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+      'янв',
+      'фев',
+      'мар',
+      'апр',
+      'мая',
+      'июн',
+      'июл',
+      'авг',
+      'сен',
+      'окт',
+      'ноя',
+      'дек',
     ];
     final monthStr = months[local.month - 1];
     if (local.year == now.year) {
@@ -1821,8 +1962,18 @@ String _formatDateDivider(DateTime date) {
     return 'Вчера';
   } else {
     const months = [
-      'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
-      'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+      'янв',
+      'фев',
+      'мар',
+      'апр',
+      'мая',
+      'июн',
+      'июл',
+      'авг',
+      'сен',
+      'окт',
+      'ноя',
+      'дек',
     ];
     final monthStr = months[local.month - 1];
     if (local.year == now.year) {
@@ -1848,8 +1999,8 @@ class _DateDivider extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: isDark 
-                ? Colors.black.withValues(alpha: 0.4) 
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.4)
                 : Colors.black.withValues(alpha: 0.25),
             borderRadius: BorderRadius.circular(12),
           ),
@@ -1866,5 +2017,3 @@ class _DateDivider extends StatelessWidget {
     );
   }
 }
-
-

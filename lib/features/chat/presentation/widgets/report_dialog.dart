@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:forgelink/theme/theme_colors.dart';
 import 'package:forgelink/theme/text_theme.dart';
-import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/widgets/glass_box.dart';
 
 class ReportDialog extends StatefulWidget {
   final String targetId;

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
-import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/widgets/glass_box.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -104,16 +104,14 @@ class NavBarItem {
 }
 
 List<NavBarItem> navBarItems(BuildContext context) => [
-      NavBarItem(
-        icon: Icons.chat_bubble_outline_rounded,
-        activeIcon: Icons.chat_bubble_rounded,
-        label: 'Чаты',
-      ),
-      NavBarItem(
-        icon: Icons.settings_outlined,
-        activeIcon: Icons.settings_rounded,
-        label: 'Настройки',
-      ),
-    ];
-
-
+  NavBarItem(
+    icon: Icons.chat_bubble_outline_rounded,
+    activeIcon: Icons.chat_bubble_rounded,
+    label: 'Чаты',
+  ),
+  NavBarItem(
+    icon: Icons.settings_outlined,
+    activeIcon: Icons.settings_rounded,
+    label: 'Настройки',
+  ),
+];

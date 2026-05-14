@@ -27,10 +27,9 @@ abstract class MessageModel with _$MessageModel {
     @JsonKey(name: 'media_name') String? mediaName,
     String? media,
     @Default({}) Map<String, List<String>> reactions,
+    String? transcription,
   }) = _MessageModel;
 
   factory MessageModel.fromJson(Map<String, dynamic> json) =>
       _$MessageModelFromJson(json);
 }
-
-

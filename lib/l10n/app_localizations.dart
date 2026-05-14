@@ -216,5 +216,3 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
     'that was used.',
   );
 }
-
-

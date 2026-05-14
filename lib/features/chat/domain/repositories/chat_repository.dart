@@ -26,7 +26,11 @@ abstract class ChatRepository {
   });
 
   Future<String> uploadMedia(
-      String roomId, Uint8List bytes, String fileName, String? contentType);
+    String roomId,
+    Uint8List bytes,
+    String fileName,
+    String? contentType,
+  );
   Future<String?> createRoom(List<String> participantIds);
   Future<String?> createGroup(String name, List<String> participantIds);
   Future<String?> createChannel(String name, String? description);
@@ -47,6 +51,5 @@ abstract class ChatRepository {
     String profileId,
     String role,
   );
+  Future<String?> transcribeVoiceMessage(String messageId, String audioUrl);
 }
-
-

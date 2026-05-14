@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 import 'package:forgelink/theme/theme_colors.dart';
-import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/widgets/glass_box.dart';
 
 class AvatarCropDialog extends StatefulWidget {
   final Uint8List image;
@@ -176,5 +176,3 @@ Uint8List _processImage(Uint8List input) {
   debugPrint('Avatar size: ${processed.length} bytes (High Quality Mode)');
   return processed;
 }
-
-

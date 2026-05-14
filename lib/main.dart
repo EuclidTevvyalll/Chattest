@@ -27,13 +27,13 @@ void main() async {
     debugPrint('Main: Initializing SharedPreferences...');
     shared = await SharedPreferences.getInstance();
     Intl.defaultLocale = 'ru_RU';
-    
+
     debugPrint('Main: Running app...');
     runApp(ProviderScope(child: const MainApp()));
   } catch (e, stack) {
     debugPrint('Main: CRITICAL STARTUP ERROR: $e');
     debugPrint('Main: STACKTRACE: $stack');
-    // Still try to run the app but show an error screen? 
+    // Still try to run the app but show an error screen?
     // Or just let it crash but with logs.
   }
 }
@@ -46,17 +46,25 @@ class _LifecycleObserver extends WidgetsBindingObserver {
 
     if (state == AppLifecycleState.resumed) {
       debugPrint('Lifecycle: Resumed. Setting user online...');
-      Supabase.instance.client.from('profiles').update({
-        'is_online': true,
-        'last_seen': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', userId).catchError((_) {});
+      Supabase.instance.client
+          .from('profiles')
+          .update({
+            'is_online': true,
+            'last_seen': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', userId)
+          .catchError((_) {});
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
       debugPrint('Lifecycle: Paused/Detached. Setting user offline...');
-      Supabase.instance.client.from('profiles').update({
-        'is_online': false,
-        'last_seen': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', userId).catchError((_) {});
+      Supabase.instance.client
+          .from('profiles')
+          .update({
+            'is_online': false,
+            'last_seen': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', userId)
+          .catchError((_) {});
     }
   }
 }
@@ -74,10 +82,14 @@ class MainApp extends HookConsumerWidget {
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId != null) {
         debugPrint('Startup: Setting user online...');
-        Supabase.instance.client.from('profiles').update({
-          'is_online': true,
-          'last_seen': DateTime.now().toUtc().toIso8601String(),
-        }).eq('id', userId).catchError((_) {});
+        Supabase.instance.client
+            .from('profiles')
+            .update({
+              'is_online': true,
+              'last_seen': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', userId)
+            .catchError((_) {});
       }
 
       return () {
@@ -115,5 +127,3 @@ class MainApp extends HookConsumerWidget {
     );
   }
 }
-
-

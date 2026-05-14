@@ -44,5 +44,3 @@ class GlassBox extends StatelessWidget {
     );
   }
 }
-
-

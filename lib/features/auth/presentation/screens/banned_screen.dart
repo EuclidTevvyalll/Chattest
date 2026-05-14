@@ -14,9 +14,9 @@ class BannedScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isPermanent = profile.bannedUntil == null;
     final reason = profile.bannedReason ?? 'Нарушение правил сообщества';
-    
-    final expiredDateText = isPermanent 
-        ? 'Никогда' 
+
+    final expiredDateText = isPermanent
+        ? 'Никогда'
         : DateFormat('dd.MM.yyyy HH:mm').format(profile.bannedUntil!.toLocal());
 
     return Scaffold(
@@ -27,7 +27,11 @@ class BannedScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(Icons.block_outlined, size: 100, color: Colors.redAccent),
+              const Icon(
+                Icons.block_outlined,
+                size: 100,
+                color: Colors.redAccent,
+              ),
               const SizedBox(height: 32),
               Text(
                 'Ваш аккаунт заблокирован',
@@ -41,16 +45,20 @@ class BannedScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withAlpha(10) : Colors.black.withAlpha(5),
+                  color: isDark
+                      ? Colors.white.withAlpha(10)
+                      : Colors.black.withAlpha(5),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : Colors.black12,
+                  ),
                 ),
                 child: Column(
                   children: [
                     _buildInfoRow('Причина:', reason),
                     const Divider(height: 32),
                     _buildInfoRow(
-                      'Блокировка истекает:', 
+                      'Блокировка истекает:',
                       expiredDateText,
                       isPermanent: isPermanent,
                     ),
@@ -68,7 +76,9 @@ class BannedScreen extends ConsumerWidget {
                   label: const Text('Выйти из аккаунта'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ),
@@ -85,7 +95,10 @@ class BannedScreen extends ConsumerWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.grey,
+          ),
         ),
         const SizedBox(width: 16),
         Expanded(

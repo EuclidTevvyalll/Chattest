@@ -35,5 +35,3 @@ abstract class RoomModel with _$RoomModel {
   factory RoomModel.fromJson(Map<String, dynamic> json) =>
       _$RoomModelFromJson(json);
 }
-
-

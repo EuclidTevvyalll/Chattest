@@ -4,7 +4,8 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
 import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
-import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/widgets/glass_box.dart';
+import 'package:forgelink/widgets/custom_dialog.dart';
 
 class AuthScreen extends HookConsumerWidget {
   const AuthScreen({super.key});
@@ -104,8 +105,11 @@ class AuthScreen extends HookConsumerWidget {
                                 }
                               } catch (e) {
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(e.toString())),
+                                  showCustomDialog(
+                                    context: context,
+                                    title: 'Ошибка',
+                                    message: e.toString(),
+                                    isError: true,
                                   );
                                 }
                               } finally {
@@ -177,5 +181,3 @@ class AuthScreen extends HookConsumerWidget {
     );
   }
 }
-
-

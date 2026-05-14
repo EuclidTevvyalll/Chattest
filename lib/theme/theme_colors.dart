@@ -15,5 +15,3 @@ abstract class ThemeColors {
     colors: [blue, purple],
   );
 }
-
-

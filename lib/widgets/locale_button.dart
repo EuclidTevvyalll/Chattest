@@ -19,5 +19,3 @@ class LocaleButton extends ConsumerWidget {
     );
   }
 }
-
-

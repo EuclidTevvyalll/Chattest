@@ -41,10 +41,13 @@ class SupabaseAuthRepository implements AuthRepository {
     final userId = _client.auth.currentUser?.id;
     if (userId != null) {
       try {
-        await _client.from('profiles').update({
-          'is_online': false,
-          'last_seen': DateTime.now().toUtc().toIso8601String(),
-        }).eq('id', userId);
+        await _client
+            .from('profiles')
+            .update({
+              'is_online': false,
+              'last_seen': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', userId);
       } catch (_) {}
     }
     await _client.auth.signOut();
@@ -53,5 +56,3 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   User? get currentUser => _client.auth.currentUser;
 }
-
-

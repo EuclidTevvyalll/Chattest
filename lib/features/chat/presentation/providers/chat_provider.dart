@@ -15,8 +15,9 @@ class ChatSearchQuery extends Notifier<String> {
   void update(String query) => state = query;
 }
 
-final chatSearchQueryProvider =
-    NotifierProvider<ChatSearchQuery, String>(ChatSearchQuery.new);
+final chatSearchQueryProvider = NotifierProvider<ChatSearchQuery, String>(
+  ChatSearchQuery.new,
+);
 
 final roomsProvider = StreamProvider.autoDispose<List<RoomModel>>((ref) {
   final link = ref.keepAlive();
@@ -38,10 +39,10 @@ final roomsProvider = StreamProvider.autoDispose<List<RoomModel>>((ref) {
 
 final globalChannelSearchProvider =
     FutureProvider.family<List<RoomModel>, String>((ref, query) async {
-  if (query.isEmpty) return [];
-  final repo = ref.watch(chatRepositoryProvider);
-  return repo.searchPublicChannels(query);
-});
+      if (query.isEmpty) return [];
+      final repo = ref.watch(chatRepositoryProvider);
+      return repo.searchPublicChannels(query);
+    });
 
 final filteredRoomsProvider = Provider<AsyncValue<List<RoomModel>>>((ref) {
   final roomsAsync = ref.watch(roomsProvider);
@@ -68,34 +69,42 @@ final filteredRoomsProvider = Provider<AsyncValue<List<RoomModel>>>((ref) {
             room.type == RoomType.room &&
             room.participants.any((p) {
               if (p.id == currentUserId) return false;
-              
+
               final username = p.username.trim().toLowerCase();
               final nickname = (p.nickname ?? '').trim().toLowerCase();
-              
+
               // Normalize for layout issues (basic a/а, o/о, etc.)
               String normalize(String s) => s
-                .replaceAll('a', 'а').replaceAll('e', 'е')
-                .replaceAll('o', 'о').replaceAll('p', 'р')
-                .replaceAll('c', 'с').replaceAll('x', 'х');
-              
+                  .replaceAll('a', 'а')
+                  .replaceAll('e', 'е')
+                  .replaceAll('o', 'о')
+                  .replaceAll('p', 'р')
+                  .replaceAll('c', 'с')
+                  .replaceAll('x', 'х');
+
               final normQuery = normalize(query);
               final normUser = normalize(username);
               final normNick = normalize(nickname);
-              
-              final matches = username.contains(query) || 
-                              nickname.contains(query) ||
-                              normUser.contains(normQuery) ||
-                              normNick.contains(normQuery);
-              
+
+              final matches =
+                  username.contains(query) ||
+                  nickname.contains(query) ||
+                  normUser.contains(normQuery) ||
+                  normNick.contains(normQuery);
+
               if (kDebugMode && query.isNotEmpty) {
                 if (matches) {
-                  debugPrint('SEARCH MATCH: "$query" matches User("$username", "$nickname")');
+                  debugPrint(
+                    'SEARCH MATCH: "$query" matches User("$username", "$nickname")',
+                  );
                 } else if (query.length >= 3) {
                   // Only log mismatches for longer queries to avoid spam
-                  debugPrint('SEARCH NO MATCH: "$query" vs User("$username", "$nickname")');
+                  debugPrint(
+                    'SEARCH NO MATCH: "$query" vs User("$username", "$nickname")',
+                  );
                 }
               }
-              
+
               return matches;
             });
 
@@ -141,24 +150,22 @@ final contactsProvider = Provider<AsyncValue<List<ProfileModel>>>((ref) {
   });
 });
 
-final messagesStreamProvider = StreamProvider.autoDispose.family<List<MessageModel>, String>((
-  ref,
-  roomId,
-) {
-  final link = ref.keepAlive();
-  Timer? timer;
-  ref.onCancel(() {
-    timer = Timer(const Duration(seconds: 30), () {
-      link.close();
-    });
-  });
-  ref.onDispose(() => timer?.cancel());
+final messagesStreamProvider = StreamProvider.autoDispose
+    .family<List<MessageModel>, String>((ref, roomId) {
+      final link = ref.keepAlive();
+      Timer? timer;
+      ref.onCancel(() {
+        timer = Timer(const Duration(seconds: 30), () {
+          link.close();
+        });
+      });
+      ref.onDispose(() => timer?.cancel());
 
-  final user = ref.watch(authUserProvider);
-  if (user == null) return Stream.value([]);
-  
-  return ref.watch(chatRepositoryProvider).watchMessages(roomId);
-});
+      final user = ref.watch(authUserProvider);
+      if (user == null) return Stream.value([]);
+
+      return ref.watch(chatRepositoryProvider).watchMessages(roomId);
+    });
 
 final messagesProvider = Provider.family<AsyncValue<List<MessageModel>>, String>((
   ref,
@@ -205,10 +212,7 @@ final messagesProvider = Provider.family<AsyncValue<List<MessageModel>>, String>
   });
 });
 
-
 final roomParticipantsProvider =
     FutureProvider.family<List<ProfileModel>, String>((ref, roomId) {
       return ref.watch(chatRepositoryProvider).getRoomParticipants(roomId);
     });
-
-

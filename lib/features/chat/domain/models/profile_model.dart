@@ -18,11 +18,11 @@ abstract class ProfileModel with _$ProfileModel {
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
     @JsonKey(name: 'last_seen') DateTime? lastSeen,
+    @JsonKey(name: 'is_premium') @Default(false) bool isPremium,
+    @JsonKey(name: 'premium_until') DateTime? premiumUntil,
     String? role,
   }) = _ProfileModel;
 
   factory ProfileModel.fromJson(Map<String, dynamic> json) =>
       _$ProfileModelFromJson(json);
 }
-
-

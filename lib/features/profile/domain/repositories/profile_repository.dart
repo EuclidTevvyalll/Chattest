@@ -7,6 +7,5 @@ abstract class ProfileRepository {
   Future<String?> getAvatarBase64(String id, {bool priority = false});
   Future<void> updateProfile(ProfileModel profile);
   Future<String> uploadAvatar(Uint8List bytes, String userId);
+  Future<void> logSubscription(String userId, double amount, int months);
 }
-
-

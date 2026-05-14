@@ -28,6 +28,10 @@ _ProfileModel _$ProfileModelFromJson(Map<String, dynamic> json) =>
       lastSeen: json['last_seen'] == null
           ? null
           : DateTime.parse(json['last_seen'] as String),
+      isPremium: json['is_premium'] as bool? ?? false,
+      premiumUntil: json['premium_until'] == null
+          ? null
+          : DateTime.parse(json['premium_until'] as String),
       role: json['role'] as String?,
     );
 
@@ -45,5 +49,7 @@ Map<String, dynamic> _$ProfileModelToJson(_ProfileModel instance) =>
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
       'last_seen': instance.lastSeen?.toIso8601String(),
+      'is_premium': instance.isPremium,
+      'premium_until': instance.premiumUntil?.toIso8601String(),
       'role': instance.role,
     };

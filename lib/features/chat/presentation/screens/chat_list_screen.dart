@@ -11,7 +11,8 @@ import 'dart:typed_data';
 
 import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
-import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/widgets/glass_box.dart';
+import 'package:forgelink/widgets/premium_badge.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
@@ -248,12 +249,14 @@ class _RoomItem extends ConsumerWidget {
       final otherAvatarBase64Async = ref.watch(
         userAvatarBase64Provider(otherParticipant.id),
       );
+      final isPremium = otherParticipant.isPremium;
       return _buildItem(
         context,
         ref,
         displayName,
         avatarUrl,
         isOnline,
+        isPremium,
         false,
         otherAvatarBase64Async.asData?.value,
       );
@@ -268,6 +271,7 @@ class _RoomItem extends ConsumerWidget {
       avatarUrl,
       isOnline,
       false,
+      false,
       null,
     );
   }
@@ -278,6 +282,7 @@ class _RoomItem extends ConsumerWidget {
     String displayName,
     String? avatarUrl,
     bool isOnline,
+    bool isPremium,
     bool isLoading,
     Uint8List? avatarBase64,
   ) {
@@ -328,7 +333,8 @@ class _RoomItem extends ConsumerWidget {
                       ),
                       child: CircleAvatar(
                         radius: 30,
-                        backgroundColor: ThemeColors.blue.withValues(alpha: 0.05,
+                        backgroundColor: ThemeColors.blue.withValues(
+                          alpha: 0.05,
                         ),
                         backgroundImage: avatarUrl != null
                             ? CachedNetworkImageProvider(avatarUrl)
@@ -387,21 +393,31 @@ class _RoomItem extends ConsumerWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              displayName,
-                              style: ThemeTextStyles.h3(isDark: isDark),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            child: Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    displayName,
+                                    style: ThemeTextStyles.h3(isDark: isDark),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                PremiumBadge(isPremium: isPremium),
+                              ],
                             ),
                           ),
                           if (room.lastMessageAt != null)
-                            Text(
-                              DateFormat.Hm().format(
-                                room.lastMessageAt!.toLocal(),
-                              ),
-                              style: ThemeTextStyles.caption(
-                                isDark: isDark,
-                                color: ThemeColors.blue,
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
+                              child: Text(
+                                DateFormat.Hm().format(
+                                  room.lastMessageAt!.toLocal(),
+                                ),
+                                style: ThemeTextStyles.caption(
+                                  isDark: isDark,
+                                  color: ThemeColors.blue,
+                                ),
                               ),
                             ),
                         ],
@@ -424,13 +440,15 @@ class _RoomItem extends ConsumerWidget {
   }
 
   Widget _buildLastMessage(RoomModel room, bool isDark) {
-    if (room.lastMessageMediaUrl != null) {
-      final isImage = room.lastMessageMediaType?.startsWith('image/') == true ||
+    final isSticker = room.lastMessageMediaType == 'sticker';
+
+    if (room.lastMessageMediaUrl != null || isSticker) {
+      final isImage =
+          room.lastMessageMediaType?.startsWith('image/') == true ||
           room.lastMessageMediaName?.toLowerCase().endsWith('.jpg') == true ||
           room.lastMessageMediaName?.toLowerCase().endsWith('.jpeg') == true ||
           room.lastMessageMediaName?.toLowerCase().endsWith('.png') == true;
       final isVideo = room.lastMessageMediaType?.startsWith('video/') == true;
-      final isSticker = room.lastMessageMediaType == 'sticker';
 
       return Row(
         children: [
@@ -444,13 +462,10 @@ class _RoomItem extends ConsumerWidget {
                   width: 20,
                   height: 20,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                  ),
-                  errorWidget: (context, url, error) => const Icon(
-                    Icons.image_not_supported_rounded,
-                    size: 14,
-                  ),
+                  placeholder: (context, url) =>
+                      Container(color: Colors.grey.withValues(alpha: 0.1)),
+                  errorWidget: (context, url, error) =>
+                      const Icon(Icons.image_not_supported_rounded, size: 14),
                 ),
               ),
             )
@@ -461,8 +476,8 @@ class _RoomItem extends ConsumerWidget {
                 isSticker
                     ? Icons.sticky_note_2_rounded
                     : (isVideo
-                        ? Icons.videocam_rounded
-                        : Icons.insert_drive_file_rounded),
+                          ? Icons.videocam_rounded
+                          : Icons.insert_drive_file_rounded),
                 size: 16,
                 color: isDark ? Colors.white38 : Colors.black38,
               ),
@@ -470,14 +485,14 @@ class _RoomItem extends ConsumerWidget {
           Expanded(
             child: Text(
               isSticker
-                  ? 'Стикер'
+                  ? '👾 Стикер'
                   : (room.lastMessage != null && room.lastMessage!.isNotEmpty
-                      ? room.lastMessage!
-                      : (isImage
-                          ? 'Фото'
-                          : (isVideo
-                              ? 'Видео'
-                              : (room.lastMessageMediaName ?? 'Файл')))),
+                        ? room.lastMessage!
+                        : (isImage
+                              ? 'Фото'
+                              : (isVideo
+                                    ? 'Видео'
+                                    : (room.lastMessageMediaName ?? 'Файл')))),
               style: ThemeTextStyles.bodyMedium(
                 isDark: isDark,
                 color: isDark ? Colors.white60 : Colors.black54,
@@ -637,5 +652,3 @@ class _CreateChatBottomSheet extends StatelessWidget {
 }
 
 // Delete the old Speed Dial class as it's no longer used
-
-

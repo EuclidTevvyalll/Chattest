@@ -40,6 +40,7 @@ _MessageModel _$MessageModelFromJson(Map<String, dynamic> json) =>
             ),
           ) ??
           const {},
+      transcription: json['transcription'] as String?,
     );
 
 Map<String, dynamic> _$MessageModelToJson(_MessageModel instance) =>
@@ -65,4 +66,5 @@ Map<String, dynamic> _$MessageModelToJson(_MessageModel instance) =>
       'media_name': instance.mediaName,
       'media': instance.media,
       'reactions': instance.reactions,
+      'transcription': instance.transcription,
     };

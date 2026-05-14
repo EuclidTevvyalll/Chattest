@@ -19,5 +19,3 @@ class ThemeButton extends ConsumerWidget {
     );
   }
 }
-
-

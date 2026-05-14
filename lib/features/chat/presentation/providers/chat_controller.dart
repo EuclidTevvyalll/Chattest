@@ -26,9 +26,7 @@ class ChatControllerState {
 }
 
 final chatControllerProvider =
-    NotifierProvider<ChatController, ChatControllerState>(
-  ChatController.new,
-);
+    NotifierProvider<ChatController, ChatControllerState>(ChatController.new);
 
 class ChatController extends Notifier<ChatControllerState> {
   @override
@@ -71,7 +69,9 @@ class ChatController extends Notifier<ChatControllerState> {
     );
 
     try {
-      await ref.read(chatRepositoryProvider).sendMessage(
+      await ref
+          .read(chatRepositoryProvider)
+          .sendMessage(
             roomId,
             content,
             replyToMessageId: replyToMessageId,
@@ -127,18 +127,20 @@ class ChatController extends Notifier<ChatControllerState> {
         final mediaUrl = await ref
             .read(chatRepositoryProvider)
             .uploadMedia(roomId, bytes, fileName, mediaType);
-        
+
         debugPrint('ChatController: Media uploaded successfully: $mediaUrl');
 
         // 2. Send the real message
-        await ref.read(chatRepositoryProvider).sendMessage(
+        await ref
+            .read(chatRepositoryProvider)
+            .sendMessage(
               roomId,
               content ?? '',
               mediaUrl: mediaUrl,
               mediaType: mediaType,
               mediaName: fileName,
             );
-        
+
         debugPrint('ChatController: Real message sent successfully');
 
         // Remove pending after a short delay
@@ -200,16 +202,13 @@ class ChatController extends Notifier<ChatControllerState> {
 
     if (state.deletingIds.contains(messageId)) return;
 
-    state = state.copyWith(
-      deletingIds: {...state.deletingIds, messageId},
-    );
+    state = state.copyWith(deletingIds: {...state.deletingIds, messageId});
 
     try {
       await ref.read(chatRepositoryProvider).deleteMessage(messageId);
     } catch (e) {
       state = state.copyWith(
-        deletingIds:
-            state.deletingIds.where((id) => id != messageId).toSet(),
+        deletingIds: state.deletingIds.where((id) => id != messageId).toSet(),
       );
       rethrow;
     }
@@ -229,14 +228,16 @@ class ChatController extends Notifier<ChatControllerState> {
     for (final msg in sortedMessages) {
       // Find original sender name
       final sender = profiles.where((p) => p.id == msg.profileId).firstOrNull;
-      final senderName = sender?.nickname ??
+      final senderName =
+          sender?.nickname ??
           sender?.username ??
           (msg.profileId == currentUserId ? 'Вы' : 'Пользователь');
 
       // Check if we have reply content for this message
       final replyContent = replyContents?[msg.id];
-      final replySender = msg.forwardedInfo?['replied_sender'] ?? 
-                         (msg.replyToMessageId != null ? 'Сообщение' : null);
+      final replySender =
+          msg.forwardedInfo?['replied_sender'] ??
+          (msg.replyToMessageId != null ? 'Сообщение' : null);
 
       await sendMessage(
         targetRoomId,
@@ -269,8 +270,9 @@ class ChatController extends Notifier<ChatControllerState> {
     if (realIds.isEmpty) return;
 
     // Filter out already deleting IDs
-    final idsToProcess =
-        realIds.where((id) => !state.deletingIds.contains(id)).toList();
+    final idsToProcess = realIds
+        .where((id) => !state.deletingIds.contains(id))
+        .toList();
     if (idsToProcess.isEmpty) return;
 
     state = state.copyWith(
@@ -301,8 +303,9 @@ class ChatController extends Notifier<ChatControllerState> {
 
   Future<String?> createRoom(List<String> participantIds) async {
     try {
-      final roomId =
-          await ref.read(chatRepositoryProvider).createRoom(participantIds);
+      final roomId = await ref
+          .read(chatRepositoryProvider)
+          .createRoom(participantIds);
       ref.invalidate(roomsProvider);
       if (roomId != null) ref.invalidate(roomParticipantsProvider(roomId));
       return roomId;
@@ -364,5 +367,3 @@ class ChatController extends Notifier<ChatControllerState> {
     }
   }
 }
-
-

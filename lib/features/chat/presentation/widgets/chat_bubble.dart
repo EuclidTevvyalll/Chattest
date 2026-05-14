@@ -11,12 +11,17 @@ import 'package:forgelink/core/config/supabase_config.dart';
 import 'package:flutter/gestures.dart';
 import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
-import 'package:forgelink/widgets/liquidglass_container.dart';
+import 'package:forgelink/widgets/glass_box.dart';
 import 'package:forgelink/features/chat/presentation/widgets/video_player_bubble.dart';
 import 'package:forgelink/features/chat/presentation/widgets/sticker_widget.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:forgelink/widgets/custom_dialog.dart';
+import 'package:forgelink/widgets/premium_badge.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
 
 class ChatBubble extends StatelessWidget {
+  final String? messageId;
   final String content;
   final bool isMine;
   final String timestamp;
@@ -46,9 +51,13 @@ class ChatBubble extends StatelessWidget {
   final String? senderAvatarBase64;
   final String? channelName;
   final bool showSenderInfo;
+  final bool isPremium;
+  final bool repliedMessageIsPremium;
+  final String? transcription;
 
   const ChatBubble({
     super.key,
+    this.messageId,
     required this.content,
     required this.isMine,
     required this.timestamp,
@@ -78,6 +87,9 @@ class ChatBubble extends StatelessWidget {
     this.senderAvatarBase64,
     this.channelName,
     this.showSenderInfo = false,
+    this.isPremium = false,
+    this.repliedMessageIsPremium = false,
+    this.transcription,
   });
 
   void _showReactionPicker(BuildContext context) {
@@ -276,36 +288,40 @@ class ChatBubble extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () {
-                      Navigator.pop(context);
-                      onReport?.call();
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 16,
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.report_problem_rounded,
-                            color: Colors.redAccent,
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Пожаловаться',
-                            style: ThemeTextStyles.bodyLarge(
-                              isDark: isDark,
+                  if (mediaType != 'sticker') ...[
+                    InkWell(
+                      onTap: () {
+                        Navigator.pop(context);
+                        onReport?.call();
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 16,
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.report_problem_rounded,
                               color: Colors.redAccent,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            Text(
+                              'Пожаловаться',
+                              style: ThemeTextStyles.bodyLarge(
+                                isDark: isDark,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  if (isMine && !(isDeleted ?? false)) ...[
+                  ],
+                  if (isMine &&
+                      !(isDeleted ?? false) &&
+                      mediaType != 'sticker') ...[
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: () {
@@ -336,6 +352,8 @@ class ChatBubble extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
+                  if (isMine && !(isDeleted ?? false)) ...[
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: () {
@@ -387,6 +405,9 @@ class ChatBubble extends StatelessWidget {
         repliedMessageSenderName ??
         forwardedInfo?['fwd_replied_sender'] ??
         forwardedInfo?['replied_sender'];
+    final displayRepliedIsPremium =
+        repliedMessageIsPremium ||
+        (forwardedInfo?['replied_is_premium'] == true);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -442,14 +463,22 @@ class ChatBubble extends StatelessWidget {
                               ),
                             ),
                           Flexible(
-                            child: Text(
-                              senderName ?? channelName ?? 'Пользователь',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: ThemeColors.blue,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    senderName ?? channelName ?? 'Пользователь',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: ThemeColors.blue,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                PremiumBadge(isPremium: isPremium),
+                              ],
                             ),
                           ),
                         ],
@@ -536,532 +565,621 @@ class ChatBubble extends StatelessWidget {
                                 ),
                                 child: mediaType == 'sticker'
                                     ? Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 8),
-                                        child: StickerWidget(assetPath: content),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 8,
+                                        ),
+                                        child: StickerWidget(
+                                          key: ValueKey(messageId ?? content),
+                                          assetPath: content,
+                                        ),
                                       )
                                     : GlassBox(
                                         padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                  color: isMine
-                                      ? ThemeColors.blue
-                                      : (isDark
-                                            ? Colors.white.withValues(
-                                                alpha: 0.1,
-                                              )
-                                            : Colors.white),
-                                  opacity: isMine
-                                      ? (isDark ? 0.3 : 0.6)
-                                      : (isDark ? 0.1 : 0.7),
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: const Radius.circular(20),
-                                    topRight: const Radius.circular(20),
-                                    bottomLeft: Radius.circular(
-                                      isMine ? 20 : 4,
-                                    ),
-                                    bottomRight: Radius.circular(
-                                      isMine ? 4 : 20,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (forwardedInfo != null) ...[
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            bottom: 4,
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        color: isMine
+                                            ? ThemeColors.blue
+                                            : (isDark
+                                                  ? Colors.white.withValues(
+                                                      alpha: 0.1,
+                                                    )
+                                                  : Colors.white),
+                                        opacity: isMine
+                                            ? (isDark ? 0.3 : 0.6)
+                                            : (isDark ? 0.1 : 0.7),
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: const Radius.circular(20),
+                                          topRight: const Radius.circular(20),
+                                          bottomLeft: Radius.circular(
+                                            isMine ? 20 : 4,
                                           ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                Icons.forward_rounded,
-                                                size: 12,
-                                                color: isMine
-                                                    ? Colors.white70
-                                                    : Colors.grey,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Переслано от ${forwardedInfo!['sender_name'] ?? 'Пользователь'}',
-                                                style:
-                                                    ThemeTextStyles.caption(
+                                          bottomRight: Radius.circular(
+                                            isMine ? 4 : 20,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (forwardedInfo != null) ...[
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  bottom: 4,
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      Icons.forward_rounded,
+                                                      size: 12,
                                                       color: isMine
                                                           ? Colors.white70
                                                           : Colors.grey,
-                                                    ).copyWith(
-                                                      fontStyle:
-                                                          FontStyle.italic,
                                                     ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                      if (displayRepliedContent != null) ...[
-                                        Container(
-                                          margin: const EdgeInsets.only(
-                                            bottom: 8,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: isDark
-                                                ? Colors.white.withValues(
-                                                    alpha: 0.1,
-                                                  )
-                                                : Colors.black.withValues(
-                                                    alpha: 0.05,
-                                                  ),
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            border: Border(
-                                              left: BorderSide(
-                                                color: isMine
-                                                    ? Colors.white70
-                                                    : ThemeColors.blue,
-                                                width: 3,
-                                              ),
-                                            ),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                displayRepliedSender ??
-                                                    'Удаленный пользователь',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isMine
-                                                      ? Colors.white
-                                                      : ThemeColors.blue,
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      'Переслано от ${forwardedInfo!['sender_name'] ?? 'Пользователь'}',
+                                                      style:
+                                                          ThemeTextStyles.caption(
+                                                            color: isMine
+                                                                ? Colors.white70
+                                                                : Colors.grey,
+                                                          ).copyWith(
+                                                            fontStyle: FontStyle
+                                                                .italic,
+                                                          ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                              Text(
-                                                displayRepliedContent,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  color: isMine
-                                                      ? Colors.white70
-                                                      : (isDark
-                                                            ? Colors.white60
-                                                            : Colors.black54),
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
                                             ],
-                                          ),
-                                        ),
-                                      ],
-                                      if (mediaUrl != null ||
-                                          mediaName != null) ...[
-                                        if (mediaType?.startsWith('image') ??
-                                            (mediaUrl == null &&
-                                                mediaName != null))
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 8,
-                                            ),
-                                            child: RepaintBoundary(
-                                              child: ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                child: InkWell(
-                                                  onTap: () => _showMediaDetail(
-                                                    context,
-                                                    isDark,
-                                                  ),
+                                            if (displayRepliedContent !=
+                                                null) ...[
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                  bottom: 8,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: isDark
+                                                      ? Colors.white.withValues(
+                                                          alpha: 0.1,
+                                                        )
+                                                      : Colors.black.withValues(
+                                                          alpha: 0.05,
+                                                        ),
                                                   borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  child: mediaUrl == null
-                                                      ? Container(
-                                                          constraints:
-                                                              BoxConstraints(
-                                                                minHeight: 100,
-                                                                maxWidth:
-                                                                    mediaMaxWidth,
-                                                                maxHeight: 200,
-                                                              ),
-
-                                                          color: isMine
-                                                              ? Colors.white12
-                                                              : Colors.black12,
-                                                          child: const Center(
-                                                            child:
-                                                                CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      2,
-                                                                  color:
-                                                                      ThemeColors
-                                                                          .blue,
-                                                                ),
-                                                          ),
-                                                        )
-                                                      : mediaUrl!.startsWith(
-                                                          'data:image',
-                                                        )
-                                                      ? ConstrainedBox(
-                                                          constraints:
-                                                              BoxConstraints(
-                                                                maxWidth:
-                                                                    mediaMaxWidth,
-                                                                maxHeight: 500,
-                                                              ),
-                                                          child: Image.memory(
-                                                            base64Decode(
-                                                              mediaUrl!
-                                                                  .split(',')
-                                                                  .last,
+                                                      BorderRadius.circular(8),
+                                                  border: Border(
+                                                    left: BorderSide(
+                                                      color: isMine
+                                                          ? Colors.white70
+                                                          : ThemeColors.blue,
+                                                      width: 3,
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        Flexible(
+                                                          child: Text(
+                                                            displayRepliedSender ??
+                                                                'Удаленный пользователь',
+                                                            style: TextStyle(
+                                                              fontSize: 12,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              color: isMine
+                                                                  ? Colors.white
+                                                                  : ThemeColors
+                                                                        .blue,
                                                             ),
-                                                            fit: BoxFit.contain,
-                                                            errorBuilder:
-                                                                (
-                                                                  context,
-                                                                  error,
-                                                                  stackTrace,
-                                                                ) => const SizedBox(
-                                                                  height: 200,
-                                                                  child: Center(
-                                                                    child: Icon(
-                                                                      Icons
-                                                                          .broken_image,
-                                                                      color: Colors
-                                                                          .redAccent,
-                                                                    ),
-                                                                  ),
-                                                                ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
                                                           ),
-                                                        )
-                                                      : ConstrainedBox(
-                                                          constraints:
-                                                              BoxConstraints(
-                                                                maxWidth:
-                                                                    mediaMaxWidth,
-                                                                maxHeight: 500,
-                                                              ),
-                                                          child: CachedNetworkImage(
-                                                            imageUrl: mediaUrl!,
-                                                            placeholder: (context, url) => Container(
-                                                              constraints:
-                                                                  BoxConstraints(
-                                                                    minHeight:
-                                                                        100,
-                                                                    maxWidth:
-                                                                        mediaMaxWidth,
-                                                                    maxHeight:
-                                                                        200,
-                                                                  ),
-                                                              decoration: BoxDecoration(
+                                                        ),
+                                                        PremiumBadge(
+                                                          isPremium:
+                                                              displayRepliedIsPremium,
+                                                          size: 12,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    Text(
+                                                      displayRepliedContent,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: isMine
+                                                            ? Colors.white70
+                                                            : (isDark
+                                                                  ? Colors
+                                                                        .white60
+                                                                  : Colors
+                                                                        .black54),
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                            if (mediaUrl != null ||
+                                                mediaName != null) ...[
+                                              if (mediaType?.startsWith(
+                                                    'image',
+                                                  ) ??
+                                                  (mediaUrl == null &&
+                                                      mediaName != null))
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        bottom: 8,
+                                                      ),
+                                                  child: RepaintBoundary(
+                                                    child: ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      child: InkWell(
+                                                        onTap: () =>
+                                                            _showMediaDetail(
+                                                              context,
+                                                              isDark,
+                                                            ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        child: mediaUrl == null
+                                                            ? Container(
+                                                                constraints:
+                                                                    BoxConstraints(
+                                                                      minHeight:
+                                                                          100,
+                                                                      maxWidth:
+                                                                          mediaMaxWidth,
+                                                                      maxHeight:
+                                                                          200,
+                                                                    ),
+
                                                                 color: isMine
                                                                     ? Colors
                                                                           .white12
-                                                                    : (isDark
-                                                                          ? Colors.white10
-                                                                          : Colors.black.withValues(
-                                                                              alpha: 0.1,
-                                                                            )),
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      12,
-                                                                    ),
-                                                              ),
-                                                              child: const Center(
-                                                                child: CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      2,
-                                                                  color:
-                                                                      ThemeColors
-                                                                          .blue,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            errorWidget:
-                                                                (
-                                                                  context,
-                                                                  url,
-                                                                  error,
-                                                                ) => const SizedBox(
-                                                                  height: 300,
-                                                                  child: Center(
-                                                                    child: Icon(
-                                                                      Icons
-                                                                          .broken_image,
-                                                                      color: Colors
-                                                                          .redAccent,
-                                                                    ),
+                                                                    : Colors
+                                                                          .black12,
+                                                                child: const Center(
+                                                                  child: CircularProgressIndicator(
+                                                                    strokeWidth:
+                                                                        2,
+                                                                    color:
+                                                                        ThemeColors
+                                                                            .blue,
                                                                   ),
                                                                 ),
-                                                            fit: BoxFit.contain,
-                                                          ),
-                                                        ),
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        else
-                                          // For other file types (Videos, Files)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              bottom: 8,
-                                            ),
-                                            child: () {
-                                              final url = mediaUrl;
-                                              if (mediaType?.startsWith(
-                                                        'video/',
-                                                      ) ==
-                                                      true &&
-                                                  url != null) {
-                                                return ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  child: VideoPlayerBubble(
-                                                    videoUrl: url,
-                                                    maxWidth:
-                                                        screenWidth *
-                                                        (isSelectionMode
-                                                            ? 0.5
-                                                            : 0.6),
-                                                  ),
-                                                );
-                                              }
-                                              if (mediaType?.startsWith(
-                                                        'audio/',
-                                                      ) ==
-                                                      true &&
-                                                  url != null) {
-                                                return AudioPlayerBubble(
-                                                  audioUrl: url,
-                                                  isMine: isMine,
-                                                );
-                                              }
-                                              if (url == null &&
-                                                  mediaName == null) {
-                                                return const SizedBox.shrink();
-                                              }
-                                              return InkWell(
-                                                onTap: () {
-                                                  if (url != null) {
-                                                    _openFile(context);
-                                                  }
-                                                },
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(
-                                                    12,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: isMine
-                                                        ? Colors.white
-                                                              .withValues(
-                                                                alpha: 0.15,
                                                               )
-                                                        : Colors.black
-                                                              .withValues(
-                                                                alpha: 0.05,
+                                                            : mediaUrl!
+                                                                  .startsWith(
+                                                                    'data:image',
+                                                                  )
+                                                            ? ConstrainedBox(
+                                                                constraints:
+                                                                    BoxConstraints(
+                                                                      maxWidth:
+                                                                          mediaMaxWidth,
+                                                                      maxHeight:
+                                                                          500,
+                                                                    ),
+                                                                child: Image.memory(
+                                                                  base64Decode(
+                                                                    mediaUrl!
+                                                                        .split(
+                                                                          ',',
+                                                                        )
+                                                                        .last,
+                                                                  ),
+                                                                  fit: BoxFit
+                                                                      .contain,
+                                                                  errorBuilder:
+                                                                      (
+                                                                        context,
+                                                                        error,
+                                                                        stackTrace,
+                                                                      ) => const SizedBox(
+                                                                        height:
+                                                                            200,
+                                                                        child: Center(
+                                                                          child: Icon(
+                                                                            Icons.broken_image,
+                                                                            color:
+                                                                                Colors.redAccent,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                ),
+                                                              )
+                                                            : ConstrainedBox(
+                                                                constraints:
+                                                                    BoxConstraints(
+                                                                      maxWidth:
+                                                                          mediaMaxWidth,
+                                                                      maxHeight:
+                                                                          500,
+                                                                    ),
+                                                                child: CachedNetworkImage(
+                                                                  imageUrl:
+                                                                      mediaUrl!,
+                                                                  placeholder: (context, url) => Container(
+                                                                    constraints: BoxConstraints(
+                                                                      minHeight:
+                                                                          100,
+                                                                      maxWidth:
+                                                                          mediaMaxWidth,
+                                                                      maxHeight:
+                                                                          200,
+                                                                    ),
+                                                                    decoration: BoxDecoration(
+                                                                      color:
+                                                                          isMine
+                                                                          ? Colors.white12
+                                                                          : (isDark
+                                                                                ? Colors.white10
+                                                                                : Colors.black.withValues(
+                                                                                    alpha: 0.1,
+                                                                                  )),
+                                                                      borderRadius:
+                                                                          BorderRadius.circular(
+                                                                            12,
+                                                                          ),
+                                                                    ),
+                                                                    child: const Center(
+                                                                      child: CircularProgressIndicator(
+                                                                        strokeWidth:
+                                                                            2,
+                                                                        color: ThemeColors
+                                                                            .blue,
+                                                                      ),
+                                                                    ),
+                                                                  ),
+                                                                  errorWidget:
+                                                                      (
+                                                                        context,
+                                                                        url,
+                                                                        error,
+                                                                      ) => const SizedBox(
+                                                                        height:
+                                                                            300,
+                                                                        child: Center(
+                                                                          child: Icon(
+                                                                            Icons.broken_image,
+                                                                            color:
+                                                                                Colors.redAccent,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                  fit: BoxFit
+                                                                      .contain,
+                                                                ),
                                                               ),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          12,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: isMine
-                                                          ? Colors.white24
-                                                          : Colors.black12,
+                                                      ),
                                                     ),
                                                   ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      if (url == null &&
-                                                          mediaName != null)
-                                                        const SizedBox(
-                                                          width: 32,
-                                                          height: 32,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                                strokeWidth: 2,
-                                                                color: Colors
-                                                                    .white70,
-                                                              ),
-                                                        )
-                                                      else
-                                                        Icon(
-                                                          (mediaType?.startsWith(
-                                                                    'video/',
-                                                                  ) ??
-                                                                  false)
-                                                              ? Icons
-                                                                    .play_circle_fill_rounded
-                                                              : ((mediaType?.startsWith(
-                                                                          'audio/',
-                                                                        ) ??
-                                                                        false)
-                                                                    ? Icons
-                                                                          .audiotrack_rounded
-                                                                    : Icons
-                                                                          .insert_drive_file_rounded),
-                                                          size: 32,
+                                                )
+                                              else
+                                                // For other file types (Videos, Files)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        bottom: 8,
+                                                      ),
+                                                  child: () {
+                                                    final url = mediaUrl;
+                                                    if (mediaType?.startsWith(
+                                                              'video/',
+                                                            ) ==
+                                                            true &&
+                                                        url != null) {
+                                                      return ClipRRect(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                        child: VideoPlayerBubble(
+                                                          key: ValueKey(
+                                                            messageId ?? url,
+                                                          ),
+                                                          videoUrl: url,
+                                                          maxWidth:
+                                                              screenWidth *
+                                                              (isSelectionMode
+                                                                  ? 0.5
+                                                                  : 0.6),
+                                                        ),
+                                                      );
+                                                    }
+                                                    if (mediaType?.startsWith(
+                                                              'audio/',
+                                                            ) ==
+                                                            true &&
+                                                        url != null) {
+                                                      return AudioPlayerBubble(
+                                                        audioUrl: url,
+                                                        isMine: isMine,
+                                                        isPremium: isPremium,
+                                                        messageId: messageId,
+                                                        initialTranscription: transcription,
+                                                      );
+                                                    }
+                                                    if (url == null &&
+                                                        mediaName == null) {
+                                                      return const SizedBox.shrink();
+                                                    }
+                                                    return InkWell(
+                                                      onTap: () {
+                                                        if (url != null) {
+                                                          _openFile(context);
+                                                        }
+                                                      },
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            12,
+                                                          ),
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              12,
+                                                            ),
+                                                        decoration: BoxDecoration(
                                                           color: isMine
                                                               ? Colors.white
-                                                              : ThemeColors
-                                                                    .blue,
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.15,
+                                                                    )
+                                                              : Colors.black
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.05,
+                                                                    ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                          border: Border.all(
+                                                            color: isMine
+                                                                ? Colors.white24
+                                                                : Colors
+                                                                      .black12,
+                                                          ),
                                                         ),
-                                                      const SizedBox(width: 12),
-                                                      Flexible(
-                                                        child: Column(
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start,
+                                                        child: Row(
                                                           mainAxisSize:
                                                               MainAxisSize.min,
                                                           children: [
-                                                            Text(
-                                                              mediaName ??
-                                                                  'Файл',
-                                                              style:
-                                                                  ThemeTextStyles.bodyMedium(
-                                                                    color:
-                                                                        isMine
-                                                                        ? Colors
-                                                                              .white
-                                                                        : (isDark
-                                                                              ? Colors.white
-                                                                              : Colors.black87),
-                                                                  ).copyWith(
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w600,
-                                                                  ),
-                                                              maxLines: 1,
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                            if (mediaType !=
-                                                                null)
-                                                              Text(
-                                                                mediaType!
-                                                                    .split('/')
-                                                                    .last
-                                                                    .toUpperCase(),
-                                                                style: ThemeTextStyles.caption(
-                                                                  isDark:
-                                                                      isDark,
-                                                                  color: isMine
-                                                                      ? Colors
-                                                                            .white70
-                                                                      : (isDark
-                                                                            ? Colors.white54
-                                                                            : Colors.black54),
+                                                            if (url == null &&
+                                                                mediaName !=
+                                                                    null)
+                                                              const SizedBox(
+                                                                width: 32,
+                                                                height: 32,
+                                                                child: CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                  color: Colors
+                                                                      .white70,
                                                                 ),
+                                                              )
+                                                            else
+                                                              Icon(
+                                                                (mediaType?.startsWith(
+                                                                          'video/',
+                                                                        ) ??
+                                                                        false)
+                                                                    ? Icons
+                                                                          .play_circle_fill_rounded
+                                                                    : ((mediaType?.startsWith(
+                                                                                'audio/',
+                                                                              ) ??
+                                                                              false)
+                                                                          ? Icons.audiotrack_rounded
+                                                                          : Icons.insert_drive_file_rounded),
+                                                                size: 32,
+                                                                color: isMine
+                                                                    ? Colors
+                                                                          .white
+                                                                    : ThemeColors
+                                                                          .blue,
                                                               ),
+                                                            const SizedBox(
+                                                              width: 12,
+                                                            ),
+                                                            Flexible(
+                                                              child: Column(
+                                                                crossAxisAlignment:
+                                                                    CrossAxisAlignment
+                                                                        .start,
+                                                                mainAxisSize:
+                                                                    MainAxisSize
+                                                                        .min,
+                                                                children: [
+                                                                  Text(
+                                                                    mediaName ??
+                                                                        'Файл',
+                                                                    style:
+                                                                        ThemeTextStyles.bodyMedium(
+                                                                          color:
+                                                                              isMine
+                                                                              ? Colors.white
+                                                                              : (isDark
+                                                                                    ? Colors.white
+                                                                                    : Colors.black87),
+                                                                        ).copyWith(
+                                                                          fontWeight:
+                                                                              FontWeight.w600,
+                                                                        ),
+                                                                    maxLines: 1,
+                                                                    overflow:
+                                                                        TextOverflow
+                                                                            .ellipsis,
+                                                                  ),
+                                                                  if (mediaType !=
+                                                                      null)
+                                                                    Text(
+                                                                      mediaType!
+                                                                          .split(
+                                                                            '/',
+                                                                          )
+                                                                          .last
+                                                                          .toUpperCase(),
+                                                                      style: ThemeTextStyles.caption(
+                                                                        isDark:
+                                                                            isDark,
+                                                                        color:
+                                                                            isMine
+                                                                            ? Colors.white70
+                                                                            : (isDark
+                                                                                  ? Colors.white54
+                                                                                  : Colors.black54),
+                                                                      ),
+                                                                    ),
+                                                                ],
+                                                              ),
+                                                            ),
                                                           ],
                                                         ),
                                                       ),
-                                                    ],
-                                                  ),
+                                                    );
+                                                  }(),
                                                 ),
-                                              );
-                                            }(),
-                                          ),
-                                      ],
-                                      if (isDeleted ?? false) ...[
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              Icons.delete_outline_rounded,
-                                              size: 14,
-                                              color: isMine
-                                                  ? Colors.white60
-                                                  : Colors.grey,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Сообщение удалено',
-                                              style:
-                                                  ThemeTextStyles.bodyMedium(
+                                            ],
+                                            if (isDeleted ?? false) ...[
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Flexible(
+                                                    child: Text(
+                                                      repliedMessageSenderName ??
+                                                          'Удаленный пользователь',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color: isMine
+                                                            ? Colors.white
+                                                            : ThemeColors.blue,
+                                                      ),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  Icon(
+                                                    Icons
+                                                        .delete_outline_rounded,
+                                                    size: 14,
                                                     color: isMine
                                                         ? Colors.white60
                                                         : Colors.grey,
-                                                  ).copyWith(
-                                                    fontStyle: FontStyle.italic,
                                                   ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                      ] else if (content.trim().isNotEmpty) ...[
-                                        Text(
-                                          content,
-                                          style: ThemeTextStyles.bodyMedium(
-                                            color: isMine
-                                                ? Colors.white
-                                                : (isDark
-                                                      ? Colors.white.withValues(
-                                                          alpha: 0.9,
-                                                        )
-                                                      : Colors.black87),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                      ],
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            timestamp,
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              color: isMine
-                                                  ? Colors.white70
-                                                  : (isDark
-                                                        ? Colors.white38
-                                                        : Colors.black38),
-                                            ),
-                                          ),
-                                          if (isEdited ?? false) ...[
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'изменено',
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontStyle: FontStyle.italic,
-                                                color: isMine
-                                                    ? Colors.white70
-                                                    : (isDark
-                                                          ? Colors.white38
-                                                          : Colors.black38),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'Сообщение удалено',
+                                                    style:
+                                                        ThemeTextStyles.bodyMedium(
+                                                          color: isMine
+                                                              ? Colors.white60
+                                                              : Colors.grey,
+                                                        ).copyWith(
+                                                          fontStyle:
+                                                              FontStyle.italic,
+                                                        ),
+                                                  ),
+                                                ],
                                               ),
+                                              const SizedBox(height: 4),
+                                            ] else if (content
+                                                .trim()
+                                                .isNotEmpty) ...[
+                                              Text(
+                                                content,
+                                                style: ThemeTextStyles.bodyMedium(
+                                                  color: isMine
+                                                      ? Colors.white
+                                                      : (isDark
+                                                            ? Colors.white
+                                                                  .withValues(
+                                                                    alpha: 0.9,
+                                                                  )
+                                                            : Colors.black87),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                            ],
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  timestamp,
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: isMine
+                                                        ? Colors.white70
+                                                        : (isDark
+                                                              ? Colors.white38
+                                                              : Colors.black38),
+                                                  ),
+                                                ),
+                                                if (isEdited ?? false) ...[
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'изменено',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontStyle:
+                                                          FontStyle.italic,
+                                                      color: isMine
+                                                          ? Colors.white70
+                                                          : (isDark
+                                                                ? Colors.white38
+                                                                : Colors
+                                                                      .black38),
+                                                    ),
+                                                  ),
+                                                ],
+                                                if (isMine) ...[
+                                                  const SizedBox(width: 4),
+                                                  Icon(
+                                                    isRead
+                                                        ? Icons.done_all_rounded
+                                                        : Icons.check_rounded,
+                                                    size: 12,
+                                                    color: isRead
+                                                        ? Colors.white
+                                                        : Colors.white70,
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ],
-                                          if (isMine) ...[
-                                            const SizedBox(width: 4),
-                                            Icon(
-                                              isRead
-                                                  ? Icons.done_all_rounded
-                                                  : Icons.check_rounded,
-                                              size: 12,
-                                              color: isRead
-                                                  ? Colors.white
-                                                  : Colors.white70,
-                                            ),
-                                          ],
-                                        ],
+                                        ),
                                       ),
-                                    ],
-                                  ),
-                                ),
                               ),
                             ),
                           ),
@@ -1200,11 +1318,10 @@ class ChatBubble extends StatelessWidget {
 
       if (!fileExists) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Скачивание файла...'),
-              duration: Duration(seconds: 1),
-            ),
+          showCustomDialog(
+            context: context,
+            title: 'Загрузка',
+            message: 'Скачивание файла началось...',
           );
         }
 
@@ -1258,42 +1375,50 @@ class ChatBubble extends StatelessWidget {
       }
       debugPrint('Error opening file: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.redAccent,
-            duration: const Duration(seconds: 3),
-          ),
+        showCustomDialog(
+          context: context,
+          title: 'Ошибка',
+          message: errorMessage,
+          isError: true,
         );
       }
     }
   }
 }
 
-class AudioPlayerBubble extends StatefulWidget {
+class AudioPlayerBubble extends ConsumerStatefulWidget {
   final String audioUrl;
   final bool isMine;
+  final bool isPremium;
+  final String? messageId;
+  final String? initialTranscription;
 
   const AudioPlayerBubble({
     super.key,
     required this.audioUrl,
     required this.isMine,
+    this.isPremium = false,
+    this.messageId,
+    this.initialTranscription,
   });
 
   @override
-  State<AudioPlayerBubble> createState() => _AudioPlayerBubbleState();
+  ConsumerState<AudioPlayerBubble> createState() => _AudioPlayerBubbleState();
 }
 
-class _AudioPlayerBubbleState extends State<AudioPlayerBubble> {
+class _AudioPlayerBubbleState extends ConsumerState<AudioPlayerBubble> {
   late final AudioPlayer _player;
   bool _isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  String? _transcription;
+  bool _isTranscribing = false;
 
   @override
   void initState() {
     super.initState();
     _player = AudioPlayer();
+    _transcription = widget.initialTranscription;
 
     _player.onPlayerStateChanged.listen((state) {
       if (mounted) {
@@ -1433,17 +1558,113 @@ class _AudioPlayerBubbleState extends State<AudioPlayerBubble> {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    _position.inMilliseconds > 0
-                        ? _formatDuration(_position)
-                        : _formatDuration(_duration),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: secondaryColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        _position.inMilliseconds > 0
+                            ? _formatDuration(_position)
+                            : _formatDuration(_duration),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: secondaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (widget.isPremium && _transcription == null)
+                        GestureDetector(
+                          onTap: () async {
+                            if (_isTranscribing || widget.messageId == null) return;
+                            setState(() => _isTranscribing = true);
+                            
+                            try {
+                              final repo = ref.read(chatRepositoryProvider);
+                              final result = await repo.transcribeVoiceMessage(
+                                widget.messageId!,
+                                widget.audioUrl,
+                              );
+                              
+                              if (!context.mounted) return;
+                              setState(() {
+                                _transcription = result;
+                                _isTranscribing = false;
+                              });
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              setState(() => _isTranscribing = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Ошибка при расшифровке')),
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: primaryColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: primaryColor.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_isTranscribing)
+                                  SizedBox(
+                                    width: 10,
+                                    height: 10,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.5,
+                                      color: primaryColor,
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    Icons.translate_rounded,
+                                    size: 12,
+                                    color: primaryColor,
+                                  ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _isTranscribing ? 'Обработка...' : 'В текст',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
+                if (widget.isPremium && _transcription != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _transcription!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                        color: secondaryColor,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
