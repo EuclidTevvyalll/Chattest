@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'package:image/image.dart' as img;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -47,8 +48,18 @@ class ChatDetailScreen extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<RoomModel?>>(roomProvider(roomId), (previous, next) {
+      if (next is AsyncData<RoomModel?> && next.value == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            context.go('/');
+          }
+        });
+      }
+    });
+
     final messagesAsync = ref.watch(messagesProvider(roomId));
-    final roomsAsync = ref.watch(roomsProvider);
+    final roomAsync = ref.watch(roomProvider(roomId));
 
     final controller = useTextEditingController();
     final focusNode = useFocusNode();
@@ -60,35 +71,38 @@ class ChatDetailScreen extends HookConsumerWidget {
 
     final participantsAsync = ref.watch(roomParticipantsProvider(roomId));
 
-    final room = roomsAsync.value?.where((r) => r.id == roomId).firstOrNull;
+    final room = roomAsync.value;
     String title = 'Загрузка...';
     String? avatarUrl;
     Uint8List? avatarBase64;
     bool isOnline = false;
     DateTime? lastSeen;
 
+    final otherUser = room?.type == RoomType.room
+        ? participantsAsync.value
+            ?.where((p) => p.id != currentUserId)
+            .firstOrNull
+        : null;
+
+    final otherProfile = otherUser != null
+        ? (ref.watch(watchUserProfileProvider(otherUser.id)).value ?? otherUser)
+        : null;
+
     if (room != null) {
       if (room.type == RoomType.room) {
-        participantsAsync.whenData((participants) {
-          if (participants.isNotEmpty) {
-            final other = participants.firstWhere(
-              (p) => p.id != currentUserId,
-              orElse: () => participants.first,
-            );
-            title = other.nickname ?? other.username;
-            avatarUrl = other.avatarUrl;
-            isOnline = other.isOnline ?? false;
-            lastSeen = other.lastSeen;
+        if (otherProfile != null) {
+          title = otherProfile.nickname ?? otherProfile.username;
+          avatarUrl = otherProfile.avatarUrl;
+          isOnline = otherProfile.isOnline ?? false;
+          lastSeen = otherProfile.lastSeen;
 
-            avatarBase64 = ref
-                .watch(userAvatarBase64Provider(other.id))
-                .asData
-                ?.value;
-          }
-        });
-
-        // If still loading or empty, use placeholders but keep "room" logic
-        if (title == 'Загрузка...' && room.name != null) title = room.name!;
+          avatarBase64 = ref
+              .watch(userAvatarBase64Provider(otherProfile.id))
+              .asData
+              ?.value;
+        } else if (room.name != null) {
+          title = room.name!;
+        }
       } else {
         title = room.name ?? 'Группа';
         avatarUrl = room.avatarUrl;
@@ -142,12 +156,14 @@ class ChatDetailScreen extends HookConsumerWidget {
           .toList();
     }, [messagesAsync.value, chatState.deletingIds]);
 
-    final myParticipant = room?.participants
-        .where((p) => p.id == currentUserId)
+    final myParticipant = participantsAsync.value
+        ?.where((p) => p.id == currentUserId)
         .firstOrNull;
     final myRole = myParticipant?.role;
-    final canWrite =
-        room?.type != RoomType.channel ||
+    final canWrite = roomAsync.isLoading ||
+        participantsAsync.isLoading ||
+        room == null ||
+        room.type != RoomType.channel ||
         myRole == 'owner' ||
         myRole == 'admin';
 
@@ -385,9 +401,9 @@ class ChatDetailScreen extends HookConsumerWidget {
                     radius: 18,
                     backgroundColor: ThemeColors.blue.withValues(alpha: 0.1),
                     backgroundImage: avatarUrl != null
-                        ? CachedNetworkImageProvider(avatarUrl!)
+                        ? CachedNetworkImageProvider(avatarUrl)
                         : (avatarBase64 != null
-                              ? MemoryImage(avatarBase64!)
+                              ? MemoryImage(avatarBase64)
                               : null),
                     child: participantsAsync.isLoading
                         ? const SizedBox(
@@ -440,16 +456,8 @@ class ChatDetailScreen extends HookConsumerWidget {
                     children: [
                       Text(title, style: ThemeTextStyles.h3(isDark: isDark)),
                       if (room?.type == RoomType.room)
-                        Consumer(
-                          builder: (context, ref, _) {
-                            final participants = participantsAsync.value ?? [];
-                            final other = participants
-                                .where((p) => p.id != currentUserId)
-                                .firstOrNull;
-                            return PremiumBadge(
-                              isPremium: other?.isPremium ?? false,
-                            );
-                          },
+                        PremiumBadge(
+                          isPremium: otherProfile?.isPremium ?? false,
                         ),
                     ],
                   ),
@@ -458,7 +466,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                       isOnline
                           ? 'онлайн'
                           : (lastSeen != null
-                                ? _formatLastSeen(lastSeen!)
+                                ? _formatLastSeen(lastSeen)
                                 : 'офлайн'),
                       style: ThemeTextStyles.caption(
                         color: isOnline
@@ -480,15 +488,7 @@ class ChatDetailScreen extends HookConsumerWidget {
             ],
           ),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.more_vert_rounded,
-              color: isDark ? Colors.white70 : Colors.black54,
-            ),
-            onPressed: () {},
-          ),
-        ],
+        actions: [],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -512,7 +512,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      cacheExtent: 1000,
+                      scrollCacheExtent: const ScrollCacheExtent.pixels(1000),
                       reverse: true,
                       itemCount: reversedMessages.length,
                       itemBuilder: (context, index) {
@@ -572,11 +572,9 @@ class ChatDetailScreen extends HookConsumerWidget {
                         final isGroup = room?.type == RoomType.group;
                         final isChannel = room?.type == RoomType.channel;
 
-                        final otherParticipant = participantsAsync.value
-                            ?.where((p) => p.id != currentUserId)
-                            .firstOrNull;
-                        final isOtherOnline =
-                            otherParticipant?.isOnline ?? false;
+                        final isOtherOnline = room?.type == RoomType.room
+                            ? (otherProfile?.isOnline ?? false)
+                            : false;
                         final isRead = isOtherOnline || index > 0;
 
                         final bubbleWidget = ChatBubble(

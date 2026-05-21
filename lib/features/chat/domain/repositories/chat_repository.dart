@@ -52,4 +52,8 @@ abstract class ChatRepository {
     String role,
   );
   Future<String?> transcribeVoiceMessage(String messageId, String audioUrl);
+  Future<void> leaveRoom(String roomId);
+  Future<void> deleteRoom(String roomId);
+  Stream<RoomModel?> watchRoom(String roomId);
+  Stream<List<ProfileModel>> watchRoomParticipants(String roomId);
 }

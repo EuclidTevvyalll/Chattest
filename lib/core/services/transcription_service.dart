@@ -42,12 +42,14 @@ class TranscriptionService {
         if (results == null) throw Exception("Deepgram returned empty results");
 
         final channels = results['channels'] as List?;
-        if (channels == null || channels.isEmpty)
+        if (channels == null || channels.isEmpty) {
           throw Exception("No channels in Deepgram response");
+        }
 
         final alternatives = channels[0]['alternatives'] as List?;
-        if (alternatives == null || alternatives.isEmpty)
+        if (alternatives == null || alternatives.isEmpty) {
           throw Exception("No alternatives in Deepgram response");
+        }
 
         final transcript = alternatives[0]['transcript'] as String?;
         debugPrint('TranscriptionService: Success! Text: $transcript');

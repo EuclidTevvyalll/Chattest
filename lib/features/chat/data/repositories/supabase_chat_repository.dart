@@ -695,10 +695,87 @@ class SupabaseChatRepository implements ChatRepository {
   }
 
   @override
+  Future<void> leaveRoom(String roomId) async {
+    final myId = _client.auth.currentUser?.id;
+    if (myId == null) return;
+    await _client
+        .from('room_participants')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('profile_id', myId)
+        .timeout(const Duration(seconds: 10));
+  }
+
+  @override
+  Future<void> deleteRoom(String roomId) async {
+    await _client
+        .from('rooms')
+        .delete()
+        .eq('id', roomId)
+        .timeout(const Duration(seconds: 10));
+  }
+
+  @override
+  Stream<RoomModel?> watchRoom(String roomId) {
+    return _client
+        .from('rooms')
+        .stream(primaryKey: ['id'])
+        .eq('id', roomId)
+        .asyncMap((roomsList) async {
+          if (roomsList.isEmpty) return null;
+          try {
+            final data = await _client
+                .from('rooms')
+                .select('*, room_participants(role, profiles(*))')
+                .eq('id', roomId)
+                .maybeSingle()
+                .timeout(const Duration(seconds: 10));
+            if (data == null) return null;
+            return _mapRoomData(data);
+          } catch (e) {
+            debugPrint('SupabaseChatRepository: Error in watchRoom asyncMap: $e');
+            return null;
+          }
+        });
+  }
+
+  @override
+  Stream<List<ProfileModel>> watchRoomParticipants(String roomId) {
+    return _client
+        .from('room_participants')
+        .stream(primaryKey: ['room_id', 'profile_id'])
+        .eq('room_id', roomId)
+        .asyncMap((participantsList) async {
+          try {
+            return await getRoomParticipants(roomId).timeout(const Duration(seconds: 10));
+          } catch (e) {
+            debugPrint('SupabaseChatRepository: Error in watchRoomParticipants asyncMap: $e');
+            return [];
+          }
+        });
+  }
+
+  @override
   Future<String?> transcribeVoiceMessage(String messageId, String audioUrl) async {
     try {
-      debugPrint('SupabaseChatRepository: Transcribing audio $audioUrl');
+      debugPrint('SupabaseChatRepository: Checking existing transcription for $messageId');
       
+      // Сначала проверяем, есть ли уже перевод в базе данных
+      final dbResult = await _client
+          .from('messages')
+          .select('transcription')
+          .eq('id', messageId)
+          .maybeSingle();
+
+      if (dbResult != null && dbResult['transcription'] != null) {
+        final existingText = dbResult['transcription'] as String;
+        if (existingText.trim().isNotEmpty) {
+          debugPrint('SupabaseChatRepository: Found cached transcription in DB');
+          return existingText;
+        }
+      }
+
+      debugPrint('SupabaseChatRepository: Transcribing audio $audioUrl from API');
       final service = TranscriptionService(SupabaseConfig.deepgramApiKey);
       final transcription = await service.transcribe(audioUrl);
       

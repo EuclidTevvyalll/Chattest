@@ -23,7 +23,17 @@ class ChatInfoScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final roomsAsync = ref.watch(roomsProvider);
+    ref.listen<AsyncValue<RoomModel?>>(roomProvider(roomId), (previous, next) {
+      if (next is AsyncData<RoomModel?> && next.value == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            context.go('/');
+          }
+        });
+      }
+    });
+
+    final roomAsync = ref.watch(roomProvider(roomId));
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentUserId = ref.watch(authUserProvider)?.id;
 
@@ -53,9 +63,8 @@ class ChatInfoScreen extends ConsumerWidget {
           ),
         ),
         child: SafeArea(
-          child: roomsAsync.when(
-            data: (rooms) {
-              final room = rooms.where((r) => r.id == roomId).firstOrNull;
+          child: roomAsync.when(
+            data: (room) {
               if (room == null) {
                 return const Center(child: Text('Комната не найдена'));
               }
@@ -161,7 +170,7 @@ class ChatInfoScreen extends ConsumerWidget {
           .watch(userAvatarBase64Provider(other.id))
           .asData
           ?.value;
-      return _buildUserProfile(context, other, isDark, avatarBase64);
+      return _buildUserProfile(context, ref, room, other, isDark, avatarBase64);
     } else if (room.type == RoomType.group) {
       return _buildGroupInfo(context, ref, room, participants, isDark);
     } else {
@@ -171,6 +180,8 @@ class ChatInfoScreen extends ConsumerWidget {
 
   Widget _buildUserProfile(
     BuildContext context,
+    WidgetRef ref,
+    RoomModel room,
     ProfileModel profile,
     bool isDark,
     Uint8List? avatarBase64,
@@ -217,37 +228,6 @@ class ChatInfoScreen extends ConsumerWidget {
                 isDark: isDark,
               ),
             ]),
-            const SizedBox(height: 16),
-            _buildInfoSection(isDark, [
-              _InfoTile(
-                label: 'Уведомления',
-                value: 'Включены',
-                icon: Icons.notifications_none_rounded,
-                isDark: isDark,
-                trailing: Switch(
-                  value: true,
-                  onChanged: (_) {},
-                  activeThumbColor: ThemeColors.blue,
-                ),
-              ),
-            ]),
-            const SizedBox(height: 16),
-            _buildInfoSection(isDark, [
-              _InfoTile(
-                label: 'Медиа, ссылки и файлы',
-                value: 'Пусто',
-                icon: Icons.perm_media_outlined,
-                isDark: isDark,
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              ),
-              _InfoTile(
-                label: 'Общие группы',
-                value: '0',
-                icon: Icons.group_outlined,
-                isDark: isDark,
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              ),
-            ]),
           ],
         ),
         Column(
@@ -264,20 +244,11 @@ class ChatInfoScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             _buildActionButton(
               context,
-              'Заблокировать пользователя',
-              Icons.block_flipped,
-              Colors.redAccent,
-              isDark,
-              () {},
-            ),
-            const SizedBox(height: 12),
-            _buildActionButton(
-              context,
               'Удалить чат',
               Icons.delete_outline_rounded,
               Colors.redAccent,
               isDark,
-              () {},
+              () => _handleLeaveOrDelete(context, ref, room, true),
             ),
           ],
         ),
@@ -323,6 +294,11 @@ class ChatInfoScreen extends ConsumerWidget {
     List<ProfileModel> participants,
     bool isDark,
   ) {
+    final currentUserId = ref.watch(authUserProvider)?.id;
+    final myParticipant = participants
+        .where((p) => p.id == currentUserId)
+        .firstOrNull;
+    final myRole = myParticipant?.role;
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -454,11 +430,13 @@ class ChatInfoScreen extends ConsumerWidget {
             const SizedBox(height: 32),
             _buildActionButton(
               context,
-              'Покинуть группу',
-              Icons.logout_rounded,
+              myRole == 'owner' ? 'Удалить группу' : 'Покинуть группу',
+              myRole == 'owner'
+                  ? Icons.delete_outline_rounded
+                  : Icons.logout_rounded,
               Colors.redAccent,
               isDark,
-              () {},
+              () => _handleLeaveOrDelete(context, ref, room, myRole == 'owner'),
             ),
           ],
         ),
@@ -689,7 +667,7 @@ class ChatInfoScreen extends ConsumerWidget {
                   : Icons.logout_rounded,
               Colors.redAccent,
               isDark,
-              () {},
+              () => _handleLeaveOrDelete(context, ref, room, myRole == 'owner'),
             ),
           ],
         ),
@@ -740,6 +718,73 @@ class ChatInfoScreen extends ConsumerWidget {
       child: Column(children: children),
     );
   }
+
+  Future<void> _handleLeaveOrDelete(
+    BuildContext context,
+    WidgetRef ref,
+    RoomModel room,
+    bool isDelete,
+  ) async {
+    final titleText = isDelete ? 'Удалить' : 'Покинуть';
+    final targetText = room.type == RoomType.channel
+        ? 'канал'
+        : (room.type == RoomType.group ? 'группу' : 'чат');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF1A1A1A)
+            : Colors.white,
+        title: Text('$titleText $targetText?'),
+        content: Text(
+          isDelete
+              ? 'Вы уверены, что хотите удалить этот $targetText? Это действие удалит все сообщения и саму комнату для всех участников.'
+              : 'Вы уверены, что хотите покинуть этот $targetText? Вы больше не будете получать сообщения.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: Text(titleText),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        if (isDelete) {
+          await ref.read(chatControllerProvider.notifier).deleteRoom(room.id);
+        } else {
+          await ref.read(chatControllerProvider.notifier).leaveRoom(room.id);
+        }
+        if (context.mounted) {
+          showCustomDialog(
+            context: context,
+            title: 'Успех',
+            message: isDelete ? 'Комната успешно удалена' : 'Вы покинули комнату',
+          );
+          context.go('/');
+        }
+      } catch (e) {
+        if (context.mounted) {
+          showCustomDialog(
+            context: context,
+            title: 'Ошибка',
+            message: 'Не удалось выполнить действие: $e',
+            isError: true,
+          );
+        }
+      }
+    }
+  }
 }
 
 class _InfoTile extends StatelessWidget {
@@ -747,14 +792,12 @@ class _InfoTile extends StatelessWidget {
   final String value;
   final IconData icon;
   final bool isDark;
-  final Widget? trailing;
 
   const _InfoTile({
     required this.label,
     required this.value,
     required this.icon,
     required this.isDark,
-    this.trailing,
   });
 
   @override
@@ -774,8 +817,6 @@ class _InfoTile extends StatelessWidget {
               ],
             ),
           ),
-          // ignore: use_null_aware_elements
-          if (trailing != null) trailing!,
         ],
       ),
     );

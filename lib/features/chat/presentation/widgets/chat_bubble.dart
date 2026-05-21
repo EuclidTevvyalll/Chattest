@@ -19,6 +19,7 @@ import 'package:forgelink/widgets/custom_dialog.dart';
 import 'package:forgelink/widgets/premium_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
+import 'package:forgelink/features/profile/presentation/providers/profile_provider.dart';
 
 class ChatBubble extends StatelessWidget {
   final String? messageId;
@@ -1418,7 +1419,7 @@ class _AudioPlayerBubbleState extends ConsumerState<AudioPlayerBubble> {
   void initState() {
     super.initState();
     _player = AudioPlayer();
-    _transcription = widget.initialTranscription;
+    _transcription = null;
 
     _player.onPlayerStateChanged.listen((state) {
       if (mounted) {
@@ -1470,6 +1471,8 @@ class _AudioPlayerBubbleState extends ConsumerState<AudioPlayerBubble> {
 
   @override
   Widget build(BuildContext context) {
+    final currentProfile = ref.watch(currentProfileProvider);
+    final isCurrentUserPremium = currentProfile?.isPremium ?? false;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = widget.isMine ? Colors.white : ThemeColors.blue;
     final secondaryColor = widget.isMine
@@ -1571,7 +1574,7 @@ class _AudioPlayerBubbleState extends ConsumerState<AudioPlayerBubble> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      if (widget.isPremium && _transcription == null)
+                      if (isCurrentUserPremium && _transcription == null)
                         GestureDetector(
                           onTap: () async {
                             if (_isTranscribing || widget.messageId == null) return;
@@ -1643,7 +1646,7 @@ class _AudioPlayerBubbleState extends ConsumerState<AudioPlayerBubble> {
                     ],
                   ),
                 ),
-                if (widget.isPremium && _transcription != null) ...[
+                if (isCurrentUserPremium && _transcription != null) ...[
                   const SizedBox(height: 8),
                   Container(
                     width: double.infinity,

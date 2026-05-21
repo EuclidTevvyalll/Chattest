@@ -545,16 +545,6 @@ class _ProfileContent extends HookConsumerWidget {
                 isDark: isDark,
               ),
             ]),
-            const SizedBox(height: 16),
-            _buildInfoSection(isDark, [
-              _InfoTile(
-                label: 'Общие группы',
-                value: '0',
-                icon: Icons.group_outlined,
-                isDark: isDark,
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              ),
-            ]),
           ] else ...[
             _ProfileField(
               label: 'Никнейм',
@@ -691,15 +681,6 @@ class _ProfileContent extends HookConsumerWidget {
                   },
                 );
               },
-            ),
-            const SizedBox(height: 12),
-            _buildActionButton(
-              context,
-              'Заблокировать пользователя',
-              Icons.block_flipped,
-              Colors.redAccent,
-              isDark,
-              () {},
             ),
           ],
           const SizedBox(height: 60),

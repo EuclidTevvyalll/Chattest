@@ -366,4 +366,26 @@ class ChatController extends Notifier<ChatControllerState> {
       rethrow;
     }
   }
+
+  Future<void> leaveRoom(String roomId) async {
+    try {
+      await ref.read(chatRepositoryProvider).leaveRoom(roomId);
+      ref.invalidate(roomsProvider);
+      ref.invalidate(roomParticipantsProvider(roomId));
+      ref.invalidate(roomProvider(roomId));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteRoom(String roomId) async {
+    try {
+      await ref.read(chatRepositoryProvider).deleteRoom(roomId);
+      ref.invalidate(roomsProvider);
+      ref.invalidate(roomParticipantsProvider(roomId));
+      ref.invalidate(roomProvider(roomId));
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

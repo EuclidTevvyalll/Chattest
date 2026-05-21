@@ -213,6 +213,29 @@ final messagesProvider = Provider.family<AsyncValue<List<MessageModel>>, String>
 });
 
 final roomParticipantsProvider =
-    FutureProvider.family<List<ProfileModel>, String>((ref, roomId) {
-      return ref.watch(chatRepositoryProvider).getRoomParticipants(roomId);
+    StreamProvider.autoDispose.family<List<ProfileModel>, String>((ref, roomId) {
+      final link = ref.keepAlive();
+      Timer? timer;
+      ref.onCancel(() {
+        timer = Timer(const Duration(seconds: 30), () {
+          link.close();
+        });
+      });
+      ref.onDispose(() => timer?.cancel());
+
+      return ref.watch(chatRepositoryProvider).watchRoomParticipants(roomId);
+    });
+
+final roomProvider =
+    StreamProvider.autoDispose.family<RoomModel?, String>((ref, roomId) {
+      final link = ref.keepAlive();
+      Timer? timer;
+      ref.onCancel(() {
+        timer = Timer(const Duration(seconds: 30), () {
+          link.close();
+        });
+      });
+      ref.onDispose(() => timer?.cancel());
+
+      return ref.watch(chatRepositoryProvider).watchRoom(roomId);
     });

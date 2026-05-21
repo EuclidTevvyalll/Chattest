@@ -32,6 +32,11 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   return SupabaseProfileRepository(Supabase.instance.client);
 });
 
+final watchUserProfileProvider =
+    StreamProvider.autoDispose.family<ProfileModel?, String>((ref, userId) {
+  return ref.watch(profileRepositoryProvider).watchProfile(userId);
+});
+
 final currentProfileProvider = Provider<ProfileModel?>((ref) {
   return ref.watch(profileControllerProvider).asData?.value;
 });
