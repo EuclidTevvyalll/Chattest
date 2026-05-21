@@ -589,22 +589,6 @@ class _ProfileContent extends HookConsumerWidget {
                     ref.read(themeProvider.notifier).switchTheme();
                   },
                   activeThumbColor: ThemeColors.blue,
-                ),
-                isDark: isDark,
-              ),
-              const Divider(height: 32, thickness: 0.5, indent: 40),
-              _SettingsTile(
-                title: 'Уведомления',
-                subtitle: 'Включить push-уведомления',
-                icon: Icons.notifications_none_rounded,
-                trailing: Switch(
-                  value: true,
-                  onChanged: (value) {},
-                  activeThumbColor: ThemeColors.blue,
-                ),
-                isDark: isDark,
-              ),
-            ]),
             const SizedBox(height: 32),
             _buildActionButton(
               context,
