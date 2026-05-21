@@ -16,23 +16,32 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> register(String email, String password, String username) async {
+    final cleanUsername = username.trim();
+    final cleanEmail = email.trim();
+
+    // Check if the username is already taken
+    final existing = await _client
+        .from('profiles')
+        .select('id')
+        .eq('username', cleanUsername)
+        .maybeSingle();
+
+    if (existing != null) {
+      throw const AuthException('username_already_taken', statusCode: '400');
+    }
+
     final response = await _client.auth.signUp(
-      email: email,
+      email: cleanEmail,
       password: password,
-      data: {'username': username},
+      data: {'username': cleanUsername},
     );
 
     if (response.user != null) {
-      // Manually insert into profiles if no trigger is set up in Supabase
-      try {
-        await _client.from('profiles').upsert({
-          'id': response.user!.id,
-          'username': username,
-          'created_at': DateTime.now().toIso8601String(),
-        });
-      } catch (e) {
-        // Ignore if already exists or trigger handled it
-      }
+      await _client.from('profiles').upsert({
+        'id': response.user!.id,
+        'username': cleanUsername,
+        'created_at': DateTime.now().toIso8601String(),
+      });
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -840,7 +841,6 @@ class _ProfileContent extends HookConsumerWidget {
         },
         child: HookConsumer(
           builder: (context, ref, child) {
-            final isProcessing = useState(false);
             final selectedPlanIndex = useState(0);
 
             final plans = [
@@ -979,45 +979,10 @@ class _ProfileContent extends HookConsumerWidget {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: isProcessing.value
-                          ? null
-                          : () async {
-                              isProcessing.value = true;
-                              final selectedPlan =
-                                  plans[selectedPlanIndex.value];
-
-                              // Имитация оплаты
-                              await Future.delayed(const Duration(seconds: 2));
-                              try {
-                                await ref
-                                    .read(profileControllerProvider.notifier)
-                                    .upgradeToPremium(
-                                      selectedPlan['duration'] as Duration,
-                                      selectedPlan['amount'] as double,
-                                      selectedPlan['months'] as int,
-                                    );
-
-                                if (context.mounted) {
-                                  Navigator.pop(context);
-                                  showCustomDialog(
-                                    context: context,
-                                    title: 'Поздравляем! 👑',
-                                    message:
-                                        'Premium на ${selectedPlan['title']} успешно активирован!',
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  isProcessing.value = false;
-                                  showCustomDialog(
-                                    context: context,
-                                    title: 'Ошибка оплаты',
-                                    message: e.toString(),
-                                    isError: true,
-                                  );
-                                }
-                              }
-                            },
+                      onPressed: () {
+                        final selectedPlan = plans[selectedPlanIndex.value];
+                        _showCardPaymentDialog(context, ref, selectedPlan);
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFD700),
                         foregroundColor: Colors.black87,
@@ -1026,17 +991,13 @@ class _ProfileContent extends HookConsumerWidget {
                         ),
                         elevation: 0,
                       ),
-                      child: isProcessing.value
-                          ? const CircularProgressIndicator(
-                              color: Colors.black87,
-                            )
-                          : Text(
-                              'Подключить за ${plans[selectedPlanIndex.value]['price']}',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                      child: Text(
+                        'Подключить за ${plans[selectedPlanIndex.value]['price']}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1051,6 +1012,579 @@ class _ProfileContent extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                 ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // --- CARD PAYMENT FLOW ---
+
+  bool _validateCardNumber(String cardNumber) {
+    String clean = cardNumber.replaceAll(' ', '');
+    return clean.length == 16;
+  }
+
+  bool _validateExpiry(String expiry) {
+    if (expiry.length != 5) return false;
+    final parts = expiry.split('/');
+    if (parts.length != 2) return false;
+    final month = int.tryParse(parts[0]);
+    final year = int.tryParse(parts[1]);
+    if (month == null || year == null) return false;
+    if (month < 1 || month > 12) return false;
+    
+    final fullYear = 2000 + year;
+    final expiryDate = DateTime(fullYear, month + 1, 0);
+    return expiryDate.isAfter(DateTime.now());
+  }
+
+  bool _validateCVV(String cvv) {
+    return cvv.length == 3 && int.tryParse(cvv) != null;
+  }
+
+  bool _validateCardholder(String name) {
+    final clean = name.trim();
+    if (clean.isEmpty) return false;
+    final parts = clean.split(' ');
+    if (parts.length < 2) return false;
+    final regex = RegExp(r'^[a-zA-Z]+$');
+    return parts.every((part) => regex.hasMatch(part));
+  }
+
+  Widget _buildVisualCard({
+    required String cardNumber,
+    required String expiry,
+    required String cvv,
+    required String holder,
+    required bool isDark,
+  }) {
+    String brand = 'КАРТА';
+    if (cardNumber.startsWith('4')) {
+      brand = 'VISA';
+    } else if (cardNumber.startsWith('5')) {
+      brand = 'MASTERCARD';
+    } else if (cardNumber.startsWith('2')) {
+      brand = 'МИР';
+    }
+
+    String displayNum = cardNumber;
+    if (displayNum.isEmpty) {
+      displayNum = '•••• •••• •••• ••••';
+    } else {
+      String cleanNum = displayNum.replaceAll(' ', '');
+      int len = cleanNum.length;
+      if (len < 16) {
+        String filled = cleanNum + '•' * (16 - len);
+        StringBuffer sb = StringBuffer();
+        for (int i = 0; i < 16; i++) {
+          sb.write(filled[i]);
+          if ((i + 1) % 4 == 0 && i != 15) sb.write(' ');
+        }
+        displayNum = sb.toString();
+      }
+    }
+
+    final displayHolder = holder.trim().isEmpty ? 'ИМЯ ВЛАДЕЛЬЦА' : holder.toUpperCase();
+    final displayExpiry = expiry.trim().isEmpty ? 'ММ/ГГ' : expiry;
+
+    return Container(
+      height: 180,
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1E1B4B),
+            Color(0xFF311042),
+            Color(0xFF4C0519),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 1.5,
+          style: BorderStyle.solid,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 45,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(6),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFE875), Color(0xFFC59B27)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: CustomPaint(
+                  painter: CardChipPainter(),
+                ),
+              ),
+              Text(
+                brand,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontStyle: FontStyle.italic,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      offset: const Offset(1, 1),
+                      blurRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Text(
+            displayNum,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 2,
+              fontFamily: 'monospace',
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'ВЛАДЕЛЕЦ',
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      displayHolder,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ГОДЕН ДО',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    displayExpiry,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'КОД CVV',
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    cvv.isEmpty ? '•••' : cvv,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentInputField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    required String? errorText,
+    required bool isDark,
+    required TextInputType keyboardType,
+    List<TextInputFormatter>? formatters,
+    bool obscureText = false,
+    ValueChanged<String>? onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 8, bottom: 6),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: errorText != null 
+                  ? Colors.redAccent 
+                  : (isDark ? Colors.white70 : Colors.black87),
+            ),
+          ),
+        ),
+        GlassBox(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          borderRadius: BorderRadius.circular(16),
+          opacity: isDark ? 0.08 : 0.04,
+          border: errorText != null
+              ? Border.all(color: Colors.redAccent.withValues(alpha: 0.5), width: 1.5)
+              : null,
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            obscureText: obscureText,
+            inputFormatters: formatters,
+            style: ThemeTextStyles.bodyLarge(isDark: isDark),
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(
+                color: isDark ? Colors.white30 : Colors.black38,
+                fontSize: 15,
+              ),
+              border: InputBorder.none,
+            ),
+          ),
+        ),
+        if (errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 8, top: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showCardPaymentDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> selectedPlan,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: false,
+      builder: (context) => PopScope(
+        child: HookConsumer(
+          builder: (context, ref, child) {
+            final cardNumberController = useTextEditingController();
+            final expiryController = useTextEditingController();
+            final cvvController = useTextEditingController();
+            final cardholderController = useTextEditingController();
+
+            final cardNumberError = useState<String?>(null);
+            final expiryError = useState<String?>(null);
+            final cvvError = useState<String?>(null);
+            final cardholderError = useState<String?>(null);
+
+            final isProcessing = useState(false);
+
+            final cardNumberState = useState('');
+            final expiryState = useState('');
+            final cvvState = useState('');
+            final cardholderState = useState('');
+
+            useEffect(() {
+              void updateCardNumber() => cardNumberState.value = cardNumberController.text;
+              void updateExpiry() => expiryState.value = expiryController.text;
+              void updateCvv() => cvvState.value = cvvController.text;
+              void updateCardholder() => cardholderState.value = cardholderController.text;
+
+              cardNumberController.addListener(updateCardNumber);
+              expiryController.addListener(updateExpiry);
+              cvvController.addListener(updateCvv);
+              cardholderController.addListener(updateCardholder);
+
+              return () {
+                cardNumberController.removeListener(updateCardNumber);
+                expiryController.removeListener(updateExpiry);
+                cvvController.removeListener(updateCvv);
+                cardholderController.removeListener(updateCardholder);
+              };
+            }, []);
+
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: GlassBox(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(32),
+                ),
+                opacity: isDark ? 0.35 : 0.15,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 5,
+                        margin: const EdgeInsets.only(bottom: 20),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.black12,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Оплата подписки',
+                            style: ThemeTextStyles.h2(isDark: isDark),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildVisualCard(
+                        cardNumber: cardNumberState.value,
+                        expiry: expiryState.value,
+                        cvv: cvvState.value,
+                        holder: cardholderState.value,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 24),
+                      _buildPaymentInputField(
+                        label: 'Номер карты',
+                        controller: cardNumberController,
+                        hint: '4111 1111 1111 1112',
+                        errorText: cardNumberError.value,
+                        isDark: isDark,
+                        keyboardType: TextInputType.number,
+                        formatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          CardNumberFormatter(),
+                        ],
+                        onChanged: (_) => cardNumberError.value = null,
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _buildPaymentInputField(
+                              label: 'Срок действия',
+                              controller: expiryController,
+                              hint: 'ММ/ГГ',
+                              errorText: expiryError.value,
+                              isDark: isDark,
+                              keyboardType: TextInputType.number,
+                              formatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                CardExpiryFormatter(),
+                              ],
+                              onChanged: (_) => expiryError.value = null,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildPaymentInputField(
+                              label: 'CVV код',
+                              controller: cvvController,
+                              hint: '123',
+                              errorText: cvvError.value,
+                              isDark: isDark,
+                              keyboardType: TextInputType.number,
+                              obscureText: true,
+                              formatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(3),
+                              ],
+                              onChanged: (_) => cvvError.value = null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildPaymentInputField(
+                        label: 'Владелец карты',
+                        controller: cardholderController,
+                        hint: 'IVAN IVANOV',
+                        errorText: cardholderError.value,
+                        isDark: isDark,
+                        keyboardType: TextInputType.name,
+                        formatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                          UpperCaseTextFormatter(),
+                        ],
+                        onChanged: (_) => cardholderError.value = null,
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: isProcessing.value
+                              ? null
+                              : () async {
+                                  final numVal = cardNumberController.text;
+                                  final expVal = expiryController.text;
+                                  final cvvVal = cvvController.text;
+                                  final holderVal = cardholderController.text;
+
+                                  bool isValid = true;
+                                  
+                                  if (!_validateCardNumber(numVal)) {
+                                    cardNumberError.value = 'Неверный номер карты';
+                                    isValid = false;
+                                  } else {
+                                    cardNumberError.value = null;
+                                  }
+
+                                  if (!_validateExpiry(expVal)) {
+                                    expiryError.value = 'Неверный срок действия';
+                                    isValid = false;
+                                  } else {
+                                    expiryError.value = null;
+                                  }
+
+                                  if (!_validateCVV(cvvVal)) {
+                                    cvvError.value = 'Должно быть 3 цифры';
+                                    isValid = false;
+                                  } else {
+                                    cvvError.value = null;
+                                  }
+
+                                  if (!_validateCardholder(holderVal)) {
+                                    cardholderError.value = 'Введите Имя и Фамилию (LATIN)';
+                                    isValid = false;
+                                  } else {
+                                    cardholderError.value = null;
+                                  }
+
+                                  if (!isValid) return;
+
+                                  isProcessing.value = true;
+                                  await Future.delayed(const Duration(seconds: 2));
+
+                                  try {
+                                    await ref
+                                        .read(profileControllerProvider.notifier)
+                                        .upgradeToPremium(
+                                          selectedPlan['duration'] as Duration,
+                                          selectedPlan['amount'] as double,
+                                          selectedPlan['months'] as int,
+                                        );
+
+                                    if (context.mounted) {
+                                      Navigator.pop(context);
+                                      Navigator.pop(context);
+                                      showCustomDialog(
+                                        context: context,
+                                        title: 'Поздравляем! 👑',
+                                        message:
+                                            'Premium на ${selectedPlan['title']} успешно активирован!',
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      isProcessing.value = false;
+                                      showCustomDialog(
+                                        context: context,
+                                        title: 'Ошибка оплаты',
+                                        message: e.toString(),
+                                        isError: true,
+                                      );
+                                    }
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFD700),
+                            foregroundColor: Colors.black87,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: isProcessing.value
+                              ? const CircularProgressIndicator(
+                                  color: Colors.black87,
+                                )
+                              : Text(
+                                  'Оплатить ${selectedPlan['price']}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
               ),
             );
           },
@@ -1198,6 +1732,141 @@ class _SettingsTile extends StatelessWidget {
         ),
         trailing,
       ],
+    );
+  }
+}
+
+class CardChipPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    canvas.drawLine(Offset(size.width / 3, 0), Offset(size.width / 3, size.height), paint);
+    canvas.drawLine(Offset(size.width * 2 / 3, 0), Offset(size.width * 2 / 3, size.height), paint);
+    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class CardNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    var text = newValue.text.replaceAll(' ', '');
+    if (text.length > 16) text = text.substring(0, 16);
+
+    var buffer = StringBuffer();
+    for (int i = 0; i < text.length; i++) {
+      buffer.write(text[i]);
+      var nonZeroIndex = i + 1;
+      if (nonZeroIndex % 4 == 0 && nonZeroIndex != text.length) {
+        buffer.write(' ');
+      }
+    }
+
+    var string = buffer.toString();
+    return newValue.copyWith(
+      text: string,
+      selection: TextSelection.collapsed(offset: string.length),
+    );
+  }
+}
+
+class CardExpiryFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    // If deleting, allow it
+    if (newValue.text.length < oldValue.text.length) {
+      return newValue;
+    }
+
+    var text = newValue.text.replaceAll('/', '');
+    
+    // Only allow digits
+    if (RegExp(r'[^0-9]').hasMatch(text)) {
+      return oldValue;
+    }
+
+    if (text.isEmpty) {
+      return newValue;
+    }
+
+    // Step 1: Format Month
+    if (text.isNotEmpty) {
+      final firstDigit = text[0];
+      if (firstDigit != '0' && firstDigit != '1') {
+        // If user typed 2-9, auto-prepend 0 to make it 02-09
+        text = '0$text';
+      }
+    }
+
+    if (text.length >= 2) {
+      final monthVal = int.tryParse(text.substring(0, 2)) ?? 0;
+      if (monthVal < 1) {
+        text = '01${text.substring(2)}';
+      } else if (monthVal > 12) {
+        text = '12${text.substring(2)}';
+      }
+    }
+
+    // Step 2: Format Year
+    final now = DateTime.now();
+    final currentYearShort = now.year % 100; // e.g. 26
+    final currentMonth = now.month;          // e.g. 5
+
+    if (text.length >= 3) {
+      final firstYearDigit = int.tryParse(text[2]) ?? 0;
+      final currentYearTens = currentYearShort ~/ 10; // e.g. 2 for 26
+      if (firstYearDigit < currentYearTens) {
+        return oldValue;
+      }
+    }
+
+    if (text.length >= 4) {
+      final yearVal = int.tryParse(text.substring(2, 4)) ?? 0;
+      if (yearVal < currentYearShort) {
+        return oldValue;
+      }
+      
+      // If same year, month must be current or future month
+      final monthVal = int.tryParse(text.substring(0, 2)) ?? 0;
+      if (yearVal == currentYearShort && monthVal < currentMonth) {
+        return oldValue;
+      }
+    }
+
+    // Keep length at max 4 digits
+    if (text.length > 4) {
+      text = text.substring(0, 4);
+    }
+
+    // Format with slash MM/YY
+    var buffer = StringBuffer();
+    for (int i = 0; i < text.length; i++) {
+      buffer.write(text[i]);
+      if (i == 1 && text.length >= 2) {
+        buffer.write('/');
+      }
+    }
+
+    final newString = buffer.toString();
+    return TextEditingValue(
+      text: newString,
+      selection: TextSelection.collapsed(offset: newString.length),
+    );
+  }
+}
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    return newValue.copyWith(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }

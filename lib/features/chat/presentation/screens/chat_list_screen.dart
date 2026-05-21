@@ -141,18 +141,71 @@ class ChatListScreen extends HookConsumerWidget {
                     ref.invalidate(roomsProvider);
                   },
                   child: roomsAsync.when(
-                    data: (rooms) => ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-                      itemCount: rooms.length,
-                      itemBuilder: (context, index) {
-                        return _RoomItem(
-                          room: rooms[index],
-                          currentUserId: currentUserId,
-                          isDark: isDark,
+                    data: (rooms) {
+                      final cleanQuery = searchQuery.trim();
+                      if (cleanQuery.isNotEmpty) {
+                        final localResults = rooms.where((r) {
+                          return r.participants.any((p) => p.id == currentUserId);
+                        }).toList();
+
+                        final newChannels = rooms.where((r) {
+                          final isParticipant = r.participants.any((p) => p.id == currentUserId);
+                          return !isParticipant && r.type == RoomType.channel;
+                        }).toList();
+
+                        if (localResults.isEmpty && newChannels.isEmpty) {
+                          return _EmptySearchPlaceholder(isDark: isDark);
+                        }
+
+                        final listItems = <dynamic>[];
+                        if (newChannels.isNotEmpty) {
+                          if (localResults.isNotEmpty) {
+                            listItems.add('Мои чаты');
+                            listItems.addAll(localResults);
+                          }
+                          listItems.add('Глобальный поиск');
+                          listItems.addAll(newChannels);
+                        } else {
+                          listItems.addAll(localResults);
+                        }
+
+                        return ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                          itemCount: listItems.length,
+                          itemBuilder: (context, index) {
+                            final item = listItems[index];
+                            if (item is String) {
+                              return _SectionHeader(
+                                title: item,
+                                icon: item == 'Мои чаты'
+                                    ? Icons.chat_bubble_outline_rounded
+                                    : Icons.explore_outlined,
+                                isDark: isDark,
+                              );
+                            }
+                            return _RoomItem(
+                              room: item as RoomModel,
+                              currentUserId: currentUserId,
+                              isDark: isDark,
+                            );
+                          },
                         );
-                      },
-                    ),
+                      }
+
+                      return ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                        itemCount: rooms.length,
+                        itemBuilder: (context, index) {
+                          return _RoomItem(
+                            room: rooms[index],
+                            currentUserId: currentUserId,
+                            isDark: isDark,
+                          );
+                        },
+                      );
+                    },
                     loading: () => const Center(
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
@@ -645,6 +698,96 @@ class _CreateChatBottomSheet extends StatelessWidget {
               color: isDark ? Colors.white24 : Colors.black26,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final bool isDark;
+
+  const _SectionHeader({
+    required this.title,
+    required this.icon,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 12, left: 4, right: 4),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: isDark ? Colors.white54 : Colors.black54,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title.toUpperCase(),
+            style: ThemeTextStyles.caption(
+              isDark: isDark,
+            ).copyWith(
+              color: isDark ? Colors.white54 : Colors.black54,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptySearchPlaceholder extends StatelessWidget {
+  final bool isDark;
+
+  const _EmptySearchPlaceholder({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 64),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: ThemeColors.blue.withValues(alpha: isDark ? 0.1 : 0.05),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.search_off_rounded,
+                  size: 48,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Ничего не найдено',
+                style: ThemeTextStyles.h3(isDark: isDark),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'По вашему запросу результатов нет.\nПопробуйте ввести другое название.',
+                style: ThemeTextStyles.bodyMedium(
+                  isDark: isDark,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

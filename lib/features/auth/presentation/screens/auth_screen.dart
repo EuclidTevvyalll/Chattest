@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:forgelink/features/auth/presentation/providers/auth_provider.dart';
 import 'package:forgelink/theme/text_theme.dart';
 import 'package:forgelink/theme/theme_colors.dart';
@@ -85,30 +86,80 @@ class AuthScreen extends HookConsumerWidget {
                       onPressed: isLoading.value
                           ? null
                           : () async {
+                              final email = emailController.text.trim();
+                              final password = passwordController.text;
+                              final username = usernameController.text.trim();
+
+                              if (email.isEmpty) {
+                                showCustomDialog(
+                                  context: context,
+                                  title: 'Ошибка',
+                                  message: 'Пожалуйста, введите адрес электронной почты.',
+                                  isError: true,
+                                );
+                                return;
+                              }
+
+                              if (password.isEmpty) {
+                                showCustomDialog(
+                                  context: context,
+                                  title: 'Ошибка',
+                                  message: 'Пожалуйста, введите пароль.',
+                                  isError: true,
+                                );
+                                return;
+                              }
+
+                              if (!isLogin.value && username.isEmpty) {
+                                showCustomDialog(
+                                  context: context,
+                                  title: 'Ошибка',
+                                  message: 'Пожалуйста, введите имя пользователя.',
+                                  isError: true,
+                                );
+                                return;
+                              }
+
                               isLoading.value = true;
                               try {
                                 if (isLogin.value) {
                                   await ref
                                       .read(authRepositoryProvider)
-                                      .login(
-                                        emailController.text,
-                                        passwordController.text,
-                                      );
+                                      .login(email, password);
                                 } else {
                                   await ref
                                       .read(authRepositoryProvider)
-                                      .register(
-                                        emailController.text,
-                                        passwordController.text,
-                                        usernameController.text,
-                                      );
+                                      .register(email, password, username);
                                 }
                               } catch (e) {
+                                String errorMessage = e.toString();
+                                if (e is AuthException) {
+                                  if (e.message == 'username_already_taken') {
+                                    errorMessage = 'Этот никнейм уже занят.';
+                                  } else if (e.message == 'User already exists' || 
+                                             e.message.contains('already exists')) {
+                                    errorMessage = 'Пользователь с такой электронной почтой уже зарегистрирован.';
+                                  } else if (e.message == 'Invalid login credentials') {
+                                    errorMessage = 'Неверная электронная почта или пароль.';
+                                  } else if (e.message.contains('password') || 
+                                             e.message.contains('Password')) {
+                                    errorMessage = 'Пароль должен быть не менее 6 символов.';
+                                  } else if (e.message.contains('email') || 
+                                             e.message.contains('Email')) {
+                                    errorMessage = 'Пожалуйста, введите корректный адрес электронной почты.';
+                                  } else {
+                                    errorMessage = e.message;
+                                  }
+                                } else if (e.toString().contains('unique constraint') || 
+                                           e.toString().contains('profiles_username_key')) {
+                                  errorMessage = 'Этот никнейм уже занят.';
+                                }
+
                                 if (context.mounted) {
                                   showCustomDialog(
                                     context: context,
                                     title: 'Ошибка',
-                                    message: e.toString(),
+                                    message: errorMessage,
                                     isError: true,
                                   );
                                 }
