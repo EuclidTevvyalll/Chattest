@@ -5,6 +5,7 @@ import 'package:forgelink/features/chat/domain/models/message_model.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
 import 'package:forgelink/core/services/censorship_service.dart';
+import 'package:forgelink/core/services/duplicate_detector.dart';
 
 class ChatControllerState {
   final Map<String, List<MessageModel>> pendingMessages;
@@ -28,6 +29,9 @@ final chatControllerProvider =
     NotifierProvider<ChatController, ChatControllerState>(ChatController.new);
 
 class ChatController extends Notifier<ChatControllerState> {
+  String? _lastSentContent;
+  DateTime? _lastSentTime;
+
   @override
   ChatControllerState build() {
     return ChatControllerState();
@@ -44,6 +48,21 @@ class ChatController extends Notifier<ChatControllerState> {
     String? mediaType,
     String? mediaName,
   }) async {
+    if (content.trim().isNotEmpty && forwardedFrom == null) {
+      final now = DateTime.now();
+      if (_lastSentContent != null && _lastSentTime != null) {
+        final timeDiff = now.difference(_lastSentTime!);
+        if (timeDiff.inSeconds < 5) {
+          final isDup = DuplicateDetector.isDuplicate(content, _lastSentContent!);
+          if (isDup) {
+            throw Exception('Пожалуйста, не отправляйте похожие сообщения слишком часто.');
+          }
+        }
+      }
+      _lastSentContent = content;
+      _lastSentTime = now;
+    }
+
     final censoredContent = CensorshipService.censor(content);
     final temporaryMessage = MessageModel(
       id: 'temp_${DateTime.now().microsecondsSinceEpoch}',
