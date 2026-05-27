@@ -8,6 +8,7 @@ import 'package:forgelink/features/chat/domain/models/room_model.dart';
 import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 import 'package:forgelink/features/chat/domain/repositories/chat_repository.dart';
 import 'package:forgelink/core/services/transcription_service.dart';
+import 'package:forgelink/core/services/censorship_service.dart';
 import 'package:forgelink/core/config/supabase_config.dart';
 
 class SupabaseChatRepository implements ChatRepository {
@@ -390,6 +391,12 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) throw Exception('Пользователь не авторизован');
 
+    // Проверка уникальности названия
+    final nameTaken = await isRoomNameTaken(name);
+    if (nameTaken) {
+      throw Exception('Название "$name" уже занято. Выберите другое название.');
+    }
+
     final allParticipants = {myId, ...participantIds}.toList();
 
     final roomData = await _client
@@ -418,6 +425,12 @@ class SupabaseChatRepository implements ChatRepository {
   Future<String> createChannel(String name, String? description) async {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) throw Exception('Пользователь не авторизован');
+
+    // Проверка уникальности названия
+    final nameTaken = await isRoomNameTaken(name);
+    if (nameTaken) {
+      throw Exception('Название "$name" уже занято. Выберите другое название.');
+    }
 
     final roomData = await _client
         .from('rooms')
@@ -733,7 +746,9 @@ class SupabaseChatRepository implements ChatRepository {
             if (data == null) return null;
             return _mapRoomData(data);
           } catch (e) {
-            debugPrint('SupabaseChatRepository: Error in watchRoom asyncMap: $e');
+            debugPrint(
+              'SupabaseChatRepository: Error in watchRoom asyncMap: $e',
+            );
             return null;
           }
         });
@@ -747,19 +762,28 @@ class SupabaseChatRepository implements ChatRepository {
         .eq('room_id', roomId)
         .asyncMap((participantsList) async {
           try {
-            return await getRoomParticipants(roomId).timeout(const Duration(seconds: 10));
+            return await getRoomParticipants(
+              roomId,
+            ).timeout(const Duration(seconds: 10));
           } catch (e) {
-            debugPrint('SupabaseChatRepository: Error in watchRoomParticipants asyncMap: $e');
+            debugPrint(
+              'SupabaseChatRepository: Error in watchRoomParticipants asyncMap: $e',
+            );
             return [];
           }
         });
   }
 
   @override
-  Future<String?> transcribeVoiceMessage(String messageId, String audioUrl) async {
+  Future<String?> transcribeVoiceMessage(
+    String messageId,
+    String audioUrl,
+  ) async {
     try {
-      debugPrint('SupabaseChatRepository: Checking existing transcription for $messageId');
-      
+      debugPrint(
+        'SupabaseChatRepository: Checking existing transcription for $messageId',
+      );
+
       // Сначала проверяем, есть ли уже перевод в базе данных
       final dbResult = await _client
           .from('messages')
@@ -770,24 +794,30 @@ class SupabaseChatRepository implements ChatRepository {
       if (dbResult != null && dbResult['transcription'] != null) {
         final existingText = dbResult['transcription'] as String;
         if (existingText.trim().isNotEmpty) {
-          debugPrint('SupabaseChatRepository: Found cached transcription in DB');
+          debugPrint(
+            'SupabaseChatRepository: Found cached transcription in DB',
+          );
           return existingText;
         }
       }
 
-      debugPrint('SupabaseChatRepository: Transcribing audio $audioUrl from API');
+      debugPrint(
+        'SupabaseChatRepository: Transcribing audio $audioUrl from API',
+      );
       final service = TranscriptionService(SupabaseConfig.deepgramApiKey);
       final transcription = await service.transcribe(audioUrl);
-      
+
       if (transcription == null) return null;
-      
+
+      final censoredTranscription = CensorshipService.censor(transcription);
+
       // Сохраняем результат в базу данных для кэширования
       await _client
           .from('messages')
-          .update({'transcription': transcription})
+          .update({'transcription': censoredTranscription})
           .eq('id', messageId);
-          
-      return transcription;
+
+      return censoredTranscription;
     } catch (e) {
       debugPrint('SupabaseChatRepository: Transcription error: $e');
       return null;
@@ -816,5 +846,59 @@ class SupabaseChatRepository implements ChatRepository {
     }
 
     return Uint8List.fromList(img.encodeJpg(resized, quality: 75));
+  }
+
+  @override
+  Future<void> updateRoom({
+    required String roomId,
+    String? name,
+    String? description,
+    String? avatarUrl,
+  }) async {
+    final updates = <String, dynamic>{};
+    if (name != null) updates['name'] = name;
+    if (description != null) updates['description'] = description;
+    if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+
+    if (updates.isEmpty) return;
+
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        await _client
+            .from('rooms')
+            .update(updates)
+            .eq('id', roomId)
+            .timeout(const Duration(seconds: 10));
+        return;
+      } catch (e) {
+        retryCount++;
+        if (retryCount >= maxRetries) rethrow;
+        await Future.delayed(Duration(milliseconds: 500 * retryCount));
+      }
+    }
+  }
+
+  @override
+  Future<bool> isRoomNameTaken(String name, {String? excludeRoomId}) async {
+    try {
+      var query = _client
+          .from('rooms')
+          .select('id')
+          .ilike('name', name)
+          .inFilter('type', ['group', 'channel']);
+
+      if (excludeRoomId != null) {
+        query = query.neq('id', excludeRoomId);
+      }
+
+      final result = await query.maybeSingle();
+      return result != null;
+    } catch (e) {
+      debugPrint('SupabaseChatRepository: Error checking room name: $e');
+      return false;
+    }
   }
 }

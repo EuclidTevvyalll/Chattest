@@ -428,6 +428,21 @@ class ChatInfoScreen extends ConsumerWidget {
         Column(
           children: [
             const SizedBox(height: 32),
+            if (myRole == 'owner' || myRole == 'admin')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildActionButton(
+                  context,
+                  'Редактировать',
+                  Icons.edit_rounded,
+                  ThemeColors.blue,
+                  isDark,
+                  () => context.pushNamed(
+                    'edit_room',
+                    pathParameters: {'roomId': room.id},
+                  ),
+                ),
+              ),
             _buildActionButton(
               context,
               myRole == 'owner' ? 'Удалить группу' : 'Покинуть группу',
@@ -659,6 +674,21 @@ class ChatInfoScreen extends ConsumerWidget {
         Column(
           children: [
             const SizedBox(height: 32),
+            if (myRole == 'owner' || myRole == 'admin')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildActionButton(
+                  context,
+                  'Редактировать',
+                  Icons.edit_rounded,
+                  ThemeColors.blue,
+                  isDark,
+                  () => context.pushNamed(
+                    'edit_room',
+                    pathParameters: {'roomId': room.id},
+                  ),
+                ),
+              ),
             _buildActionButton(
               context,
               myRole == 'owner' ? 'Удалить канал' : 'Покинуть канал',

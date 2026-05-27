@@ -4,16 +4,15 @@ import 'package:forgelink/features/chat/domain/models/profile_model.dart';
 import 'package:forgelink/features/chat/domain/models/message_model.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_provider.dart';
 import 'package:forgelink/features/chat/presentation/providers/chat_repository_provider.dart';
+import 'package:forgelink/core/services/censorship_service.dart';
 
 class ChatControllerState {
   final Map<String, List<MessageModel>> pendingMessages;
   final Set<String> deletingIds;
-
   ChatControllerState({
     this.pendingMessages = const {},
     this.deletingIds = const {},
   });
-
   ChatControllerState copyWith({
     Map<String, List<MessageModel>>? pendingMessages,
     Set<String>? deletingIds,
@@ -45,11 +44,12 @@ class ChatController extends Notifier<ChatControllerState> {
     String? mediaType,
     String? mediaName,
   }) async {
+    final censoredContent = CensorshipService.censor(content);
     final temporaryMessage = MessageModel(
       id: 'temp_${DateTime.now().microsecondsSinceEpoch}',
       roomId: roomId,
       profileId: currentUserId,
-      content: content,
+      content: censoredContent,
       createdAt: DateTime.now(),
       replyToMessageId: replyToMessageId,
       forwardedFrom: forwardedFrom,
@@ -58,7 +58,6 @@ class ChatController extends Notifier<ChatControllerState> {
       mediaType: mediaType,
       mediaName: mediaName,
     );
-
     // Add to pending messages for this room
     final currentPending = state.pendingMessages[roomId] ?? [];
     state = state.copyWith(
@@ -67,13 +66,12 @@ class ChatController extends Notifier<ChatControllerState> {
         roomId: [...currentPending, temporaryMessage],
       },
     );
-
     try {
       await ref
           .read(chatRepositoryProvider)
           .sendMessage(
             roomId,
-            content,
+            censoredContent,
             replyToMessageId: replyToMessageId,
             forwardedFrom: forwardedFrom,
             forwardedInfo: forwardedInfo,
@@ -81,7 +79,6 @@ class ChatController extends Notifier<ChatControllerState> {
             mediaType: mediaType,
             mediaName: mediaName,
           );
-
       // Remove pending after a delay, but don't block the caller
       Future.delayed(const Duration(seconds: 1)).then((_) {
         _removePending(roomId, temporaryMessage.id);
@@ -100,16 +97,16 @@ class ChatController extends Notifier<ChatControllerState> {
     String mediaType, {
     String? content,
   }) async {
+    final censoredContent = content != null ? CensorshipService.censor(content) : null;
     final temporaryMessage = MessageModel(
       id: 'temp_${DateTime.now().microsecondsSinceEpoch}',
       roomId: roomId,
       profileId: currentUserId,
-      content: content ?? '',
+      content: censoredContent ?? '',
       createdAt: DateTime.now(),
       mediaName: fileName,
       mediaType: mediaType,
     );
-
     // Add to pending messages immediately
     final currentPending = state.pendingMessages[roomId] ?? [];
     state = state.copyWith(
@@ -118,7 +115,6 @@ class ChatController extends Notifier<ChatControllerState> {
         roomId: [...currentPending, temporaryMessage],
       },
     );
-
     // Process upload in a managed way
     _enqueueUpload(() async {
       try {
@@ -127,22 +123,18 @@ class ChatController extends Notifier<ChatControllerState> {
         final mediaUrl = await ref
             .read(chatRepositoryProvider)
             .uploadMedia(roomId, bytes, fileName, mediaType);
-
         debugPrint('ChatController: Media uploaded successfully: $mediaUrl');
-
         // 2. Send the real message
         await ref
             .read(chatRepositoryProvider)
             .sendMessage(
               roomId,
-              content ?? '',
+              censoredContent ?? '',
               mediaUrl: mediaUrl,
               mediaType: mediaType,
               mediaName: fileName,
             );
-
         debugPrint('ChatController: Real message sent successfully');
-
         // Remove pending after a short delay
         Future.delayed(const Duration(seconds: 1)).then((_) {
           _removePending(roomId, temporaryMessage.id);
@@ -157,7 +149,6 @@ class ChatController extends Notifier<ChatControllerState> {
 
   final List<Future<void> Function()> _uploadQueue = [];
   bool _isProcessingQueue = false;
-
   void _enqueueUpload(Future<void> Function() uploadTask) {
     _uploadQueue.add(uploadTask);
     _processQueue();
@@ -166,7 +157,6 @@ class ChatController extends Notifier<ChatControllerState> {
   Future<void> _processQueue() async {
     if (_isProcessingQueue) return;
     _isProcessingQueue = true;
-
     while (_uploadQueue.isNotEmpty) {
       final task = _uploadQueue.removeAt(0);
       try {
@@ -175,7 +165,6 @@ class ChatController extends Notifier<ChatControllerState> {
         debugPrint('ChatController: Queue task failed: $e');
       }
     }
-
     _isProcessingQueue = false;
   }
 
@@ -185,9 +174,9 @@ class ChatController extends Notifier<ChatControllerState> {
     String newContent,
   ) async {
     if (state.deletingIds.contains(messageId)) return;
-
     try {
-      await ref.read(chatRepositoryProvider).editMessage(messageId, newContent);
+      final censoredContent = CensorshipService.censor(newContent);
+      await ref.read(chatRepositoryProvider).editMessage(messageId, censoredContent);
     } catch (e) {
       rethrow;
     }
@@ -199,11 +188,8 @@ class ChatController extends Notifier<ChatControllerState> {
       _removePending(roomId, messageId);
       return;
     }
-
     if (state.deletingIds.contains(messageId)) return;
-
     state = state.copyWith(deletingIds: {...state.deletingIds, messageId});
-
     try {
       await ref.read(chatRepositoryProvider).deleteMessage(messageId);
     } catch (e) {
@@ -224,7 +210,6 @@ class ChatController extends Notifier<ChatControllerState> {
     // Sort messages chronologically to preserve order in the target room
     final sortedMessages = List<MessageModel>.from(messages)
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
     for (final msg in sortedMessages) {
       // Find original sender name
       final sender = profiles.where((p) => p.id == msg.profileId).firstOrNull;
@@ -232,13 +217,11 @@ class ChatController extends Notifier<ChatControllerState> {
           sender?.nickname ??
           sender?.username ??
           (msg.profileId == currentUserId ? 'Вы' : 'Пользователь');
-
       // Check if we have reply content for this message
       final replyContent = replyContents?[msg.id];
       final replySender =
           msg.forwardedInfo?['replied_sender'] ??
           (msg.replyToMessageId != null ? 'Сообщение' : null);
-
       await sendMessage(
         targetRoomId,
         msg.content,
@@ -265,20 +248,16 @@ class ChatController extends Notifier<ChatControllerState> {
     for (final id in tempIds) {
       _removePending(roomId, id);
     }
-
     final realIds = messageIds.where((id) => !id.startsWith('temp_')).toList();
     if (realIds.isEmpty) return;
-
     // Filter out already deleting IDs
     final idsToProcess = realIds
         .where((id) => !state.deletingIds.contains(id))
         .toList();
     if (idsToProcess.isEmpty) return;
-
     state = state.copyWith(
       deletingIds: {...state.deletingIds, ...idsToProcess},
     );
-
     try {
       await ref.read(chatRepositoryProvider).deleteMessages(idsToProcess);
     } catch (e) {
@@ -384,6 +363,28 @@ class ChatController extends Notifier<ChatControllerState> {
       ref.invalidate(roomsProvider);
       ref.invalidate(roomParticipantsProvider(roomId));
       ref.invalidate(roomProvider(roomId));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateRoom({
+    required String roomId,
+    String? name,
+    String? description,
+    String? avatarUrl,
+  }) async {
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .updateRoom(
+            roomId: roomId,
+            name: name,
+            description: description,
+            avatarUrl: avatarUrl,
+          );
+      ref.invalidate(roomProvider(roomId));
+      ref.invalidate(roomsProvider);
     } catch (e) {
       rethrow;
     }

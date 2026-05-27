@@ -17,6 +17,7 @@ import 'package:forgelink/features/chat/presentation/screens/create_chat_screen.
 import 'package:forgelink/features/auth/presentation/screens/auth_screen.dart';
 import 'package:forgelink/features/profile/presentation/screens/profile_screen.dart';
 import 'package:forgelink/features/chat/presentation/screens/chat_info_screen.dart';
+import 'package:forgelink/features/chat/presentation/screens/edit_room_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -116,6 +117,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final id = state.pathParameters['roomId']!;
           return ChatInfoScreen(roomId: id);
+        },
+      ),
+      GoRoute(
+        name: 'edit_room',
+        path: '/chat/:roomId/edit',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final id = state.pathParameters['roomId']!;
+          return EditRoomScreen(roomId: id);
         },
       ),
       GoRoute(

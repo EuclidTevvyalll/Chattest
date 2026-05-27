@@ -12,7 +12,6 @@ abstract class ChatRepository {
   Future<List<ProfileModel>> getProfiles();
   Future<ProfileModel?> getProfileByUsername(String username);
   Future<List<RoomModel>> searchPublicChannels(String query);
-
   Future<void> sendMessage(
     String roomId,
     String content, {
@@ -24,7 +23,6 @@ abstract class ChatRepository {
     String? mediaType,
     String? mediaName,
   });
-
   Future<String> uploadMedia(
     String roomId,
     Uint8List bytes,
@@ -56,4 +54,15 @@ abstract class ChatRepository {
   Future<void> deleteRoom(String roomId);
   Stream<RoomModel?> watchRoom(String roomId);
   Stream<List<ProfileModel>> watchRoomParticipants(String roomId);
+
+  /// Обновить профиль комнаты (название, описание, аватар)
+  Future<void> updateRoom({
+    required String roomId,
+    String? name,
+    String? description,
+    String? avatarUrl,
+  });
+
+  /// Проверить, занято ли название комнаты (канала/группы)
+  Future<bool> isRoomNameTaken(String name, {String? excludeRoomId});
 }
