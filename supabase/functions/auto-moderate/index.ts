@@ -6,13 +6,11 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 1. Verify Authorization (either webhook secret or user JWT token)
     const authHeader = req.headers.get('Authorization')
     const webhookSecret = Deno.env.get('MODERATION_WEBHOOK_SECRET')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -60,12 +58,9 @@ Deno.serve(async (req) => {
 
     console.log(`Processing new report: ID=${record.id}, TargetType=${record.target_type}, TargetID=${record.target_id}`)
 
-    // 2. Initialize Supabase Client with service role key (to bypass RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // 3. Handle messages moderation
     if (record.target_type === 'message') {
-      // Retrieve the message content and author ID
       const { data: message, error: messageError } = await supabase
         .from('messages')
         .select('content, profile_id')
@@ -98,7 +93,6 @@ Deno.serve(async (req) => {
 
       console.log(`Fetched reported message text: "${reportedText}" by User ${message.profile_id}`)
 
-      // 4. Request Gemini API moderation
       const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
       if (!geminiApiKey) {
         throw new Error("Missing GEMINI_API_KEY in environment variables.")
@@ -121,7 +115,6 @@ Deno.serve(async (req) => {
         ВАЖНО: Поле "reason" в JSON должно быть строго на русском языке. Это текст, который увидит заблокированный пользователь на своем экране (например, "Мошенничество и спам-рассылка").
       `
 
-      // Build structured schema to guarantee JSON response format from Gemini
       const geminiRequest = {
         contents: [
           {
@@ -176,9 +169,7 @@ Deno.serve(async (req) => {
       const moderationResult = JSON.parse(rawText)
       console.log("Gemini moderation response:", moderationResult)
 
-      // 5. Apply moderation action in Database
       if (moderationResult.is_violation) {
-        // A. Delete the message if action is "delete" or "ban"
         if (moderationResult.action === 'delete' || moderationResult.action === 'ban') {
           console.log(`Action: Deleting message ID ${record.target_id}`)
           const { error: deleteError } = await supabase
@@ -196,9 +187,8 @@ Deno.serve(async (req) => {
           }
         }
 
-        // B. Ban the user if action is "ban"
         if (moderationResult.action === 'ban') {
-          const banDurationDays = 7 // Default ban duration
+          const banDurationDays = 7
           const bannedUntil = new Date()
           bannedUntil.setDate(bannedUntil.getDate() + banDurationDays)
 
@@ -233,7 +223,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Handled cases other than "message"
     return new Response(JSON.stringify({ success: true, message: 'Report type not handled yet' }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -688,7 +688,6 @@ class SupabaseChatRepository implements ChatRepository {
       'details': details,
     });
 
-    // Invoke Edge Function directly to output ИИ moderation logs to the debug console
     try {
       debugPrint('SupabaseChatRepository: Invoking auto-moderate Edge Function...');
       final response = await _client.functions.invoke(

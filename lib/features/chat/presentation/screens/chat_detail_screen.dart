@@ -338,7 +338,6 @@ class ChatDetailScreen extends HookConsumerWidget {
           replyMessage.value = null;
           focusNode.requestFocus();
 
-          // Send via controller (background)
           ref
               .read(chatControllerProvider.notifier)
               .sendMessage(
