@@ -11,8 +11,6 @@ Future<void> showCustomDialog({
 }) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
 
-  // Используем Future.microtask, чтобы избежать ошибки "!_debugLocked" 
-  // если диалог вызывается во время построения кадра
   Future.microtask(() {
     if (!context.mounted) return;
     

@@ -167,7 +167,7 @@ class _FullScreenVideoViewerState extends State<FullScreenVideoViewer> {
       ),
       placeholder: Container(color: Colors.black),
       autoInitialize: true,
-      showOptions: false, // Hide internal options to use our custom AppBar menu
+      showOptions: false,  
       optionsTranslation: OptionsTranslation(
         playbackSpeedButtonText: 'Скорость воспроизведения',
         cancelButtonText: 'Отмена',

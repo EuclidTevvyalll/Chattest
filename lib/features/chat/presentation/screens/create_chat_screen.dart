@@ -173,7 +173,6 @@ class CreateChatScreen extends HookConsumerWidget {
                       ),
                     ),
 
-                    // Description
                     if (chatType.value != RoomType.room)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -192,7 +191,6 @@ class CreateChatScreen extends HookConsumerWidget {
                         ),
                       ),
 
-                    // Contact List (for groups)
                     if (chatType.value == RoomType.group) ...[
                       Padding(
                         padding: const EdgeInsets.symmetric(
@@ -352,7 +350,6 @@ class CreateChatScreen extends HookConsumerWidget {
               ),
             ),
 
-            // Sticky Bottom Button
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(

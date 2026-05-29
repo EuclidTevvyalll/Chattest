@@ -466,7 +466,6 @@ class ChatInfoScreen extends ConsumerWidget {
     List<ProfileModel> participants,
     bool isDark,
   ) {
-    // Check if current user is admin or owner
     final authUser = ref.watch(authUserProvider);
     final currentUserId = authUser?.id;
     final myParticipant = participants

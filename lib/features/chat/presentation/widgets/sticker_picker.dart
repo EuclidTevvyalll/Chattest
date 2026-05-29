@@ -11,7 +11,6 @@ class StickerPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // List of stickers from assets
     final stickers = List.generate(
       8,
       (index) => 'assets/stickers/pack1/sticker${index + 1}.webm',

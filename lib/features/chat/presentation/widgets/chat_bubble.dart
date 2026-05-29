@@ -33,14 +33,14 @@ class ChatBubble extends StatelessWidget {
   final VoidCallback? onReport;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
-  final VoidCallback? onLongPress; // Added
-  final VoidCallback? onTap; // Added
+  final VoidCallback? onLongPress;
+  final VoidCallback? onTap; 
   final Map<String, dynamic>? forwardedInfo;
   final bool? isEdited;
   final bool? isDeleted;
-  final bool isSelected; // Added
-  final bool isSelectionMode; // Added
-  final bool isRead; // Статус прочтения (✓ / ✓✓)
+  final bool isSelected;
+  final bool isSelectionMode; 
+  final bool isRead; 
   final String? currentUserId;
   final String? repliedMessageContent;
   final String? repliedMessageSenderName;
@@ -884,7 +884,6 @@ class ChatBubble extends StatelessWidget {
                                                   ),
                                                 )
                                               else
-                                                // For other file types (Videos, Files)
                                                 Padding(
                                                   padding:
                                                       const EdgeInsets.only(
@@ -1296,7 +1295,6 @@ class ChatBubble extends StatelessWidget {
     try {
       final tempDir = await getTemporaryDirectory();
 
-      // Формируем стабильное уникальное имя файла на основе mediaUrl
       String ext = p.extension(mediaName ?? mediaUrl!);
       if (ext.contains('?')) {
         ext = ext.split('?').first;
@@ -1335,7 +1333,6 @@ class ChatBubble extends StatelessWidget {
             if (uriParts.isNotEmpty) {
               final bucket = uriParts.first;
               final objectPath = uriParts.sublist(1).join('/');
-              // Нативный SDK автоматически использует токен авторизации текущей сессии
               final bytes = await client.storage
                   .from(bucket)
                   .download(objectPath);
@@ -1487,7 +1484,6 @@ class _AudioPlayerBubbleState extends ConsumerState<AudioPlayerBubble> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Кнопка Play/Pause
           GestureDetector(
             onTap: () async {
               if (_isPlaying) {
@@ -1517,7 +1513,6 @@ class _AudioPlayerBubbleState extends ConsumerState<AudioPlayerBubble> {
             ),
           ),
           const SizedBox(width: 12),
-          // Слайдер и таймер
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

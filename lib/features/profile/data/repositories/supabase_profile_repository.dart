@@ -26,7 +26,6 @@ class SupabaseProfileRepository implements ProfileRepository {
 
       var profile = ProfileModel.fromJson(data);
 
-      // Auto-expire check (Premium)
       if (profile.isPremium &&
           profile.premiumUntil != null &&
           profile.premiumUntil!.isBefore(DateTime.now())) {
@@ -34,7 +33,6 @@ class SupabaseProfileRepository implements ProfileRepository {
           'Supabase: Premium expired for ${profile.id}. Auto-downgrading...',
         );
         profile = profile.copyWith(isPremium: false, premiumUntil: null);
-        // Optimistic background update
         _client
             .from('profiles')
             .update({'is_premium': false, 'premium_until': null})
@@ -47,7 +45,6 @@ class SupabaseProfileRepository implements ProfileRepository {
             });
       }
 
-      // Auto-expire check (Ban)
       if (profile.isBanned == true &&
           profile.bannedUntil != null &&
           profile.bannedUntil!.isBefore(DateTime.now())) {
@@ -57,7 +54,6 @@ class SupabaseProfileRepository implements ProfileRepository {
           bannedUntil: null,
           bannedReason: null,
         );
-        // Optimistic background update
         _client
             .from('profiles')
             .update({
@@ -101,7 +97,6 @@ class SupabaseProfileRepository implements ProfileRepository {
           try {
             var profile = ProfileModel.fromJson(record);
 
-            // Auto-expire check (Premium)
             if (profile.isPremium &&
                 profile.premiumUntil != null &&
                 profile.premiumUntil!.isBefore(DateTime.now())) {
@@ -109,7 +104,6 @@ class SupabaseProfileRepository implements ProfileRepository {
                 'Realtime: Premium expired for ${profile.id}. Auto-downgrading...',
               );
               profile = profile.copyWith(isPremium: false, premiumUntil: null);
-              // Optimistic background update
               _client
                   .from('profiles')
                   .update({'is_premium': false, 'premium_until': null})
@@ -122,7 +116,6 @@ class SupabaseProfileRepository implements ProfileRepository {
                   });
             }
 
-            // Auto-expire check (Ban)
             if (profile.isBanned == true &&
                 profile.bannedUntil != null &&
                 profile.bannedUntil!.isBefore(DateTime.now())) {
@@ -134,7 +127,6 @@ class SupabaseProfileRepository implements ProfileRepository {
                 bannedUntil: null,
                 bannedReason: null,
               );
-              // Optimistic background update
               _client
                   .from('profiles')
                   .update({
@@ -209,14 +201,12 @@ class SupabaseProfileRepository implements ProfileRepository {
   Future<String> uploadAvatar(Uint8List bytes, String userId) async {
     var uploadBytes = bytes;
 
-    // Aggressively compress avatar
     try {
       final image = img.decodeImage(uploadBytes);
       if (image != null) {
         debugPrint(
           'Supabase: Compressing avatar (Original: ${uploadBytes.length} bytes)',
         );
-        // Resize to 512x512 max for avatar
         img.Image resized = image;
         if (image.width > 512 || image.height > 512) {
           resized = img.copyResize(
@@ -295,12 +285,11 @@ class SupabaseProfileRepository implements ProfileRepository {
         'user_id': userId,
         'amount': amount,
         'duration_months': months,
-        // created_at обычно заполняется автоматически в БД
       });
       debugPrint('Supabase: Subscription logged successfully.');
     } catch (e) {
       debugPrint('Supabase: Error logging subscription: $e');
-      rethrow; // Выбрасываем ошибку, чтобы увидеть её в UI/логах
+      rethrow; 
     }
   }
 }

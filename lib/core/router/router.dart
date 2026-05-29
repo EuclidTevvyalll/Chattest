@@ -43,8 +43,7 @@ final authListenableProvider = Provider<AuthListenable>((ref) {
 });
 
 final routerProvider = Provider<GoRouter>((ref) {
-  // Use listen to ensure we don't recreate the router if authListenable changes
-  // (though it shouldn't as it's not autoDispose now)
+
   final authListenable = ref.read(authListenableProvider);
 
   return GoRouter(

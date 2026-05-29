@@ -93,7 +93,6 @@ class ChatListScreen extends HookConsumerWidget {
                   ],
                 ),
               ),
-              // Search Bar
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 child: GlassBox(
@@ -794,4 +793,3 @@ class _EmptySearchPlaceholder extends StatelessWidget {
   }
 }
 
-// Delete the old Speed Dial class as it's no longer used

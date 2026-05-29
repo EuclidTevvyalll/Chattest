@@ -217,6 +217,40 @@ Deno.serve(async (req) => {
         console.log("No violation found by AI moderation. No actions taken.")
       }
 
+      const reportIdToUpdate = record.id;
+      if (reportIdToUpdate && reportIdToUpdate !== 'client-direct-call') {
+        let status = 'dismissed'
+        let detailsText = `ИИ-вердикт: Нарушений не обнаружено. Причина: ${moderationResult.reason}`
+
+        if (moderationResult.is_violation) {
+          status = 'resolved'
+          let actionText = 'Удаление сообщения'
+          if (moderationResult.action === 'ban') {
+            actionText = 'Блокировка пользователя и удаление сообщения'
+          }
+          let severityRu = 'низкий'
+          if (moderationResult.severity === 'medium') severityRu = 'средний'
+          if (moderationResult.severity === 'high') severityRu = 'высокий'
+
+          detailsText = `ИИ-вердикт: Нарушение обнаружено. Действие: ${actionText}. Причина: ${moderationResult.reason} (Уровень: ${severityRu})`
+        }
+
+        console.log(`Updating report ID ${reportIdToUpdate} with status=${status}`)
+        const { error: reportUpdateError } = await supabase
+          .from('reports')
+          .update({
+            status: status,
+            moderation_details: detailsText
+          })
+          .eq('id', reportIdToUpdate)
+
+        if (reportUpdateError) {
+          console.error(`Error updating report status:`, reportUpdateError)
+        } else {
+          console.log(`Successfully updated report status for ID ${reportIdToUpdate}`)
+        }
+      }
+
       return new Response(JSON.stringify({ success: true, moderation: moderationResult }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

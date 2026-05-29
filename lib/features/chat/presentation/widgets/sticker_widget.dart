@@ -18,7 +18,7 @@ class _StickerWidgetState extends State<StickerWidget> {
   bool _initialized = false;
   bool _error = false;
   bool _isVisible =
-      true; // По умолчанию считаем видимым, чтобы сразу начать играть
+      true;
 
   @override
   void initState() {
@@ -28,23 +28,21 @@ class _StickerWidgetState extends State<StickerWidget> {
 
   Future<void> _initController() async {
     try {
-      _disposeController(); // На всякий случай очищаем старый
+      _disposeController(); 
 
       _controller = VideoPlayerController.asset(widget.assetPath);
 
-      // Настройка перед инициализацией
       await _controller!.initialize();
       await _controller!.setLooping(true);
       await _controller!.setVolume(
         0,
-      ); // Отключаем звук, чтобы не конфликтовать с аудио-системой
+      ); 
 
       if (mounted) {
         setState(() {
           _initialized = true;
         });
 
-        // Сразу запускаем. Если VisibilityDetector позже скажет, что не виден - поставим на паузу.
         _controller!.play();
       }
     } catch (e) {
@@ -83,7 +81,6 @@ class _StickerWidgetState extends State<StickerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Используем более точный ключ для детектора
     final detectorKey = Key(
       'vis_${widget.assetPath}_${identityHashCode(this)}',
     );
@@ -93,7 +90,7 @@ class _StickerWidgetState extends State<StickerWidget> {
       onVisibilityChanged: (info) {
         if (!mounted || _controller == null || !_initialized) return;
 
-        final visible = info.visibleFraction > 0.05; // Виден хотя бы чуть-чуть
+        final visible = info.visibleFraction > 0.05; 
         if (visible != _isVisible) {
           _isVisible = visible;
           if (_isVisible) {

@@ -16,6 +16,8 @@ _ReportModel _$ReportModelFromJson(Map<String, dynamic> json) => _ReportModel(
   createdAt: json['created_at'] == null
       ? null
       : DateTime.parse(json['created_at'] as String),
+  status: json['status'] as String?,
+  moderationDetails: json['moderation_details'] as String?,
 );
 
 Map<String, dynamic> _$ReportModelToJson(_ReportModel instance) =>
@@ -27,4 +29,6 @@ Map<String, dynamic> _$ReportModelToJson(_ReportModel instance) =>
       'reason': instance.reason,
       'details': instance.details,
       'created_at': instance.createdAt?.toIso8601String(),
+      'status': instance.status,
+      'moderation_details': instance.moderationDetails,
     };

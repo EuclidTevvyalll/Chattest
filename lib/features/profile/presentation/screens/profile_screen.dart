@@ -37,7 +37,6 @@ class ProfileScreen extends HookConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final canPop = context.canPop();
 
-    // Editing state lifted to handle AppBar actions
     final isEditing = useState(false);
     final profile = profileAsync.asData?.value;
     final nicknameController = useTextEditingController(
@@ -47,7 +46,6 @@ class ProfileScreen extends HookConsumerWidget {
       text: profile?.username,
     );
 
-    // Sync controllers if profile changes (e.g. initial load)
     useEffect(() {
       if (profile != null) {
         nicknameController.text = profile.nickname ?? '';
@@ -294,7 +292,6 @@ class _ProfileContent extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // States managed by parent now
 
     final isPicking = useState(false);
     final previewImage = ref.watch(avatarUploadPreviewProvider);
@@ -302,7 +299,6 @@ class _ProfileContent extends HookConsumerWidget {
     Future<void> pickAndUploadImage() async {
       if (isPicking.value) return;
 
-      // Delay to prevent UI glitches
       await Future.delayed(const Duration(milliseconds: 200));
 
       isPicking.value = true;
@@ -337,11 +333,9 @@ class _ProfileContent extends HookConsumerWidget {
           );
 
           if (croppedBytes != null && context.mounted) {
-            // Optimistic update: show preview immediately
             ref.read(avatarUploadPreviewProvider.notifier).update(croppedBytes);
 
             try {
-              // Wait for upload to complete
               await ref
                   .read(profileControllerProvider.notifier)
                   .uploadAvatar(croppedBytes);
@@ -628,7 +622,6 @@ class _ProfileContent extends HookConsumerWidget {
                   isDark,
                   isLoading: isCreating.value,
                   () async {
-                    // Optimization: Check if we already have a direct room with this user locally
                     final rooms = ref.read(roomsProvider).asData?.value;
                     if (rooms != null) {
                       final existingRoom = rooms
@@ -885,7 +878,6 @@ class _ProfileContent extends HookConsumerWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Сетка планов
                   Wrap(
                     spacing: 12,
                     runSpacing: 12,
@@ -1001,7 +993,6 @@ class _ProfileContent extends HookConsumerWidget {
     );
   }
 
-  // --- CARD PAYMENT FLOW ---
 
   bool _validateCardNumber(String cardNumber) {
     String clean = cardNumber.replaceAll(' ', '');
@@ -1760,14 +1751,12 @@ class CardNumberFormatter extends TextInputFormatter {
 class CardExpiryFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    // If deleting, allow it
     if (newValue.text.length < oldValue.text.length) {
       return newValue;
     }
 
     var text = newValue.text.replaceAll('/', '');
     
-    // Only allow digits
     if (RegExp(r'[^0-9]').hasMatch(text)) {
       return oldValue;
     }
@@ -1776,11 +1765,9 @@ class CardExpiryFormatter extends TextInputFormatter {
       return newValue;
     }
 
-    // Step 1: Format Month
     if (text.isNotEmpty) {
       final firstDigit = text[0];
       if (firstDigit != '0' && firstDigit != '1') {
-        // If user typed 2-9, auto-prepend 0 to make it 02-09
         text = '0$text';
       }
     }
@@ -1794,14 +1781,13 @@ class CardExpiryFormatter extends TextInputFormatter {
       }
     }
 
-    // Step 2: Format Year
     final now = DateTime.now();
-    final currentYearShort = now.year % 100; // e.g. 26
-    final currentMonth = now.month;          // e.g. 5
+    final currentYearShort = now.year % 100; 
+    final currentMonth = now.month;          
 
     if (text.length >= 3) {
       final firstYearDigit = int.tryParse(text[2]) ?? 0;
-      final currentYearTens = currentYearShort ~/ 10; // e.g. 2 for 26
+      final currentYearTens = currentYearShort ~/ 10;
       if (firstYearDigit < currentYearTens) {
         return oldValue;
       }
@@ -1813,19 +1799,16 @@ class CardExpiryFormatter extends TextInputFormatter {
         return oldValue;
       }
       
-      // If same year, month must be current or future month
       final monthVal = int.tryParse(text.substring(0, 2)) ?? 0;
       if (yearVal == currentYearShort && monthVal < currentMonth) {
         return oldValue;
       }
     }
 
-    // Keep length at max 4 digits
     if (text.length > 4) {
       text = text.substring(0, 4);
     }
 
-    // Format with slash MM/YY
     var buffer = StringBuffer();
     for (int i = 0; i < text.length; i++) {
       buffer.write(text[i]);

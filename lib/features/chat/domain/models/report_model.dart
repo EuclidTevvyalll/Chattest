@@ -13,6 +13,8 @@ abstract class ReportModel with _$ReportModel {
     required String reason,
     String? details,
     @JsonKey(name: 'created_at') DateTime? createdAt,
+    String? status,
+    @JsonKey(name: 'moderation_details') String? moderationDetails,
   }) = _ReportModel;
 
   factory ReportModel.fromJson(Map<String, dynamic> json) =>

@@ -36,7 +36,6 @@ class EditRoomScreen extends HookConsumerWidget {
     final isInitialized = useState(false);
     final nameError = useState<String?>(null);
 
-    // Инициализация полей из текущих данных комнаты
     final room = roomAsync.value;
     useEffect(() {
       if (room != null && !isInitialized.value) {
@@ -47,7 +46,6 @@ class EditRoomScreen extends HookConsumerWidget {
       return null;
     }, [room]);
 
-    // Проверка прав: только owner или admin
     final myParticipant = participantsAsync.value
         ?.where((p) => p.id == currentUserId)
         .firstOrNull;
@@ -133,7 +131,6 @@ class EditRoomScreen extends HookConsumerWidget {
                         children: [
                           const SizedBox(height: 8),
 
-                          // Аватар
                           _buildAvatarEditor(
                             context,
                             isDark,
@@ -143,7 +140,6 @@ class EditRoomScreen extends HookConsumerWidget {
 
                           const SizedBox(height: 32),
 
-                          // Название
                           _buildFieldLabel(
                             'Название $typeLabel',
                             isDark,
@@ -181,7 +177,6 @@ class EditRoomScreen extends HookConsumerWidget {
 
                           const SizedBox(height: 24),
 
-                          // Описание
                           _buildFieldLabel('Описание', isDark),
                           const SizedBox(height: 8),
                           GlassBox(
@@ -216,7 +211,6 @@ class EditRoomScreen extends HookConsumerWidget {
                     ),
                   ),
 
-                  // Кнопка сохранения
                   _buildSaveButton(
                     context,
                     ref,
@@ -457,7 +451,6 @@ class EditRoomScreen extends HookConsumerWidget {
     isLoading.value = true;
 
     try {
-      // Проверка уникальности названия, если оно изменилось
       if (newName != (room.name ?? '')) {
         final repo = ref.read(chatRepositoryProvider);
         final isTaken = await repo.isRoomNameTaken(
@@ -471,7 +464,6 @@ class EditRoomScreen extends HookConsumerWidget {
         }
       }
 
-      // Загрузка аватара если выбран новый
       String? avatarUrl;
       if (newAvatarBytes.value != null) {
         final repo = ref.read(chatRepositoryProvider);
@@ -483,7 +475,6 @@ class EditRoomScreen extends HookConsumerWidget {
         );
       }
 
-      // Обновление профиля комнаты
       await ref.read(chatControllerProvider.notifier).updateRoom(
         roomId: room.id,
         name: newName != (room.name ?? '') ? newName : null,

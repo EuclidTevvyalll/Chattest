@@ -116,7 +116,6 @@ class ChatDetailScreen extends HookConsumerWidget {
     final isUploading = useState(false);
 
     useEffect(() {
-      // Предварительная загрузка стикеров (кэширование)
       final stickers = List.generate(
         8,
         (index) => 'assets/stickers/pack1/sticker${index + 1}.webm',
@@ -137,7 +136,6 @@ class ChatDetailScreen extends HookConsumerWidget {
       }
     }
 
-    // Sync editing message content to text field
     useEffect(() {
       if (editingMessage.value != null) {
         controller.text = editingMessage.value!.content;
@@ -149,8 +147,6 @@ class ChatDetailScreen extends HookConsumerWidget {
     final allMessages = useMemoized(() {
       final messages = messagesAsync.value ?? [];
 
-      // Filter out messages that are being deleted optimistically
-      // (Pending messages are already included in messagesAsync.value by the provider)
       return messages
           .where((m) => !chatState.deletingIds.contains(m.id))
           .toList();
@@ -167,13 +163,11 @@ class ChatDetailScreen extends HookConsumerWidget {
         myRole == 'owner' ||
         myRole == 'admin';
 
-    // ---- Добавляем переменные и логику для записи аудио ----
     final isTextEmpty = useState(controller.text.trim().isEmpty);
     final isRecording = useState(false);
     final recordingDuration = useState(0);
     final audioRecorderRef = useRef<AudioRecorder?>(null);
 
-    // Очищаем рекордер при закрытии экрана
     useEffect(() {
       return () {
         audioRecorderRef.value?.dispose();
@@ -206,8 +200,6 @@ class ChatDetailScreen extends HookConsumerWidget {
 
     Future<void> startRecording() async {
       try {
-        // На мобильных платформах сначала безопасно запрашиваем права через permission_handler,
-        // чтобы избежать падений JNI/AudioRecord в плагине record при отсутствии выданного разрешения
         if (Platform.isAndroid || Platform.isIOS) {
           final status = await Permission.microphone.request();
           if (!status.isGranted) {
@@ -223,7 +215,6 @@ class ChatDetailScreen extends HookConsumerWidget {
           }
         }
 
-        // Ленивая инициализация: создаем объект только после успешного подтверждения прав
         audioRecorderRef.value ??= AudioRecorder();
 
         bool hasPerm = false;
@@ -231,7 +222,6 @@ class ChatDetailScreen extends HookConsumerWidget {
           hasPerm = await audioRecorderRef.value!.hasPermission();
         } catch (permErr) {
           debugPrint('Ошибка проверки разрешения микрофона в record: $permErr');
-          // Если permission_handler уже выдал разрешение или это десктоп, безопасно идем дальше
           hasPerm = true;
         }
 
@@ -286,7 +276,7 @@ class ChatDetailScreen extends HookConsumerWidget {
                     currentUserId,
                     bytes,
                     fileName,
-                    'audio/mpeg', // Универсальный MIME-тип для успешного прохождения проверки Supabase Storage
+                    'audio/mpeg', 
                     content: '',
                   );
             } finally {
@@ -307,7 +297,6 @@ class ChatDetailScreen extends HookConsumerWidget {
       } catch (_) {}
       isRecording.value = false;
     }
-    // --------------------------------------------------------
 
     Future<void> handleSend() async {
       if (controller.text.trim().isNotEmpty && currentUserId != null) {
@@ -543,7 +532,6 @@ class ChatDetailScreen extends HookConsumerWidget {
                           }
                         }
 
-                        // Find replied message info
                         String? repliedContent;
                         String? repliedSenderName;
                         bool repliedIsPremium = false;
@@ -553,7 +541,6 @@ class ChatDetailScreen extends HookConsumerWidget {
                               .firstOrNull;
                           if (repliedMsg != null) {
                             repliedContent = repliedMsg.content;
-                            // Find sender name
                             final participants = participantsAsync.value ?? [];
                             final sender = participants
                                 .where((p) => p.id == repliedMsg.profileId)
@@ -566,7 +553,6 @@ class ChatDetailScreen extends HookConsumerWidget {
                                     : 'Пользователь');
                             repliedIsPremium = sender?.isPremium ?? false;
                           } else {
-                            // If parent message is not found, it means it was deleted
                             repliedContent = 'Сообщение удалено';
                             repliedSenderName = 'Удаленное сообщение';
                           }
@@ -682,7 +668,6 @@ class ChatDetailScreen extends HookConsumerWidget {
                                 }
                               : null,
                           onForward: () {
-                            // Find sender name for forwarding info
                             final participants = participantsAsync.value ?? [];
                             final sender = participants
                                 .where((p) => p.id == message.profileId)
@@ -832,7 +817,6 @@ class ChatDetailScreen extends HookConsumerWidget {
                 ),
               ),
 
-              // Reply Preview
               if (replyMessage.value != null) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -895,7 +879,6 @@ class ChatDetailScreen extends HookConsumerWidget {
                 ),
               ],
 
-              // Edit Preview
               if (editingMessage.value != null) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -957,7 +940,6 @@ class ChatDetailScreen extends HookConsumerWidget {
                 ),
               ],
 
-              // Selection Action Bar or Input Area
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: AnimatedSwitcher(
@@ -1580,7 +1562,6 @@ Future<void> _pickAndUpload(
             contentType = 'video/mp4';
           }
         } else {
-          // Try to guess content type from extension
           final ext = file.extension?.toLowerCase();
           if (ext == 'pdf') {
             contentType = 'application/pdf';
@@ -1599,8 +1580,6 @@ Future<void> _pickAndUpload(
           } else if (ext == '7z') {
             contentType = 'application/x-7z-compressed';
           } else {
-            // If unknown, use application/zip or application/octet-stream
-            // but many servers prefer a specific type or none at all
             contentType = 'application/octet-stream';
           }
         }
@@ -1610,7 +1589,6 @@ Future<void> _pickAndUpload(
           return;
         }
 
-        // Show preview and get caption
         final caption = await showDialog<String>(
           context: context,
           barrierDismissible: false,
@@ -1695,7 +1673,6 @@ Future<void> _takePhotoAndUpload(
 
         if (!context.mounted) return;
 
-        // Show preview
         final caption = await showDialog<String>(
           context: context,
           barrierDismissible: false,

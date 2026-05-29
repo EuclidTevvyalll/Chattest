@@ -159,12 +159,10 @@ class _AvatarCropDialogState extends State<AvatarCropDialog> {
   }
 }
 
-/// Independent function to be run in a separate isolate
 Uint8List _processImage(Uint8List input) {
   final image = img.decodeImage(input);
   if (image == null) return input;
 
-  // Normal high quality mode since we are using stable Edge Functions now.
   final resized = img.copyResize(
     image,
     width: 600,

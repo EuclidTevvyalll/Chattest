@@ -71,12 +71,10 @@ class SupabaseChatRepository implements ChatRepository {
           if (p['profiles'] == null) return null;
           var profile = ProfileModel.fromJson(p['profiles']);
 
-          // Auto-expire check (Premium)
           if (profile.isPremium &&
               profile.premiumUntil != null &&
               profile.premiumUntil!.isBefore(DateTime.now())) {
             profile = profile.copyWith(isPremium: false, premiumUntil: null);
-            // background update
             _client
                 .from('profiles')
                 .update({'is_premium': false, 'premium_until': null})
@@ -85,7 +83,6 @@ class SupabaseChatRepository implements ChatRepository {
                 .catchError((_) {});
           }
 
-          // Auto-expire check (Ban)
           if (profile.isBanned == true &&
               profile.bannedUntil != null &&
               profile.bannedUntil!.isBefore(DateTime.now())) {
@@ -94,7 +91,6 @@ class SupabaseChatRepository implements ChatRepository {
               bannedUntil: null,
               bannedReason: null,
             );
-            // background update
             _client
                 .from('profiles')
                 .update({
@@ -237,7 +233,6 @@ class SupabaseChatRepository implements ChatRepository {
     final mimeLower = contentType?.toLowerCase() ?? '';
     final fileLower = fileName.toLowerCase();
 
-    // Determine target bucket based on file type
     String bucketName = 'chat-documents';
     if (mimeLower.startsWith('image/') ||
         fileLower.endsWith('.jpg') ||
@@ -258,7 +253,6 @@ class SupabaseChatRepository implements ChatRepository {
       bucketName = 'chat-audio';
     }
 
-    // Compress if it's an image
     if (bucketName == 'chat-images') {
       debugPrint(
         'SupabaseChatRepository: Original image size: ${bytes.length} bytes',
@@ -391,7 +385,6 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) throw Exception('Пользователь не авторизован');
 
-    // Проверка уникальности названия
     final nameTaken = await isRoomNameTaken(name);
     if (nameTaken) {
       throw Exception('Название "$name" уже занято. Выберите другое название.');
@@ -426,7 +419,6 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) throw Exception('Пользователь не авторизован');
 
-    // Проверка уникальности названия
     final nameTaken = await isRoomNameTaken(name);
     if (nameTaken) {
       throw Exception('Название "$name" уже занято. Выберите другое название.');
@@ -509,12 +501,10 @@ class SupabaseChatRepository implements ChatRepository {
           if (p['profiles'] == null) return null;
           var profile = ProfileModel.fromJson(p['profiles']);
 
-          // Auto-expire check (Premium)
           if (profile.isPremium &&
               profile.premiumUntil != null &&
               profile.premiumUntil!.isBefore(DateTime.now())) {
             profile = profile.copyWith(isPremium: false, premiumUntil: null);
-            // background update
             _client
                 .from('profiles')
                 .update({'is_premium': false, 'premium_until': null})
@@ -523,7 +513,6 @@ class SupabaseChatRepository implements ChatRepository {
                 .catchError((_) {});
           }
 
-          // Auto-expire check (Ban)
           if (profile.isBanned == true &&
               profile.bannedUntil != null &&
               profile.bannedUntil!.isBefore(DateTime.now())) {
@@ -532,7 +521,6 @@ class SupabaseChatRepository implements ChatRepository {
               bannedUntil: null,
               bannedReason: null,
             );
-            // background update
             _client
                 .from('profiles')
                 .update({
@@ -680,21 +668,23 @@ class SupabaseChatRepository implements ChatRepository {
     final myId = _client.auth.currentUser?.id;
     if (myId == null) return;
 
-    await _client.from('reports').insert({
+    final inserted = await _client.from('reports').insert({
       'reporter_id': myId,
       'target_id': targetId,
       'target_type': targetType,
       'reason': reason,
       'details': details,
-    });
+    }).select('id').maybeSingle();
+
+    final reportId = inserted?['id']?.toString() ?? 'client-direct-call';
 
     try {
-      debugPrint('SupabaseChatRepository: Invoking auto-moderate Edge Function...');
+      debugPrint('SupabaseChatRepository: Invoking auto-moderate Edge Function with report ID: $reportId');
       final response = await _client.functions.invoke(
         'auto-moderate',
         body: {
           'record': {
-            'id': 'client-direct-call',
+            'id': reportId,
             'reporter_id': myId,
             'target_id': targetId,
             'target_type': targetType,
@@ -805,7 +795,6 @@ class SupabaseChatRepository implements ChatRepository {
         'SupabaseChatRepository: Checking existing transcription for $messageId',
       );
 
-      // Сначала проверяем, есть ли уже перевод в базе данных
       final dbResult = await _client
           .from('messages')
           .select('transcription')
@@ -832,7 +821,6 @@ class SupabaseChatRepository implements ChatRepository {
 
       final censoredTranscription = CensorshipService.censor(transcription);
 
-      // Сохраняем результат в базу данных для кэширования
       await _client
           .from('messages')
           .update({'transcription': censoredTranscription})

@@ -55,7 +55,6 @@ abstract class ChatRepository {
   Stream<RoomModel?> watchRoom(String roomId);
   Stream<List<ProfileModel>> watchRoomParticipants(String roomId);
 
-  /// Обновить профиль комнаты (название, описание, аватар)
   Future<void> updateRoom({
     required String roomId,
     String? name,
@@ -63,6 +62,5 @@ abstract class ChatRepository {
     String? avatarUrl,
   });
 
-  /// Проверить, занято ли название комнаты (канала/группы)
   Future<bool> isRoomNameTaken(String name, {String? excludeRoomId});
 }

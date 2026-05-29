@@ -19,7 +19,6 @@ class SupabaseAuthRepository implements AuthRepository {
     final cleanUsername = username.trim();
     final cleanEmail = email.trim();
 
-    // Check if the username is already taken
     final existing = await _client
         .from('profiles')
         .select('id')

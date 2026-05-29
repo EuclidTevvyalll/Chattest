@@ -33,8 +33,6 @@ void main() async {
   } catch (e, stack) {
     debugPrint('Main: CRITICAL STARTUP ERROR: $e');
     debugPrint('Main: STACKTRACE: $stack');
-    // Still try to run the app but show an error screen?
-    // Or just let it crash but with logs.
   }
 }
 
@@ -78,7 +76,6 @@ class MainApp extends HookConsumerWidget {
       final observer = _LifecycleObserver();
       WidgetsBinding.instance.addObserver(observer);
 
-      // Устанавливаем статус "онлайн" при старте, если пользователь авторизован
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId != null) {
         debugPrint('Startup: Setting user online...');

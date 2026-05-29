@@ -47,7 +47,6 @@ final userProfileProvider = FutureProvider.family<ProfileModel?, String>((
 ) async {
   final keepAlive = ref.keepAlive();
 
-  // Timer to clean up cache if not used for 5 minutes
   Timer? timer;
   ref.onDispose(() => timer?.cancel());
   ref.onCancel(() {
@@ -67,7 +66,6 @@ final userProfileProvider = FutureProvider.family<ProfileModel?, String>((
     var updatedProfile = profile;
     final now = DateTime.now();
 
-    // Check premium
     if (updatedProfile.isPremium && updatedProfile.premiumUntil != null) {
       if (updatedProfile.premiumUntil!.isBefore(now)) {
         updatedProfile = updatedProfile.copyWith(
@@ -78,7 +76,6 @@ final userProfileProvider = FutureProvider.family<ProfileModel?, String>((
       }
     }
 
-    // Check ban
     if (updatedProfile.isBanned == true && updatedProfile.bannedUntil != null) {
       if (updatedProfile.bannedUntil!.isBefore(now)) {
         updatedProfile = updatedProfile.copyWith(
@@ -91,7 +88,6 @@ final userProfileProvider = FutureProvider.family<ProfileModel?, String>((
     }
 
     if (needsUpdate) {
-      // Background update to not block UI
       unawaited(
         repo.updateProfile(updatedProfile).catchError((e) {
           debugPrint('Error updating expired profile for $userId: $e');
@@ -135,7 +131,6 @@ class ProfileController extends AsyncNotifier<ProfileModel?> {
     final user = ref.watch(authUserProvider);
     if (user == null) return null;
 
-    // Подписываемся на изменения в реальном времени
     _subscription?.cancel();
     _subscription = ref
         .read(profileRepositoryProvider)
@@ -157,12 +152,10 @@ class ProfileController extends AsyncNotifier<ProfileModel?> {
       _subscription?.cancel();
     });
 
-    // Первоначальная загрузка
     final profile = await ref
         .read(profileRepositoryProvider)
         .getProfile(user.id);
 
-    // Проверка на истечение премиума при загрузке
     if (profile != null && profile.isPremium && profile.premiumUntil != null) {
       if (profile.premiumUntil!.isBefore(DateTime.now())) {
         debugPrint('ProfileController: Premium expired. Downgrading...');
@@ -175,7 +168,6 @@ class ProfileController extends AsyncNotifier<ProfileModel?> {
       }
     }
 
-    // Проверка на истечение бана при загрузке
     if (profile != null &&
         profile.isBanned == true &&
         profile.bannedUntil != null) {
@@ -215,9 +207,6 @@ class ProfileController extends AsyncNotifier<ProfileModel?> {
     try {
       await ref.read(profileRepositoryProvider).updateProfile(updatedProfile);
       state = AsyncValue.data(updatedProfile);
-      // Only invalidate the avatar providers to force a re-fetch of the new image
-      // if it was updated, but don't invalidate the whole profile provider
-      // which triggers a cascade of UI rebuilds.
       if (avatarUrl != null || avatarBase64 != null) {
         ref.invalidate(currentAvatarBase64Provider);
         ref.invalidate(userAvatarBase64Provider(currentProfile.id));
@@ -268,7 +257,6 @@ class ProfileController extends AsyncNotifier<ProfileModel?> {
 
     try {
       await ref.read(profileRepositoryProvider).updateProfile(updatedProfile);
-      // Log the transaction
       await ref
           .read(profileRepositoryProvider)
           .logSubscription(currentProfile.id, amount, months);

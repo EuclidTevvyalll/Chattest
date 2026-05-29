@@ -56,15 +56,12 @@ final filteredRoomsProvider = Provider<AsyncValue<List<RoomModel>>>((ref) {
   return roomsAsync.when(
     data: (localRooms) {
       final filteredLocal = localRooms.where((room) {
-        // 1. Check room name (for groups/channels)
         final name = (room.name ?? '').trim().toLowerCase();
         final nameMatches = name.contains(query);
 
-        // 2. Check last message
         final lastMsg = (room.lastMessage ?? '').trim().toLowerCase();
         final messageMatches = lastMsg.contains(query);
 
-        // 3. Check participant names
         final participantMatches =
             room.type == RoomType.room &&
             room.participants.any((p) {
@@ -73,7 +70,6 @@ final filteredRoomsProvider = Provider<AsyncValue<List<RoomModel>>>((ref) {
               final username = p.username.trim().toLowerCase();
               final nickname = (p.nickname ?? '').trim().toLowerCase();
 
-              // Normalize for layout issues (basic a/а, o/о, etc.)
               String normalize(String s) => s
                   .replaceAll('a', 'а')
                   .replaceAll('e', 'е')
@@ -98,7 +94,6 @@ final filteredRoomsProvider = Provider<AsyncValue<List<RoomModel>>>((ref) {
                     'SEARCH MATCH: "$query" matches User("$username", "$nickname")',
                   );
                 } else if (query.length >= 3) {
-                  // Only log mismatches for longer queries to avoid spam
                   debugPrint(
                     'SEARCH NO MATCH: "$query" vs User("$username", "$nickname")',
                   );
@@ -137,7 +132,6 @@ final contactsProvider = Provider<AsyncValue<List<ProfileModel>>>((ref) {
   return roomsAsync.whenData((rooms) {
     final contacts = <String, ProfileModel>{};
     for (final room in rooms) {
-      // Only extract participants from 1-on-1 rooms (type: room)
       if (room.type == RoomType.room) {
         for (final participant in room.participants) {
           if (participant.id != currentUserId) {
@@ -179,13 +173,10 @@ final messagesProvider = Provider.family<AsyncValue<List<MessageModel>>, String>
   return messagesAsync.whenData((messages) {
     if (pending.isEmpty) return messages;
 
-    // Combine real messages with pending ones, avoiding duplicates
     final messageIds = messages.map((m) => m.id).toSet();
     final uniquePending = pending.where((pm) {
-      // 1. Check by ID (direct match)
       if (messageIds.contains(pm.id)) return false;
 
-      // 2. Check by content/sender/time to avoid duplicates while real message is arriving
       final hasMatchingReal = messages.any((m) {
         final isSameSender = m.profileId == pm.profileId;
         final isSameContent = m.content == pm.content;

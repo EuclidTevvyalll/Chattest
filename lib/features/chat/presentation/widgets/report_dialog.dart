@@ -59,7 +59,7 @@ class _ReportDialogState extends State<ReportDialog> {
           builder: (context, constraints) {
             final viewInsets = MediaQuery.of(context).viewInsets;
             final availableHeight =
-                size.height - viewInsets.bottom - 100; // 100 for safety margin
+                size.height - viewInsets.bottom - 100; 
 
             return ConstrainedBox(
               constraints: BoxConstraints(
