@@ -58,6 +58,8 @@ Deno.serve(async (req) => {
       })
     }
 
+    console.log(`Processing new report: ID=${record.id}, TargetType=${record.target_type}, TargetID=${record.target_id}`)
+
     // 2. Initialize Supabase Client with service role key (to bypass RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -72,7 +74,12 @@ Deno.serve(async (req) => {
 
       if (messageError || !message) {
         console.error(`Failed to fetch message for ID ${record.target_id}:`, messageError)
-        return new Response(JSON.stringify({ error: 'Message not found or inaccessible' }), {
+        return new Response(JSON.stringify({ 
+          error: 'Message not found or inaccessible',
+          details: messageError ? messageError.message : 'No message found with this ID',
+          code: messageError ? messageError.code : null,
+          hint: messageError ? messageError.hint : null
+        }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
@@ -81,6 +88,8 @@ Deno.serve(async (req) => {
       const reportedText = message.content
       const reporterReason = record.reason
       const reporterDetails = record.details || ''
+
+      console.log(`Fetched reported message text: "${reportedText}" by User ${message.profile_id}`)
 
       // 4. Request Gemini API moderation
       const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
@@ -130,6 +139,7 @@ Deno.serve(async (req) => {
         }
       }
 
+      console.log("Sending moderation request to Gemini API...")
       const geminiResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
         {
@@ -154,12 +164,13 @@ Deno.serve(async (req) => {
       }
 
       const moderationResult = JSON.parse(rawText)
-      console.log(`AI Moderation: violation=${moderationResult.is_violation}, action=${moderationResult.action}, reason="${moderationResult.reason}"`)
+      console.log("Gemini moderation response:", moderationResult)
 
       // 5. Apply moderation action in Database
       if (moderationResult.is_violation) {
         // A. Delete the message if action is "delete" or "ban"
         if (moderationResult.action === 'delete' || moderationResult.action === 'ban') {
+          console.log(`Action: Deleting message ID ${record.target_id}`)
           const { error: deleteError } = await supabase
             .from('messages')
             .update({
@@ -170,6 +181,8 @@ Deno.serve(async (req) => {
 
           if (deleteError) {
             console.error(`Error deleting message:`, deleteError)
+          } else {
+            console.log(`Successfully deleted message ID ${record.target_id}`)
           }
         }
 
@@ -179,6 +192,7 @@ Deno.serve(async (req) => {
           const bannedUntil = new Date()
           bannedUntil.setDate(bannedUntil.getDate() + banDurationDays)
 
+          console.log(`Action: Banning user ID ${message.profile_id} until ${bannedUntil.toISOString()}`)
           const { error: banError } = await supabase
             .from('profiles')
             .update({
@@ -190,8 +204,12 @@ Deno.serve(async (req) => {
 
           if (banError) {
             console.error(`Error banning user ${message.profile_id}:`, banError)
+          } else {
+            console.log(`Successfully banned user ${message.profile_id}`)
           }
         }
+      } else {
+        console.log("No violation found by AI moderation. No actions taken.")
       }
 
       return new Response(JSON.stringify({ success: true, moderation: moderationResult }), {
