@@ -1,13 +1,8 @@
 class DuplicateDetector {
-  /// Нормализует строку: переводит в нижний регистр и удаляет все спецсимволы,
-  /// знаки препинания и пробелы, оставляя только буквы и цифры.
   static String normalize(String text) {
-    return text
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-zA-Zа-яА-ЯёЁ0-9]'), '');
+    return text.toLowerCase().replaceAll(RegExp(r'[^a-zA-Zа-яА-ЯёЁ0-9]'), '');
   }
 
-  /// Вычисляет расстояние Левенштейна между двумя строками.
   static int levenshtein(String s, String t) {
     if (s == t) return 0;
     if (s.isEmpty) return t.length;
@@ -39,18 +34,20 @@ class DuplicateDetector {
     return min;
   }
 
-  /// Проверяет, является ли новое сообщение дубликатом предыдущего.
-  /// Возвращает true, если схожесть нормализованных текстов >= threshold.
-  static bool isDuplicate(String newMsg, String oldMsg, {double threshold = 0.85}) {
+  static bool isDuplicate(
+    String newMsg,
+    String oldMsg, {
+    double threshold = 0.85,
+  }) {
     final normalizedNew = normalize(newMsg);
     final normalizedOld = normalize(oldMsg);
 
     if (normalizedNew.isEmpty && normalizedOld.isEmpty) {
-      return true; // Оба сообщения пустые (или состоят только из спецсимволов/пробелов)
+      return true;
     }
 
     if (normalizedNew.isEmpty || normalizedOld.isEmpty) {
-      return false; // Одно пустое, другое нет
+      return false;
     }
 
     final distance = levenshtein(normalizedNew, normalizedOld);

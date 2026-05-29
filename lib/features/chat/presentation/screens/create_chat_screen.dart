@@ -85,7 +85,6 @@ class CreateChatScreen extends HookConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -102,14 +101,12 @@ class CreateChatScreen extends HookConsumerWidget {
               ),
             ),
 
-            // Scrollable Content
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Type Selector
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: GlassBox(
@@ -147,7 +144,6 @@ class CreateChatScreen extends HookConsumerWidget {
                       ),
                     ),
 
-                    // Search/Name Input
                     Padding(
                       padding: const EdgeInsets.all(16),
                       child: GlassBox(

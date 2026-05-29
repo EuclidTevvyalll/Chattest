@@ -2,12 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 class TranscriptionService {
-  final String apiKey; // Deepgram API Key
+  final String apiKey;
   final Dio _dio = Dio();
 
   TranscriptionService(this.apiKey);
 
-  /// Транскрибация аудиофайла через Deepgram
   Future<String?> transcribe(String audioUrl) async {
     if (apiKey.isEmpty) {
       return "Ошибка: Не настроен API ключ Deepgram";

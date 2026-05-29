@@ -1,5 +1,4 @@
 class CensorshipService {
-  // Russian swearing regex patterns (matching a full word)
   static final List<RegExp> _russianSwearRegexes = [
     // хуй / хуя / хуе... with prefixes like нахуй, похуй, охуеть, схуяли
     RegExp(
@@ -12,10 +11,7 @@ class CensorshipService {
       caseSensitive: false,
     ),
     // бля... / блять / блядь / выблядок
-    RegExp(
-      r'^(?:вы)?[бб][лл][яя][ддттьь]\w*',
-      caseSensitive: false,
-    ),
+    RegExp(r'^(?:вы)?[бб][лл][яя][ддттьь]\w*', caseSensitive: false),
     // еб... / ёб...
     RegExp(r'^[её][бб]\w*', caseSensitive: false),
     // еб... / ёб... with prefixes (avoiding колебать, потреблять, стебель)
@@ -39,7 +35,6 @@ class CensorshipService {
     RegExp(r'^дроч\w*', caseSensitive: false),
   ];
 
-  // English swearing regex patterns (matching a full word)
   static final List<RegExp> _englishSwearRegexes = [
     RegExp(
       r'^(?:fuck|shit|bitch|cunt|bastard|dick|pussy|whore|cocksucker|motherfucker|dumbass|wanker|prick|slut|asshole)\w*',
@@ -48,14 +43,9 @@ class CensorshipService {
     RegExp(r'^ass$', caseSensitive: false),
   ];
 
-  /// Censors all profane words in the given text by replacing their intermediate
-  /// characters with asterisks (e.g. "fuck" -> "f**k", "сука" -> "с**а").
   static String censor(String text) {
     if (text.isEmpty) return text;
 
-    // Word token pattern matching sequences of Cyrillic/Latin letters and numbers.
-    // This allows us to inspect and replace words individually, avoiding the limitation
-    // of ASCII-only word boundaries (\b) in Dart.
     final wordRegex = RegExp(r'([a-zA-Zа-яА-ЯёЁ0-9_]+)');
 
     return text.replaceAllMapped(wordRegex, (match) {
