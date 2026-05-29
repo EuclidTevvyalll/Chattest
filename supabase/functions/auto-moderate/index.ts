@@ -98,19 +98,20 @@ Deno.serve(async (req) => {
       }
 
       const promptText = `
-        You are an AI Content Moderator for a secure chat messenger application.
-        Analyze the reported chat message below and decide if it violates safety standards (e.g., contains toxic behavior, harassment, extreme profanity/insults, spam, scam, or dangerous content).
+        Ты — ИИ-модератор безопасного мессенджера.
+        Проанализируй полученное сообщение и жалобу на него от другого пользователя.
+        Определи, нарушает ли сообщение правила сообщества (спам, мошенничество, оскорбления, травля, угрозы, неприемлемый контент, нецензурная брань).
         
-        Reported Message: "${reportedText}"
-        Reporter's Specified Reason: "${reporterReason}"
-        Reporter's Extra Details: "${reporterDetails}"
+        Текст сообщения: "${reportedText}"
+        Указанная причина жалобы: "${reporterReason}"
+        Дополнительные детали от отправителя жалобы: "${reporterDetails}"
 
-        Determine whether to take action.
-        - "none": No severe violation. (e.g., normal chat, false positive report).
-        - "delete": Mild/medium violation, delete the message but do not ban the user.
-        - "ban": High-severity violation (scam, extreme harassment, hate speech, illegal activities). Delete the message and ban the user.
+        Определи действие:
+        - "none": Нарушений нет (обычное сообщение, ложная жалоба).
+        - "delete": Сообщение нарушает правила (нецензурная лексика, мелкие оскорбления, спам-ссылки). Нужно удалить сообщение, но блокировать пользователя не требуется.
+        - "ban": Грубое нарушение (мошенничество/скам, агрессивная травля, разжигание ненависти, экстремизм, угрозы насилия). Нужно удалить сообщение и заблокировать пользователя.
 
-        CRITICAL: The "reason" field in your output JSON must be written in Russian (e.g., "Спам и мошенничество", "Оскорбления и агрессивное поведение"), as it will be directly displayed to the user on their ban screen.
+        ВАЖНО: Поле "reason" в JSON должно быть строго на русском языке. Это текст, который увидит заблокированный пользователь на своем экране (например, "Мошенничество и спам-рассылка").
       `
 
       // Build structured schema to guarantee JSON response format from Gemini
