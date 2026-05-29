@@ -84,6 +84,13 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
       }
+      if (message.profile_id === record.reporter_id) {
+        console.warn(`User ${record.reporter_id} attempted to report their own message. Operation skipped.`)
+        return new Response(JSON.stringify({ success: true, message: 'Вы не можете пожаловаться на самого себя' }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
 
       const reportedText = message.content
       const reporterReason = record.reason

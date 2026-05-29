@@ -289,7 +289,7 @@ class ChatBubble extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if (mediaType != 'sticker') ...[
+                  if (!isMine && mediaType != 'sticker') ...[
                     InkWell(
                       onTap: () {
                         Navigator.pop(context);
