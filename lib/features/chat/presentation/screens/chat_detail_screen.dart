@@ -347,6 +347,16 @@ class ChatDetailScreen extends HookConsumerWidget {
                 currentUserId,
                 replyToMessageId: replyId,
               )
+              .then((error) {
+                if (error != null && context.mounted) {
+                  showCustomDialog(
+                    context: context,
+                    title: 'Ошибка',
+                    message: error,
+                    isError: true,
+                  );
+                }
+              })
               .catchError((e) {
                 if (context.mounted) {
                   showCustomDialog(

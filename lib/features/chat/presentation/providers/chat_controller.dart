@@ -37,7 +37,7 @@ class ChatController extends Notifier<ChatControllerState> {
     return ChatControllerState();
   }
 
-  Future<void> sendMessage(
+  Future<String?> sendMessage(
     String roomId,
     String content,
     String currentUserId, {
@@ -55,7 +55,7 @@ class ChatController extends Notifier<ChatControllerState> {
         if (timeDiff.inSeconds < 5) {
           final isDup = DuplicateDetector.isDuplicate(content, _lastSentContent!);
           if (isDup) {
-            throw Exception('Пожалуйста, не отправляйте похожие сообщения слишком часто.');
+            return 'Пожалуйста, не отправляйте похожие сообщения слишком часто.';
           }
         }
       }
@@ -102,6 +102,7 @@ class ChatController extends Notifier<ChatControllerState> {
       Future.delayed(const Duration(seconds: 1)).then((_) {
         _removePending(roomId, temporaryMessage.id);
       });
+      return null;
     } catch (e) {
       _removePending(roomId, temporaryMessage.id);
       rethrow;
