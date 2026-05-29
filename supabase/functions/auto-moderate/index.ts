@@ -12,12 +12,36 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Verify Authorization webhook secret
+    // 1. Verify Authorization (either webhook secret or user JWT token)
     const authHeader = req.headers.get('Authorization')
     const webhookSecret = Deno.env.get('MODERATION_WEBHOOK_SECRET')
-    
-    if (webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
-      console.warn("Unauthorized webhook request attempt.")
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing Supabase URL or Service Role Key in environment variables.")
+    }
+
+    let isAuthorized = false
+
+    if (webhookSecret && authHeader === `Bearer ${webhookSecret}`) {
+      isAuthorized = true
+    } else if (authHeader) {
+      try {
+        const authClient = createClient(supabaseUrl, supabaseServiceKey, {
+          global: { headers: { Authorization: authHeader } }
+        })
+        const { data: { user }, error: authError } = await authClient.auth.getUser()
+        if (user && !authError) {
+          isAuthorized = true
+        }
+      } catch (err) {
+        console.error("User token validation failed:", err)
+      }
+    }
+
+    if (!isAuthorized) {
+      console.warn("Unauthorized request attempt.")
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -37,13 +61,6 @@ Deno.serve(async (req) => {
     console.log(`Processing new report: ID=${record.id}, TargetType=${record.target_type}, TargetID=${record.target_id}`)
 
     // 2. Initialize Supabase Client with service role key (to bypass RLS)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Missing Supabase URL or Service Role Key in environment variables.")
-    }
-
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // 3. Handle messages moderation
