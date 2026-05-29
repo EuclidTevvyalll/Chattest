@@ -196,12 +196,17 @@ Deno.serve(async (req) => {
           bannedUntil.setDate(bannedUntil.getDate() + banDurationDays)
 
           console.log(`Action: Banning user ID ${message.profile_id} until ${bannedUntil.toISOString()}`)
+          
+          let severityRu = 'низкий'
+          if (moderationResult.severity === 'medium') severityRu = 'средний'
+          if (moderationResult.severity === 'high') severityRu = 'высокий'
+
           const { error: banError } = await supabase
             .from('profiles')
             .update({
               is_banned: true,
               banned_until: bannedUntil.toISOString(),
-              banned_reason: `Automated AI Ban: ${moderationResult.reason} (Severity: ${moderationResult.severity})`
+              banned_reason: `Автоматическая блокировка ИИ: ${moderationResult.reason} (Уровень нарушения: ${severityRu})`
             })
             .eq('id', message.profile_id)
 
