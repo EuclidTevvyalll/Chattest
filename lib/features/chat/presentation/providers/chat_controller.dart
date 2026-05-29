@@ -77,7 +77,6 @@ class ChatController extends Notifier<ChatControllerState> {
       mediaType: mediaType,
       mediaName: mediaName,
     );
-    // Add to pending messages for this room
     final currentPending = state.pendingMessages[roomId] ?? [];
     state = state.copyWith(
       pendingMessages: {
@@ -98,7 +97,6 @@ class ChatController extends Notifier<ChatControllerState> {
             mediaType: mediaType,
             mediaName: mediaName,
           );
-      // Remove pending after a delay, but don't block the caller
       Future.delayed(const Duration(seconds: 1)).then((_) {
         _removePending(roomId, temporaryMessage.id);
       });
@@ -127,7 +125,6 @@ class ChatController extends Notifier<ChatControllerState> {
       mediaName: fileName,
       mediaType: mediaType,
     );
-    // Add to pending messages immediately
     final currentPending = state.pendingMessages[roomId] ?? [];
     state = state.copyWith(
       pendingMessages: {
@@ -135,16 +132,13 @@ class ChatController extends Notifier<ChatControllerState> {
         roomId: [...currentPending, temporaryMessage],
       },
     );
-    // Process upload in a managed way
     _enqueueUpload(() async {
       try {
         debugPrint('ChatController: Starting media upload for $fileName');
-        // 1. Upload the file
         final mediaUrl = await ref
             .read(chatRepositoryProvider)
             .uploadMedia(roomId, bytes, fileName, mediaType);
         debugPrint('ChatController: Media uploaded successfully: $mediaUrl');
-        // 2. Send the real message
         await ref
             .read(chatRepositoryProvider)
             .sendMessage(
@@ -155,7 +149,6 @@ class ChatController extends Notifier<ChatControllerState> {
               mediaName: fileName,
             );
         debugPrint('ChatController: Real message sent successfully');
-        // Remove pending after a short delay
         Future.delayed(const Duration(seconds: 1)).then((_) {
           _removePending(roomId, temporaryMessage.id);
         });
@@ -203,7 +196,6 @@ class ChatController extends Notifier<ChatControllerState> {
   }
 
   Future<void> deleteMessage(String roomId, String messageId) async {
-    // If it's a temporary message, just remove it from local state
     if (messageId.startsWith('temp_')) {
       _removePending(roomId, messageId);
       return;
@@ -225,19 +217,16 @@ class ChatController extends Notifier<ChatControllerState> {
     List<MessageModel> messages,
     String currentUserId,
     List<ProfileModel> profiles, {
-    Map<String, String>? replyContents, // Add reply contents map
+    Map<String, String>? replyContents,
   }) async {
-    // Sort messages chronologically to preserve order in the target room
     final sortedMessages = List<MessageModel>.from(messages)
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     for (final msg in sortedMessages) {
-      // Find original sender name
       final sender = profiles.where((p) => p.id == msg.profileId).firstOrNull;
       final senderName =
           sender?.nickname ??
           sender?.username ??
           (msg.profileId == currentUserId ? 'Вы' : 'Пользователь');
-      // Check if we have reply content for this message
       final replyContent = replyContents?[msg.id];
       final replySender =
           msg.forwardedInfo?['replied_sender'] ??
@@ -257,20 +246,17 @@ class ChatController extends Notifier<ChatControllerState> {
         mediaType: msg.mediaType,
         mediaName: msg.mediaName,
       );
-      // Increased delay to ensure database timestamps and triggers are sequential
       await Future.delayed(const Duration(milliseconds: 300));
     }
   }
 
   Future<void> deleteMessages(String roomId, List<String> messageIds) async {
-    // Filter out temporary messages and remove them locally
     final tempIds = messageIds.where((id) => id.startsWith('temp_')).toList();
     for (final id in tempIds) {
       _removePending(roomId, id);
     }
     final realIds = messageIds.where((id) => !id.startsWith('temp_')).toList();
     if (realIds.isEmpty) return;
-    // Filter out already deleting IDs
     final idsToProcess = realIds
         .where((id) => !state.deletingIds.contains(id))
         .toList();
@@ -359,7 +345,6 @@ class ChatController extends Notifier<ChatControllerState> {
           .read(chatRepositoryProvider)
           .updateParticipantRole(roomId, profileId, role);
       ref.invalidate(roomParticipantsProvider(roomId));
-      // Also invalidate rooms provider because participants with roles are stored in the room model too
       ref.invalidate(roomsProvider);
     } catch (e) {
       rethrow;
