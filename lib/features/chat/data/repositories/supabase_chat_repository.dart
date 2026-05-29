@@ -690,7 +690,6 @@ class SupabaseChatRepository implements ChatRepository {
 
     // Invoke Edge Function directly to output ИИ moderation logs to the debug console
     try {
-      debugPrint('SupabaseChatRepository: Invoking auto-moderate Edge Function...');
       final response = await _client.functions.invoke(
         'auto-moderate',
         body: {
@@ -704,10 +703,9 @@ class SupabaseChatRepository implements ChatRepository {
           }
         },
       );
-      debugPrint('SupabaseChatRepository: AI Moderation status code: ${response.status}');
-      debugPrint('SupabaseChatRepository: AI Moderation response data: ${response.data}');
+      debugPrint('AI Moderation: ${response.data}');
     } catch (e) {
-      debugPrint('SupabaseChatRepository: Error calling auto-moderate function directly: $e');
+      debugPrint('AI Moderation Error: $e');
     }
   }
 
