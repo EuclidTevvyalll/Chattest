@@ -109,6 +109,8 @@ Deno.serve(async (req) => {
         - "none": No severe violation. (e.g., normal chat, false positive report).
         - "delete": Mild/medium violation, delete the message but do not ban the user.
         - "ban": High-severity violation (scam, extreme harassment, hate speech, illegal activities). Delete the message and ban the user.
+
+        CRITICAL: The "reason" field in your output JSON must be written in Russian (e.g., "Спам и мошенничество", "Оскорбления и агрессивное поведение"), as it will be directly displayed to the user on their ban screen.
       `
 
       // Build structured schema to guarantee JSON response format from Gemini
